@@ -5,13 +5,9 @@ import {
   Phone, MapPin, Clock, Star, Utensils, Wine,
   ShoppingCart, Plus, Minus, X, Trash2
 } from 'lucide-react';
+import EnhancedMenuSection from './components/EnhancedMenuSection';
 
 /* --- ДАННЫЕ --- */
-const hits = [
-  { id: 'ribeye', name: 'Стейк Рибай', desc: 'мраморная говядина, соус демигласс', price: 8900, img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=900&h=700&fit=crop' },
-  { id: 'seafood-pasta', name: 'Паста с морепродуктами', desc: 'креветки, мидии, томаты конкассе', price: 5200, img: 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=900&h=700&fit=crop' },
-  { id: 'tiramisu', name: 'Тирамису', desc: 'маскарпоне, эспрессо, какао', price: 2400, img: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=900&h=700&fit=crop' },
-];
 
 const gallery = [
   'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=900&h=700&fit=crop',
@@ -31,10 +27,10 @@ function useCart() {
       const idx = prev.findIndex(p => p.id === product.id);
       if (idx >= 0) {
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], qty: copy[idx].qty + 1 };
+        copy[idx] = { ...copy[idx], qty: product.qty || copy[idx].qty + 1 };
         return copy;
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, qty: product.qty || 1 }];
     });
   }, []);
 
@@ -244,85 +240,9 @@ export default function Page() {
         </div>
       </section>
 
-      {/* HITS + КОНТРОЛЫ КОРЗИНЫ */}
-      <section id="menu" className="py-16 border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">Хит-меню</h2>
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {hits.map(i => {
-              const qty = qtyInCart(i.id);
-              return (
-                <div key={i.id} className="group overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                  <img src={i.img} alt={i.name} className="h-60 w-full object-cover transition group-hover:scale-105" />
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <Star className="w-4 h-4" /><span className="text-xs uppercase tracking-widest">Рекомендация шефа</span>
-                    </div>
-                    <h3 className="mt-2 text-xl font-semibold">{i.name}</h3>
-                    <p className="mt-1 text-neutral-300">{i.desc}</p>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-lg font-bold">{i.price.toLocaleString('ru-RU')} ₸</span>
+      {/* ПОЛНОЕ МЕНЮ */}
+      <EnhancedMenuSection onAddToCart={add} />
 
-                      {/* Контрол добавления */}
-                      {qty === 0 ? (
-                        <button
-                          onClick={() => add(i)}
-                          className="px-4 py-2 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
-                        >
-                          Добавить
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => dec(i.id)}
-                            className="p-2 rounded-full border border-white/20 hover:border-white/60"
-                            aria-label="Убавить"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="w-8 text-center">{qty}</span>
-                          <button
-                            onClick={() => add(i)}
-                            className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300"
-                            aria-label="Добавить"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Быстрая ссылка в корзину */}
-                    {qty > 0 && (
-                      <button
-                        onClick={() => setCartOpen(true)}
-                        className="mt-3 text-amber-400 text-sm hover:underline"
-                      >
-                        Перейти в корзину
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <button
-              onClick={() => setCartOpen(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 hover:border-white/60 transition"
-            >
-              <ShoppingCart className="w-4 h-4" /> Открыть корзину
-            </button>
-            <button
-              onClick={() => scrollTo('#booking')}
-              className="inline-block px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
-            >
-              Забронировать стол
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* GALLERY */}
       <section id="gallery" className="py-16 border-t border-white/10">
@@ -386,16 +306,6 @@ export default function Page() {
               </button>
             </form>
 
-            {items.length > 0 && (
-              <div className="mt-6 text-center">
-                <button
-                  onClick={() => setCartOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 hover:border-white/60 transition"
-                >
-                  <ShoppingCart className="w-4 h-4" /> Перейти к корзине ({count})
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </section>
@@ -466,7 +376,7 @@ export default function Page() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-semibold">{i.name}</div>
-                      <div className="text-sm text-neutral-400">{i.price.toLocaleString('ru-RU')} ₸</div>
+                      <div className="text-sm text-neutral-400">{i.price.toLocaleString('ru-RU')} ₽</div>
                     </div>
                     <button onClick={() => remove(i.id)} className="p-1 rounded hover:bg-white/5" aria-label="Удалить позицию">
                       <Trash2 className="w-4 h-4 text-neutral-400" />
@@ -490,7 +400,7 @@ export default function Page() {
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="font-semibold">{(i.qty * i.price).toLocaleString('ru-RU')} ₸</div>
+                    <div className="font-semibold">{(i.qty * i.price).toLocaleString('ru-RU')} ₽</div>
                   </div>
                 </div>
               </div>
@@ -501,20 +411,13 @@ export default function Page() {
         <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 p-4 space-y-3 bg-neutral-950">
           <div className="flex items-center justify-between">
             <span className="text-neutral-400">Итого</span>
-            <span className="text-xl font-bold">{total.toLocaleString('ru-RU')} ₸</span>
+            <span className="text-xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
           </div>
           <div className="flex items-center gap-3">
             <button
               disabled={items.length === 0}
-              onClick={() => { setCartOpen(false); scrollTo('#booking'); }}
-              className="flex-1 px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50"
-            >
-              Бронь
-            </button>
-            <button
-              disabled={items.length === 0}
               onClick={() => setDeliveryOpen(true)}
-              className="flex-1 px-6 py-3 rounded-full border border-white/20 hover:border-white/60 transition disabled:opacity-50"
+              className="w-full px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50"
             >
               Доставка
             </button>
@@ -573,7 +476,7 @@ export default function Page() {
             Отправить заявку в Telegram
           </button>
           <div className="text-sm text-neutral-400">
-            В заказе позиций: <b>{items.reduce((s,i)=>s+i.qty,0)}</b>, на сумму <b>{total.toLocaleString('ru-RU')} ₸</b>
+            В заказе позиций: <b>{items.reduce((s,i)=>s+i.qty,0)}</b>, на сумму <b>{total.toLocaleString('ru-RU')} ₽</b>
           </div>
         </form>
       </div>
