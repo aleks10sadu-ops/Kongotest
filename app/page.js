@@ -95,7 +95,10 @@ export default function Page() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      setShowMobileNav(scrollY > 100);
+      const shouldShow = scrollY > 100;
+      setShowMobileNav(shouldShow);
+      // Отладочная информация
+      console.log('Scroll Y:', scrollY, 'Should show nav:', shouldShow);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -192,24 +195,30 @@ export default function Page() {
       </header>
 
       {/* МОБИЛЬНАЯ НАВИГАЦИЯ */}
-      <div className={`fixed top-0 left-0 right-0 z-30 bg-neutral-950/95 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
+      <div className={`fixed top-0 left-0 right-0 z-50 bg-neutral-950/95 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
         showMobileNav ? 'translate-y-0' : '-translate-y-full'
       }`}>
+        {/* Отладочная информация - только в development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-red-500 text-white text-xs p-1 text-center">
+            Mobile Nav: {showMobileNav ? 'SHOWING' : 'HIDDEN'}
+          </div>
+        )}
         <div className="container mx-auto px-4 py-3">
-          <nav className="flex items-center justify-center gap-4 text-sm">
-            <button onClick={() => scrollTo('#menu')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+          <nav className="flex items-center justify-center gap-2 text-sm overflow-x-auto">
+            <button onClick={() => scrollTo('#menu')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition whitespace-nowrap">
               Меню
             </button>
-            <button onClick={() => scrollTo('#about')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+            <button onClick={() => scrollTo('#about')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition whitespace-nowrap">
               О ресторане
             </button>
-            <button onClick={() => scrollTo('#gallery')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+            <button onClick={() => scrollTo('#gallery')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition whitespace-nowrap">
               Атмосфера
             </button>
-            <button onClick={() => scrollTo('#reviews')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+            <button onClick={() => scrollTo('#reviews')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition whitespace-nowrap">
               Отзывы
             </button>
-            <button onClick={() => scrollTo('#booking')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+            <button onClick={() => scrollTo('#booking')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition whitespace-nowrap">
               Бронь
             </button>
           </nav>
@@ -237,13 +246,13 @@ export default function Page() {
               <div className="mt-8 flex flex-wrap gap-4">
                 <button
                   onClick={() => scrollTo('#booking')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
+                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition text-center w-full sm:w-[220px] h-[48px]"
                 >
                   Забронировать стол
                 </button>
                 <button
                   onClick={() => scrollTo('#menu')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
+                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition text-center w-full sm:w-[220px] h-[48px]"
                 >
                   Смотреть меню
                 </button>
