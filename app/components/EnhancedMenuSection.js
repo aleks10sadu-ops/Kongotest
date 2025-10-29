@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, X, ChevronDown, Grid, List } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, Grid, List, Eye } from 'lucide-react';
 import { menuData, searchMenuItems } from '../data/menu';
 import { menuTypes, getActiveMenuType, setActiveMenuType } from '../data/menuTypes';
+import { getFoodImage } from '../data/foodImages';
+import FoodDetailModal from './FoodDetailModal';
 
 export default function EnhancedMenuSection({ onAddToCart }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,6 +14,8 @@ export default function EnhancedMenuSection({ onAddToCart }) {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Фильтрация меню
   const filteredMenu = useMemo(() => {
@@ -44,6 +48,16 @@ export default function EnhancedMenuSection({ onAddToCart }) {
     setSelectedMenuType(typeId);
     setActiveMenuType(typeId);
     // Здесь можно добавить логику загрузки данных для разных типов меню
+  };
+
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedItem(null);
   };
 
   const selectedMenuTypeData = menuTypes.find(type => type.id === selectedMenuType);
@@ -232,6 +246,7 @@ export default function EnhancedMenuSection({ onAddToCart }) {
                       key={item.id}
                       item={item}
                       onAddToCart={onAddToCart}
+                      onItemClick={handleItemClick}
                       viewMode={viewMode}
                     />
                   ))}
@@ -241,12 +256,22 @@ export default function EnhancedMenuSection({ onAddToCart }) {
           )}
         </div>
       </div>
+
+      {/* Food Detail Modal */}
+      {selectedItem && (
+        <FoodDetailModal
+          item={selectedItem}
+          isOpen={isDetailModalOpen}
+          onClose={handleCloseModal}
+          onAddToCart={onAddToCart}
+        />
+      )}
     </section>
   );
 }
 
 // Компонент отдельного блюда
-function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
+function MenuItem({ item, onAddToCart, viewMode = 'grid', onItemClick }) {
   const [quantity, setQuantity] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState({});
 
@@ -337,6 +362,15 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
   if (viewMode === 'list') {
     return (
       <div className="group flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300">
+        {/* Image */}
+        <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+          <img
+            src={getFoodImage(item.id)}
+            alt={item.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        
         <div className="flex-1">
           <div className="flex items-start justify-between gap-3 mb-2">
             <h4 className="text-lg font-semibold leading-tight flex-1">{item.name}</h4>
@@ -371,6 +405,13 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => onItemClick && onItemClick(item)}
+            className="p-2 rounded-full border border-white/20 hover:border-white/60 transition"
+            aria-label="Подробнее"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
           {quantity === 0 ? (
             <button
               onClick={handleAdd}
@@ -408,8 +449,24 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
 
   // Grid view (по умолчанию)
   return (
-    <div className="group overflow-hidden rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 hover:shadow-lg">
-      <div className="p-6">
+    <div className="group overflow-hidden rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 hover:shadow-lg flex flex-col h-full">
+      {/* Image */}
+      <div className="relative aspect-square overflow-hidden">
+        <img
+          src={getFoodImage(item.id)}
+          alt={item.name}
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+        />
+        <button
+          onClick={() => onItemClick && onItemClick(item)}
+          className="absolute top-3 right-3 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition opacity-0 group-hover:opacity-100"
+          aria-label="Подробнее"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      </div>
+      
+      <div className="p-6 flex flex-col flex-grow">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h4 className="text-lg font-semibold leading-tight flex-1">{item.name}</h4>
           <div className="text-right flex-shrink-0">
@@ -422,34 +479,37 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
           </div>
         </div>
 
-        {item.description && (
-          <p className="text-neutral-300 text-sm mb-4 leading-relaxed line-clamp-3">
-            {item.description}
-          </p>
-        )}
+        {/* Description with fixed height */}
+        <div className="flex-grow mb-4">
+          {item.description && (
+            <p className="text-neutral-300 text-sm leading-relaxed line-clamp-3 h-16 overflow-hidden">
+              {item.description}
+            </p>
+          )}
+        </div>
 
         {/* Варианты для блюд с вариантами (например, Цезарь) */}
         {item.variants && Array.isArray(item.variants) && item.variants.length > 0 && (
           <div className="mb-4">
             <div className="text-sm text-neutral-400 mb-3">Выберите вариант:</div>
-            <div className="space-y-3">
+            <div className="space-y-2 max-h-32 overflow-y-auto">
               {item.variants.map((variant, index) => {
                 const variantId = `${item.id}_${variant.name}`;
                 const variantQuantity = selectedVariants[variantId] || 0;
                 return (
                   <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">{variant.name || 'Вариант'}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">{variant.name || 'Вариант'}</div>
                       <div className="text-xs text-neutral-400">{variant.weight || item.weight}</div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-sm text-amber-400 font-semibold">
                         {variant.price ? variant.price.toLocaleString('ru-RU') : '0'} ₽
                       </span>
                       {variantQuantity === 0 ? (
                         <button
                           onClick={() => handleAdd(variant)}
-                          className="px-3 py-1 text-xs rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
+                          className="px-3 py-1 text-xs rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition whitespace-nowrap"
                         >
                           Добавить
                         </button>
@@ -486,7 +546,8 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
 
         {/* Кнопки управления количеством - только для блюд без вариантов */}
         {(!item.variants || !Array.isArray(item.variants) || item.variants.length === 0) && (
-          <div className="flex items-center justify-between">
+          <div className="mt-auto">
+            <div className="flex items-center justify-between">
             {quantity === 0 ? (
               <button
                 onClick={() => handleAdd()}
@@ -517,6 +578,7 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid' }) {
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
       </div>

@@ -63,6 +63,7 @@ export default function Page() {
   const [guests, setGuests] = useState(2);
   const [cartOpen, setCartOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const { items, add, dec, remove, clear, count, total } = useCart();
 
   // Доставка: локальный стейт формы
@@ -88,6 +89,17 @@ export default function Page() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Обработчик скролла для мобильной навигации
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setShowMobileNav(scrollY > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Прокрутка к секциям
@@ -179,6 +191,31 @@ export default function Page() {
         </div>
       </header>
 
+      {/* МОБИЛЬНАЯ НАВИГАЦИЯ */}
+      <div className={`fixed top-0 left-0 right-0 z-30 bg-neutral-950/95 backdrop-blur-md border-b border-white/10 transition-transform duration-300 ${
+        showMobileNav ? 'translate-y-0' : '-translate-y-full'
+      }`}>
+        <div className="container mx-auto px-4 py-3">
+          <nav className="flex items-center justify-center gap-4 text-sm">
+            <button onClick={() => scrollTo('#menu')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+              Меню
+            </button>
+            <button onClick={() => scrollTo('#about')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+              О ресторане
+            </button>
+            <button onClick={() => scrollTo('#gallery')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+              Атмосфера
+            </button>
+            <button onClick={() => scrollTo('#reviews')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+              Отзывы
+            </button>
+            <button onClick={() => scrollTo('#booking')} className="px-3 py-2 rounded-lg hover:bg-white/10 transition">
+              Бронь
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* HERO */}
       <a id="top" />
       <section className="relative">
@@ -206,7 +243,7 @@ export default function Page() {
                 </button>
                 <button
                   onClick={() => scrollTo('#menu')}
-                  className="px-8 py-3 rounded-full border border-white/20 hover:border-white/60 transition"
+                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition"
                 >
                   Смотреть меню
                 </button>
@@ -217,7 +254,7 @@ export default function Page() {
       </section>
 
       {/* ADVANTAGES */}
-      <section id="about" className="py-16 border-t border-white/10">
+      <section id="about" className="py-16 border-t border-white/10 pt-20 md:pt-16">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">Почему КОНГО</h2>
           <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -241,7 +278,9 @@ export default function Page() {
       </section>
 
       {/* ПОЛНОЕ МЕНЮ */}
-      <EnhancedMenuSection onAddToCart={add} />
+      <div className="pt-20 md:pt-0">
+        <EnhancedMenuSection onAddToCart={add} />
+      </div>
 
 
       {/* GALLERY */}

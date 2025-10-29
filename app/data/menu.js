@@ -11,7 +11,8 @@ export const menuData = {
           "name": "Овощной букет",
           "description": "Помидор, огурец, редька, сладкий перец, ассорти из зелени, дольки моркови и стебля сельдерея, соус Блю-чиз",
           "price": 790,
-          "weight": "450 г"
+          "weight": "450 г",
+          "image": "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&h=600&fit=crop&crop=center"
         },
         {
           "id": "hot_pepper",
