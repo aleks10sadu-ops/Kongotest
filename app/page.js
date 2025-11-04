@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Phone, MapPin, Clock, Star, Utensils, Wine,
   ShoppingCart, Plus, Minus, X, Trash2, Menu,
-  Home, Users
+  Home, Users, AlertCircle
 } from 'lucide-react';
 import EnhancedMenuSection from './components/EnhancedMenuSection';
 
@@ -153,9 +153,43 @@ export default function Page() {
     e.currentTarget.reset();
   }
 
+  // Проверка условий заказа бизнес-ланчей
+  const validateBusinessLunchOrder = useMemo(() => {
+    const businessLunchItems = items.filter(item => item.isBusinessLunch);
+    const businessLunchCount = businessLunchItems.reduce((sum, item) => sum + item.qty, 0);
+    const businessLunchTotal = businessLunchItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    
+    // Если есть бизнес-ланчи, проверяем условия
+    if (businessLunchItems.length > 0) {
+      // Условие: либо 2+ бизнес-ланча, либо сумма от 1000₽
+      const isValid = businessLunchCount >= 2 || total >= 1000;
+      return {
+        isValid,
+        businessLunchCount,
+        businessLunchTotal,
+        message: isValid 
+          ? null 
+          : businessLunchCount < 2 && total < 1000
+            ? 'Для заказа бизнес-ланчей необходимо либо 2+ бизнес-ланча, либо сумма заказа от 1000₽'
+            : businessLunchCount < 2
+              ? 'Для заказа бизнес-ланчей необходимо минимум 2 бизнес-ланча'
+              : 'Для заказа бизнес-ланчей сумма заказа должна быть от 1000₽'
+      };
+    }
+    
+    return { isValid: true, businessLunchCount: 0, businessLunchTotal: 0, message: null };
+  }, [items, total]);
+
   // Сабмит ДОСТАВКИ (из модалки)
   async function submitDelivery(e) {
     e.preventDefault();
+    
+    // Проверка условий для бизнес-ланчей
+    if (!validateBusinessLunchOrder.isValid) {
+      alert(validateBusinessLunchOrder.message);
+      return;
+    }
+    
     const payload = {
       type: 'delivery',
       ...dForm,
@@ -590,11 +624,27 @@ export default function Page() {
             <span className="text-neutral-400">Итого</span>
             <span className="text-xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
           </div>
+          
+          {/* Предупреждение о бизнес-ланчах */}
+          {validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid && (
+            <div className="p-3 bg-amber-400/10 border border-amber-400/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-amber-300 text-sm font-semibold mb-1">Условия заказа бизнес-ланчей</p>
+                <p className="text-amber-200/80 text-xs">{validateBusinessLunchOrder.message}</p>
+                <p className="text-amber-200/60 text-xs mt-1">
+                  Бизнес-ланчей в заказе: {validateBusinessLunchOrder.businessLunchCount} | 
+                  Сумма: {total.toLocaleString('ru-RU')} ₽
+                </p>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center gap-3">
             <button
-              disabled={items.length === 0}
+              disabled={items.length === 0 || (validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid)}
               onClick={() => setDeliveryOpen(true)}
-              className="w-full px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50"
+              className="w-full px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Доставка
             </button>
@@ -645,16 +695,32 @@ export default function Page() {
             value={dForm.comment}
             onChange={e => setDForm(o => ({ ...o, comment: e.target.value }))}
           />
+          {/* Предупреждение о бизнес-ланчах */}
+          {validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid && (
+            <div className="p-3 bg-amber-400/10 border border-amber-400/20 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-amber-300 text-sm font-semibold mb-1">Условия заказа бизнес-ланчей</p>
+                <p className="text-amber-200/80 text-xs">{validateBusinessLunchOrder.message}</p>
+              </div>
+            </div>
+          )}
+          
           <button
             type="submit"
-            disabled={items.length === 0}
-            className="mt-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50"
+            disabled={items.length === 0 || (validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid)}
+            className="mt-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Отправить заявку в Telegram
           </button>
           <div className="text-sm text-neutral-400">
             В заказе позиций: <b>{items.reduce((s,i)=>s+i.qty,0)}</b>, на сумму <b>{total.toLocaleString('ru-RU')} ₽</b>
           </div>
+          {validateBusinessLunchOrder.businessLunchCount > 0 && (
+            <div className="text-xs text-amber-400">
+              Бизнес-ланчей в заказе: {validateBusinessLunchOrder.businessLunchCount}
+            </div>
+          )}
         </form>
       </div>
     </div>

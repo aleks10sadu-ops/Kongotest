@@ -6,6 +6,11 @@ import { menuData, searchMenuItems } from '../data/menu';
 import { menuTypes, getActiveMenuType, setActiveMenuType } from '../data/menuTypes';
 import { getFoodImage } from '../data/foodImages';
 import FoodDetailModal from './FoodDetailModal';
+import { promotionsData } from '../data/promotionsData';
+import { kidsMenuData } from '../data/kidsMenuData';
+import { barMenuData } from '../data/barMenuData';
+import { wineMenuData } from '../data/wineMenuData';
+import BusinessLunchBuilder from './BusinessLunchBuilder';
 
 export default function EnhancedMenuSection({ onAddToCart }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,18 +22,50 @@ export default function EnhancedMenuSection({ onAddToCart }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  // Функция для получения данных меню по типу
+  const getMenuDataByType = (menuType) => {
+    switch (menuType) {
+      case 'main':
+        return menuData;
+      case 'promotions':
+        return promotionsData;
+      case 'kids':
+        return kidsMenuData;
+      case 'bar':
+        return barMenuData;
+      case 'wine':
+        return wineMenuData;
+      default:
+        return menuData;
+    }
+  };
+
+  // Функция для поиска по меню (универсальная)
+  const searchMenuItemsUniversal = (query, categories) => {
+    if (!query.trim()) return categories;
+    const lowerQuery = query.toLowerCase();
+    return categories.map(category => ({
+      ...category,
+      items: category.items.filter(item =>
+        item.name.toLowerCase().includes(lowerQuery) ||
+        (item.description && item.description.toLowerCase().includes(lowerQuery)) ||
+        (item.ingredients && item.ingredients.some(ing => ing.toLowerCase().includes(lowerQuery)))
+      )
+    })).filter(category => category.items.length > 0);
+  };
+
   // Фильтрация меню
   const filteredMenu = useMemo(() => {
-    // Если выбран не основной тип меню, показываем пустое состояние
-    if (selectedMenuType !== 'main') {
-      return [];
-    }
-    
-    let categories = menuData.categories;
+    const currentMenuData = getMenuDataByType(selectedMenuType);
+    let categories = currentMenuData.categories || [];
     
     // Поиск по тексту
     if (searchQuery.trim()) {
-      categories = searchMenuItems(searchQuery, categories);
+      if (selectedMenuType === 'main') {
+        categories = searchMenuItems(searchQuery, categories);
+      } else {
+        categories = searchMenuItemsUniversal(searchQuery, categories);
+      }
     }
     
     // Фильтр по категории
@@ -47,8 +84,14 @@ export default function EnhancedMenuSection({ onAddToCart }) {
   const handleMenuTypeChange = (typeId) => {
     setSelectedMenuType(typeId);
     setActiveMenuType(typeId);
-    // Здесь можно добавить логику загрузки данных для разных типов меню
+    setSelectedCategory('all');
+    setSearchQuery('');
   };
+
+  // Получаем текущие данные меню для отображения категорий в фильтре
+  const currentMenuDataForFilter = useMemo(() => {
+    return getMenuDataByType(selectedMenuType);
+  }, [selectedMenuType]);
 
   const handleItemClick = (item) => {
     setSelectedItem(item);
@@ -88,13 +131,17 @@ export default function EnhancedMenuSection({ onAddToCart }) {
           </div>
           
           {selectedMenuTypeData && (
-            <p className="text-center text-neutral-400 text-sm mt-3">
-              {selectedMenuTypeData.description}
-            </p>
+            <div className="text-center text-neutral-400 text-sm mt-3">
+              <p>{selectedMenuTypeData.description}</p>
+              {selectedMenuType === 'promotions' && promotionsData.warning && (
+                <p className="text-amber-400 mt-2 font-semibold">⚠️ {promotionsData.warning}</p>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Поиск и фильтры */}
+        {/* Поиск и фильтры (скрыты для бизнес-ланча) */}
+        {selectedMenuType !== 'business' && (
         <div className="max-w-6xl mx-auto mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Поиск */}
@@ -125,7 +172,7 @@ export default function EnhancedMenuSection({ onAddToCart }) {
               >
                 <Filter className="w-4 h-4" />
                 <span className="flex-1 text-left">
-                  {selectedCategory === 'all' ? 'Все категории' : menuData.categories.find(c => c.id === selectedCategory)?.name}
+                  {selectedCategory === 'all' ? 'Все категории' : currentMenuDataForFilter.categories?.find(c => c.id === selectedCategory)?.name}
                 </span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
               </button>
@@ -143,7 +190,7 @@ export default function EnhancedMenuSection({ onAddToCart }) {
                   >
                     Все категории
                   </button>
-                  {menuData.categories.map((category) => (
+                  {currentMenuDataForFilter.categories?.map((category) => (
                     <button
                       key={category.id}
                       onClick={() => {
@@ -197,64 +244,69 @@ export default function EnhancedMenuSection({ onAddToCart }) {
             </div>
           )}
         </div>
+        )}
 
         {/* Результаты поиска */}
-        {searchQuery && (
+        {selectedMenuType !== 'business' && searchQuery && (
           <div className="text-center mb-6">
             <p className="text-neutral-300">
               Найдено {filteredMenu.reduce((total, cat) => total + cat.items.length, 0)} блюд
-              {selectedCategory !== 'all' && ` в категории "${menuData.categories.find(c => c.id === selectedCategory)?.name}"`}
+              {selectedCategory !== 'all' && ` в категории "${currentMenuDataForFilter.categories?.find(c => c.id === selectedCategory)?.name}"`}
             </p>
           </div>
         )}
 
-        {/* Меню по категориям */}
-        <div className="space-y-16">
-          {filteredMenu.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🍽️</div>
-              <p className="text-neutral-400 text-lg mb-2">Блюда не найдены</p>
-              <p className="text-neutral-500 text-sm">Попробуйте изменить поисковый запрос или выберите другую категорию</p>
-            </div>
-          ) : (
-            filteredMenu.map((category) => (
-              <div key={category.id} className="scroll-mt-24">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl md:text-3xl font-bold">
-                    {category.name}
-                  </h3>
-                  <span className="text-sm text-neutral-400 bg-white/5 px-3 py-1 rounded-full">
-                    {category.items.length} блюд
-                  </span>
-                </div>
-                
-                {category.note && (
-                  <div className="mb-6 p-4 bg-amber-400/10 border border-amber-400/20 rounded-lg">
-                    <p className="text-amber-300 text-sm">
-                      ℹ️ {category.note}
-                    </p>
-                  </div>
-                )}
-
-                <div className={`grid gap-6 ${
-                  viewMode === 'grid' 
-                    ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                    : 'grid-cols-1'
-                }`}>
-                  {category.items.map((item) => (
-                    <MenuItem
-                      key={item.id}
-                      item={item}
-                      onAddToCart={onAddToCart}
-                      onItemClick={handleItemClick}
-                      viewMode={viewMode}
-                    />
-                  ))}
-                </div>
+        {/* Меню по категориям или конструктор бизнес-ланча */}
+        {selectedMenuType === 'business' ? (
+          <BusinessLunchBuilder onAddToCart={onAddToCart} />
+        ) : (
+          <div className="space-y-16">
+            {filteredMenu.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🍽️</div>
+                <p className="text-neutral-400 text-lg mb-2">Блюда не найдены</p>
+                <p className="text-neutral-500 text-sm">Попробуйте изменить поисковый запрос или выберите другую категорию</p>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              filteredMenu.map((category) => (
+                <div key={category.id} className="scroll-mt-24">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-2xl md:text-3xl font-bold">
+                      {category.name}
+                    </h3>
+                    <span className="text-sm text-neutral-400 bg-white/5 px-3 py-1 rounded-full">
+                      {category.items.length} блюд
+                    </span>
+                  </div>
+                  
+                  {category.note && (
+                    <div className="mb-6 p-4 bg-amber-400/10 border border-amber-400/20 rounded-lg">
+                      <p className="text-amber-300 text-sm">
+                        ℹ️ {category.note}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className={`grid gap-6 ${
+                    viewMode === 'grid' 
+                      ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                      : 'grid-cols-1'
+                  }`}>
+                    {category.items.map((item) => (
+                      <MenuItem
+                        key={item.id}
+                        item={item}
+                        onAddToCart={onAddToCart}
+                        onItemClick={handleItemClick}
+                        viewMode={viewMode}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Food Detail Modal */}
