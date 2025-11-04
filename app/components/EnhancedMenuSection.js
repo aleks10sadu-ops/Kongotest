@@ -430,7 +430,26 @@ function MenuItem({ item, onAddToCart, viewMode = 'grid', onItemClick }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              <span className="w-8 text-center font-semibold">{quantity}</span>
+              <input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => {
+                  const newQty = parseInt(e.target.value) || 1;
+                  if (newQty > 0) {
+                    setQuantity(newQty);
+                    onAddToCart({
+                      id: item.id,
+                      name: item.name,
+                      price: item.price || 0,
+                      weight: item.weight,
+                      description: item.description,
+                      qty: newQty
+                    });
+                  }
+                }}
+                className="w-12 text-center bg-black/40 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-amber-400 text-sm font-semibold"
+              />
               <button
                 onClick={handleAdd}
                 className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 transition"

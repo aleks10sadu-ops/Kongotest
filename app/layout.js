@@ -1,6 +1,6 @@
 // app/layout.js
 export const metadata = {
-  title: 'Kucher&Conga',
+  title: 'Кучер и Конга',
   description: 'Изысканная кухня: традиции, утончённый вкус и безупречная атмосфера.',
 };
 
