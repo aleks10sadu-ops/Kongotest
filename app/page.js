@@ -4,19 +4,28 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Phone, MapPin, Clock, Star, Utensils, Wine,
   ShoppingCart, Plus, Minus, X, Trash2, Menu,
-  Home, Users, AlertCircle
+  Home, Users, AlertCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import EnhancedMenuSection from './components/EnhancedMenuSection';
 
 /* --- ДАННЫЕ --- */
 
 const gallery = [
-  'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=900&h=700&fit=crop',
-  'https://images.unsplash.com/photo-1541542684-4a9c56a1f3d3?w=900&h=700&fit=crop',
-  'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=900&h=700&fit=crop',
-  'https://images.unsplash.com/photo-1421622548261-c45bfe178854?w=900&h=700&fit=crop',
-  'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&h=700&fit=crop',
-  'https://images.unsplash.com/photo-1498654200943-1088dd4438ae?w=900&h=700&fit=crop',
+  '/atmosphere_1.webp',
+  '/atmosphere_2.webp',
+  '/atmosphere_3.webp',
+  '/atmosphere_4.webp',
+  '/atmosphere_5.webp',
+  '/atmosphere_6.webp',
+];
+
+const events = [
+  {
+    id: 'new-year',
+    title: 'Новогодняя ночь',
+    image: '/kongo_ng.png',
+    link: '/events/new-year'
+  }
 ];
 
 /* --- УТИЛИТЫ КОРЗИНЫ --- */
@@ -77,6 +86,8 @@ export default function Page() {
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
+  const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const { items, add, dec, remove, clear, count, total } = useCart();
 
   // Доставка: локальный стейт формы
@@ -128,7 +139,7 @@ export default function Page() {
   }, [menuOpen]);
 
 
-  // Закрытие по ESC
+  // Закрытие по ESC и навигация по галерее
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
@@ -136,10 +147,34 @@ export default function Page() {
         setCartOpen(false);
         setMenuOpen(false);
         setSelectedGalleryImage(null);
+        setCurrentGalleryIndex(0);
+      }
+      // Навигация по галерее стрелками
+      if (selectedGalleryImage) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const newIndex = currentGalleryIndex > 0 ? currentGalleryIndex - 1 : gallery.length - 1;
+          setCurrentGalleryIndex(newIndex);
+          setSelectedGalleryImage(gallery[newIndex]);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          const newIndex = currentGalleryIndex < gallery.length - 1 ? currentGalleryIndex + 1 : 0;
+          setCurrentGalleryIndex(newIndex);
+          setSelectedGalleryImage(gallery[newIndex]);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, [selectedGalleryImage, currentGalleryIndex]);
+
+  // Автопрокрутка карусели мероприятий
+  useEffect(() => {
+    if (events.length === 0) return;
+    const interval = setInterval(() => {
+      setCurrentEventIndex((prev) => (prev + 1) % events.length);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
 
@@ -334,36 +369,80 @@ export default function Page() {
         />
         <div className="absolute inset-0 z-20 flex items-center">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl">
-              <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight mb-4 sm:mb-6">
-                <span className="text-white">Кучер</span>
-                <span className="text-white mx-2 sm:mx-3">&</span>
-                <span className="text-white">Conga</span>
-            </h1>
-              <div className="space-y-3 sm:space-y-4 text-base sm:text-lg md:text-xl text-neutral-200 leading-relaxed">
-              <p>
-                Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
-              </p>
-              <p className="text-neutral-300">
-                В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
-              </p>
-            </div>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <button
-                onClick={() => scrollTo('#booking')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-[220px] h-[48px] shadow-lg hover:shadow-xl"
-              >
-                Забронировать стол
-                </button>
-                <button
-                  onClick={() => scrollTo('#menu')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-[220px] h-[48px] shadow-lg hover:shadow-xl"
-                >
-                  Смотреть меню
-                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full max-w-7xl mx-auto translate-y-[8%]">
+              {/* Первый контейнер - Информация о ресторане */}
+              <div className="w-full min-h-[320px] lg:min-h-[360px] rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-7 sm:p-9 md:p-11 shadow-2xl flex flex-col justify-between justify-self-start">
+                <div>
+                  <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold leading-tight mb-4 sm:mb-5">
+                    <span className="text-white">Кучер</span>
+                    <span className="text-white mx-2 sm:mx-3">&</span>
+                    <span className="text-white">Conga</span>
+                  </h1>
+                  <div className="space-y-3 sm:space-y-4 text-base sm:text-lg md:text-xl text-neutral-200 leading-relaxed">
+                    <p>
+                      Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
+                    </p>
+                    <p className="text-neutral-300">
+                      В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-7 flex flex-wrap gap-4">
+                  <button
+                    onClick={() => scrollTo('#booking')}
+                    className="px-7 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[220px] h-[46px] text-base shadow-lg hover:shadow-xl whitespace-nowrap"
+                  >
+                    Забронировать стол
+                  </button>
+                  <button
+                    onClick={() => scrollTo('#menu')}
+                    className="px-7 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[200px] h-[46px] text-base shadow-lg hover:shadow-xl whitespace-nowrap"
+                  >
+                    Смотреть меню
+                  </button>
+                </div>
               </div>
+
+              {/* Второй контейнер - Карусель мероприятий */}
+              {events.length > 0 && (
+                <div className="relative w-[75%] ml-auto rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-black/20 flex items-center justify-center">
+                  {events.map((event, idx) => (
+                    <a
+                      key={event.id}
+                      href={event.link}
+                      className={`w-full transition-opacity duration-500 flex items-center justify-center ${
+                        idx === currentEventIndex ? 'opacity-100 z-10 relative' : 'opacity-0 z-0 absolute inset-0'
+                      }`}
+                    >
+                      <img
+                        src={event.image}
+                        alt={event.title}
+                        className="w-full h-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-500"
+                      />
+                    </a>
+                  ))}
+                  {/* Индикаторы */}
+                  {events.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                      {events.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCurrentEventIndex(idx);
+                          }}
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            idx === currentEventIndex ? 'bg-amber-400 w-8' : 'bg-white/50 hover:bg-white/70'
+                          }`}
+                          aria-label={`Перейти к мероприятию ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            </div>
+          </div>
         </div>
       </section>
 
@@ -394,6 +473,57 @@ export default function Page() {
       {/* МЕНЮ РЕСТОРАНА */}
       <EnhancedMenuSection onAddToCart={add} cartItems={items} />
 
+      {/* BOOKING FORM */}
+      <section id="booking" className="py-16 sm:py-20 border-t border-white/10">
+        <div className="container mx-auto px-4">
+          <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-stretch">
+            {/* Левое изображение */}
+            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg">
+              <img 
+                src="/konga_bron.webp" 
+                alt="Интерьер ресторана" 
+                className="w-full h-full object-cover object-right min-h-[600px]"
+              />
+            </div>
+
+            {/* Форма бронирования */}
+            <div className="lg:col-span-6 rounded-2xl bg-white/5 border border-white/10 p-9 sm:p-11 md:p-13 shadow-lg">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold uppercase tracking-wider text-center mb-6 whitespace-nowrap">Забронировать стол</h2>
+              <p className="mt-2 text-xl text-neutral-300 text-center mb-10">Оставьте контакты — администратор подтвердит бронь.</p>
+              <form onSubmit={submitBooking} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
+                <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
+                <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" required />
+                <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" required />
+                <div className="md:col-span-2 flex items-center gap-5">
+                  <label htmlFor="guests" className="text-lg text-neutral-300 font-medium">Гостей:</label>
+                  <input
+                    id="guests" name="guests" type="number" min={1} value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value))}
+                    className="w-36 bg-black/40 border border-white/10 rounded-lg px-5 py-4 text-lg outline-none focus:border-amber-400"
+                  />
+                </div>
+                <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" rows={4} placeholder="Пожелания (необязательно)" />
+                <button 
+                  type="submit"
+                  className="md:col-span-2 px-12 py-5 text-xl rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Отправить заявку
+                </button>
+              </form>
+            </div>
+
+            {/* Правое изображение */}
+            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg">
+              <img 
+                src="/konga_bron_2.webp" 
+                alt="Интерьер ресторана" 
+                className="w-full h-full object-cover object-[20%_center] min-h-[600px]"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* GALLERY */}
       <section id="gallery" className="py-12 sm:py-16 border-t border-white/10">
@@ -403,13 +533,18 @@ export default function Page() {
             {gallery.map((src, idx) => (
               <div 
                 key={idx}
-                onClick={() => setSelectedGalleryImage(src)}
+                onClick={() => {
+                  setSelectedGalleryImage(src);
+                  setCurrentGalleryIndex(idx);
+                }}
                 className="overflow-hidden rounded-xl border border-white/10 hover:border-amber-400/30 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <img 
                   src={src} 
                   alt={`Галерея ${idx + 1}`} 
-                  className="h-56 md:h-64 w-full object-cover transition-transform duration-300 hover:scale-110" 
+                  className={`h-56 md:h-64 w-full object-cover transition-transform duration-300 hover:scale-110 ${
+                    idx === 0 ? 'object-[center_75%]' : ''
+                  }`}
                 />
               </div>
             ))}
@@ -421,89 +556,92 @@ export default function Page() {
       {selectedGalleryImage && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setSelectedGalleryImage(null)}
+          onClick={() => {
+            setSelectedGalleryImage(null);
+            setCurrentGalleryIndex(0);
+          }}
         >
           <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
             <button
-              onClick={() => setSelectedGalleryImage(null)}
+              onClick={() => {
+                setSelectedGalleryImage(null);
+                setCurrentGalleryIndex(0);
+              }}
               className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition z-10"
               aria-label="Закрыть"
             >
               <X className="w-6 h-6" />
             </button>
+            
+            {/* Левая стрелка */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = currentGalleryIndex > 0 ? currentGalleryIndex - 1 : gallery.length - 1;
+                  setCurrentGalleryIndex(newIndex);
+                  setSelectedGalleryImage(gallery[newIndex]);
+                }}
+                className="p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
+                aria-label="Предыдущее изображение"
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+            </div>
+            
+            {/* Изображение */}
             <img 
               src={selectedGalleryImage} 
               alt="Развернутое изображение" 
               className="max-w-full max-h-full object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
+            
+            {/* Правая стрелка */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = currentGalleryIndex < gallery.length - 1 ? currentGalleryIndex + 1 : 0;
+                  setCurrentGalleryIndex(newIndex);
+                  setSelectedGalleryImage(gallery[newIndex]);
+                }}
+                className="p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
+                aria-label="Следующее изображение"
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* PHOTO GALLERY */}
-      <section id="photo-gallery" className="py-16 border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">Фотогалерея</h2>
-          <div className="mt-10 text-center text-neutral-400">
-            <p>Фотографии будут добавлены позже</p>
-          </div>
-        </div>
-      </section>
-
       {/* REVIEWS */}
       <section id="reviews" className="py-12 sm:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">Отзывы гостей</h2>
-          <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            {[
-              { name: 'Анна', text: 'Отличная кухня и сервис. Обязательно вернёмся на дегустацию вин!' },
-              { name: 'Игорь', text: 'Стейки топовые, уголь и прожарка как надо. Атмосфера — ❤' },
-              { name: 'Мария', text: 'Красиво, вкусно, удобно добираться. Советую десерты и кофе.' },
-            ].map((r, i) => (
-              <div key={i} className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-white/10 hover:scale-110 transition-transform duration-200" />
-                  <div>
-                    <div className="font-semibold">{r.name}</div>
-                    <div className="text-xs text-neutral-400">Гость</div>
-                  </div>
-                </div>
-                <p className="mt-4 text-neutral-300">{r.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* BOOKING FORM */}
-      <section id="booking" className="py-12 sm:py-16 border-t border-white/10">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-3xl rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6 md:p-8">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-wider text-center">Забронировать стол</h2>
-            <p className="mt-2 text-neutral-300 text-center">Оставьте контакты — администратор подтвердит бронь.</p>
-            <form onSubmit={submitBooking} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" placeholder="Имя" required />
-              <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" placeholder="Телефон" required />
-              <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" required />
-              <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" required />
-              <div className="md:col-span-2 flex items-center gap-3">
-                <label htmlFor="guests" className="text-sm text-neutral-300">Гостей:</label>
-                <input
-                  id="guests" name="guests" type="number" min={1} value={guests}
-                  onChange={(e) => setGuests(Number(e.target.value))}
-                  className="w-24 bg-black/40 border border-white/10 rounded-lg px-3 py-2 outline-none focus:border-amber-400"
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-8 sm:mb-10">Отзывы гостей</h2>
+          <div className="max-w-[760px] mx-auto">
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 p-2 sm:p-4">
+              <div className="w-full h-[700px] overflow-hidden relative">
+                <iframe 
+                  className="w-full h-full border border-white/10 rounded-lg"
+                  src="https://yandex.ru/maps-reviews-widget/10214255530?comments"
+                  frameBorder="0"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Отзывы Яндекс.Карт"
                 />
+                <a 
+                  href="https://yandex.kz/maps/org/kucher_conga/10214255530/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-neutral-400 hover:text-amber-400 transition-colors px-5"
+                >
+                  Kucher&Conga
+                </a>
               </div>
-              <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
-              <button 
-                type="submit"
-                className="md:col-span-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Отправить заявку
-              </button>
-            </form>
-
+            </div>
           </div>
         </div>
       </section>
@@ -551,14 +689,6 @@ export default function Page() {
             <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">
               <div className="uppercase text-xs tracking-widest text-neutral-400">Адрес</div>
               <div className="mt-2 text-lg"><MapPin className="inline w-4 h-4 mr-2" />г. Дмитров, ул. Промышленная 20 Б</div>
-              <a 
-                href="https://yandex.ru/maps/?text=Ресторан Кучер и Конга, Дмитров, Промышленная улица, 20Б" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="mt-3 inline-block text-amber-400 hover:underline hover:scale-105 transition-all duration-200"
-              >
-                Открыть в Яндекс картах
-              </a>
             </div>
             <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">
               <div className="uppercase text-xs tracking-widest text-neutral-400">Часы работы</div>
@@ -624,13 +754,6 @@ export default function Page() {
             >
               Атмосфера
             </button>
-            <a 
-              href="/gallery" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Фотогалерея
-            </a>
             <a 
               href="/halls" 
               onClick={(e) => e.stopPropagation()}
@@ -721,13 +844,6 @@ export default function Page() {
             >
               Атмосфера
             </button>
-            <a 
-              href="/gallery" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Фотогалерея
-            </a>
             <a 
               href="/halls" 
               onClick={(e) => e.stopPropagation()}
