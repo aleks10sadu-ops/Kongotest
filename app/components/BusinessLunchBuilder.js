@@ -141,7 +141,7 @@ export default function BusinessLunchBuilder({ onAddToCart }) {
       {/* Меню на сегодня */}
       <div className="mb-8 p-4 bg-amber-400/10 border border-amber-400/20 rounded-lg">
         <p className="text-amber-300 font-semibold">
-          📅 Меню на сегодня ({currentDayName})
+          Меню на сегодня ({currentDayName})
         </p>
       </div>
 

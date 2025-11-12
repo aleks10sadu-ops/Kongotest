@@ -33,14 +33,16 @@ function useCart() {
         }
         return prev;
       }
+      // Ограничиваем максимальное количество до 99
+      const maxQty = Math.min(product.qty, 99);
       if (idx >= 0) {
         // Элемент уже есть в корзине - устанавливаем новое количество (не добавляем!)
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], qty: product.qty };
+        copy[idx] = { ...copy[idx], qty: maxQty };
         return copy;
       }
-      // Новый элемент - добавляем с указанным количеством
-      return [...prev, { ...product, qty: product.qty || 1 }];
+      // Новый элемент - добавляем с указанным количеством (не более 99)
+      return [...prev, { ...product, qty: maxQty || 1 }];
     });
   }, []);
 
@@ -826,18 +828,24 @@ export default function Page() {
                       <input
                         type="number"
                         min="1"
+                        max="99"
                         value={i.qty}
                         onChange={(e) => {
                           const newQty = parseInt(e.target.value) || 1;
-                          if (newQty > 0) {
+                          if (newQty > 0 && newQty <= 99) {
                             add({ ...i, qty: newQty });
                           }
                         }}
                         className="w-12 text-center bg-black/40 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-amber-400 text-sm"
                       />
                       <button
-                        onClick={() => add({ ...i, qty: i.qty + 1 })}
-                        className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200"
+                        onClick={() => {
+                          if (i.qty < 99) {
+                            add({ ...i, qty: i.qty + 1 });
+                          }
+                        }}
+                        disabled={i.qty >= 99}
+                        className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Добавить"
                       >
                         <Plus className="w-4 h-4" />

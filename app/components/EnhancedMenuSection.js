@@ -21,6 +21,7 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [menuExpanded, setMenuExpanded] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Функция для получения данных меню по типу
   const getMenuDataByType = (menuType) => {
@@ -93,6 +94,30 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
     return getMenuDataByType(selectedMenuType);
   }, [selectedMenuType]);
 
+  // Получаем все названия блюд для автодополнения
+  const allDishNames = useMemo(() => {
+    const currentMenuData = getMenuDataByType(selectedMenuType);
+    const categories = currentMenuData.categories || [];
+    const names = [];
+    categories.forEach(category => {
+      category.items.forEach(item => {
+        if (item.name && !names.includes(item.name)) {
+          names.push(item.name);
+        }
+      });
+    });
+    return names.sort();
+  }, [selectedMenuType]);
+
+  // Получаем предложения для автодополнения
+  const suggestions = useMemo(() => {
+    if (searchQuery.length < 2) return [];
+    const query = searchQuery.toLowerCase();
+    return allDishNames
+      .filter(name => name.toLowerCase().startsWith(query))
+      .slice(0, 10); // Ограничиваем до 10 предложений
+  }, [searchQuery, allDishNames]);
+
   const handleItemClick = (item) => {
     setSelectedItem(item);
     setIsDetailModalOpen(true);
@@ -118,11 +143,14 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
             {menuTypes.map((type) => (
               <button
                 key={type.id}
-                onClick={() => handleMenuTypeChange(type.id)}
-                className={`px-4 py-3 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                  selectedMenuType === type.id
-                    ? 'bg-amber-400 text-black shadow-lg hover:shadow-xl'
-                    : 'bg-white/5 text-white hover:bg-white/10 hover:border-amber-400/30 border border-white/10'
+                onClick={() => type.id !== 'banquet' && handleMenuTypeChange(type.id)}
+                disabled={type.id === 'banquet'}
+                className={`px-4 py-3 rounded-full text-sm font-medium transition-all duration-200 ${
+                  type.id === 'banquet'
+                    ? 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed opacity-50'
+                    : selectedMenuType === type.id
+                    ? 'bg-amber-400 text-black shadow-lg hover:shadow-xl hover:scale-105 active:scale-95'
+                    : 'bg-white/5 text-white hover:bg-white/10 hover:border-amber-400/30 border border-white/10 hover:scale-105 active:scale-95'
                 }`}
               >
                 {type.name}
@@ -133,9 +161,6 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
           {selectedMenuTypeData && (
             <div className="text-center text-neutral-400 text-sm mt-3">
               <p>{selectedMenuTypeData.description}</p>
-              {selectedMenuType === 'promotions' && promotionsData.warning && (
-                <p className="text-amber-400 mt-2 font-semibold">⚠️ {promotionsData.warning}</p>
-              )}
             </div>
           )}
         </div>
@@ -151,16 +176,49 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
                 type="text"
                 placeholder="Поиск по блюдам..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-black/40 border border-white/10 rounded-lg outline-none focus:border-amber-400 focus:scale-[1.02] transition-all duration-200 text-white placeholder-neutral-400"
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(e.target.value.length >= 2);
+                }}
+                onFocus={() => {
+                  if (searchQuery.length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Небольшая задержка, чтобы клик по предложению успел сработать
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
+                className="w-full pl-10 pr-4 py-3 bg-black/40 border border-white/10 rounded-lg outline-none transition-all duration-200 text-white placeholder-neutral-400"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setShowSuggestions(false);
+                  }}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
+              )}
+              
+              {/* Автодополнение */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-neutral-900 border border-white/10 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setSearchQuery(suggestion);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition text-white"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -365,6 +423,12 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
       // Получаем текущее количество из корзины
       const cartVariant = cartItems.find(ci => ci.id === variantId);
       const currentQty = cartVariant?.qty || 0;
+      
+      // Проверяем максимальное количество (99)
+      if (currentQty >= 99) {
+        return; // Не добавляем, если уже достигнут максимум
+      }
+      
       const newQuantity = currentQty + 1;
       
       onAddToCart({
@@ -381,6 +445,12 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
       // Получаем текущее количество из корзины
       const cartItem = cartItems.find(ci => ci.id === item.id);
       const currentQty = cartItem?.qty || 0;
+      
+      // Проверяем максимальное количество (99)
+      if (currentQty >= 99) {
+        return; // Не добавляем, если уже достигнут максимум
+      }
+      
       const newQuantity = currentQty + 1;
       
       onAddToCart({
@@ -538,7 +608,8 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                               e.stopPropagation();
                               handleAdd(variant);
                             }}
-                            className="p-1 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200"
+                            disabled={variantQuantity >= 99}
+                            className="p-1 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             aria-label="Добавить"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -589,7 +660,8 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                     e.stopPropagation();
                     handleAdd();
                   }}
-                  className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200"
+                  disabled={quantity >= 99}
+                  className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   aria-label="Добавить"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

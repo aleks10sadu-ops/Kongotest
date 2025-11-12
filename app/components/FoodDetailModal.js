@@ -24,6 +24,12 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
       // Получаем текущее количество из корзины
       const cartVariant = cartItems.find(ci => ci.id === variantId);
       const currentQty = cartVariant?.qty || 0;
+      
+      // Проверяем максимальное количество (99)
+      if (currentQty >= 99) {
+        return; // Не добавляем, если уже достигнут максимум
+      }
+      
       const newQuantity = currentQty + 1;
       
       onAddToCart({
@@ -40,6 +46,12 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
       // Получаем текущее количество из корзины
       const cartItem = cartItems.find(ci => ci.id === item.id);
       const currentQty = cartItem?.qty || 0;
+      
+      // Проверяем максимальное количество (99)
+      if (currentQty >= 99) {
+        return; // Не добавляем, если уже достигнут максимум
+      }
+      
       const newQuantity = currentQty + 1;
       
       onAddToCart({
@@ -197,7 +209,8 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
                                 <span className="w-8 text-center font-semibold">{variantQuantity}</span>
                                 <button
                                   onClick={() => handleAdd(variant)}
-                                  className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 transition"
+                                  disabled={variantQuantity >= 99}
+                                  className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                   aria-label="Добавить"
                                 >
                                   <Plus className="w-4 h-4" />
@@ -236,7 +249,8 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
                         <span className="w-12 text-center text-xl font-semibold">{quantity}</span>
                         <button
                           onClick={() => handleAdd()}
-                          className="p-3 rounded-full bg-amber-400 text-black hover:bg-amber-300 transition"
+                          disabled={quantity >= 99}
+                          className="p-3 rounded-full bg-amber-400 text-black hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           aria-label="Добавить"
                         >
                           <Plus className="w-5 h-5" />

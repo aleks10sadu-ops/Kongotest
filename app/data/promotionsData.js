@@ -1,7 +1,6 @@
 // Данные акций
 export const promotionsData = {
   title: "Акция на коктейли с Hoppers Gin",
-  warning: "18+ Чрезмерное употребление алкоголя вредит вашему здоровью!",
   categories: [
     {
       id: "promotions",
