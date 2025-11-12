@@ -365,47 +365,14 @@ export default function Page() {
         <img
           src="/hero-image.jpg"
           alt="Ресторан Кучер и Конга — атмосфера вечера"
-          className="w-full h-[80vh] object-cover"
+          className="w-full h-[70vh] sm:h-[75vh] lg:h-[80vh] object-cover"
         />
         <div className="absolute inset-0 z-20 flex items-center">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full max-w-7xl mx-auto translate-y-[8%]">
-              {/* Первый контейнер - Информация о ресторане */}
-              <div className="w-full min-h-[320px] lg:min-h-[360px] rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-7 sm:p-9 md:p-11 shadow-2xl flex flex-col justify-between justify-self-start">
-                <div>
-                  <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold leading-tight mb-4 sm:mb-5">
-                    <span className="text-white">Кучер</span>
-                    <span className="text-white mx-2 sm:mx-3">&</span>
-                    <span className="text-white">Conga</span>
-                  </h1>
-                  <div className="space-y-3 sm:space-y-4 text-base sm:text-lg md:text-xl text-neutral-200 leading-relaxed">
-                    <p>
-                      Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
-                    </p>
-                    <p className="text-neutral-300">
-                      В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-7 flex flex-wrap gap-4">
-                  <button
-                    onClick={() => scrollTo('#booking')}
-                    className="px-7 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[220px] h-[46px] text-base shadow-lg hover:shadow-xl whitespace-nowrap"
-                  >
-                    Забронировать стол
-                  </button>
-                  <button
-                    onClick={() => scrollTo('#menu')}
-                    className="px-7 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[200px] h-[46px] text-base shadow-lg hover:shadow-xl whitespace-nowrap"
-                  >
-                    Смотреть меню
-                  </button>
-                </div>
-              </div>
-
-              {/* Второй контейнер - Карусель мероприятий */}
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-stretch w-full max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 translate-y-[10%] lg:translate-y-[8%]">
+              {/* Второй контейнер - Карусель мероприятий (первым на мобильных) */}
               {events.length > 0 && (
-                <div className="relative w-[75%] ml-auto rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-black/20 flex items-center justify-center">
+                <div className="relative w-full max-w-[280px] sm:max-w-[350px] lg:w-[75%] lg:max-w-none lg:ml-auto rounded-xl sm:rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-black/20 flex items-center justify-center order-1 lg:order-2 mx-auto lg:mx-0">
                   {events.map((event, idx) => (
                     <a
                       key={event.id}
@@ -441,30 +408,63 @@ export default function Page() {
                   )}
                 </div>
               )}
+
+              {/* Первый контейнер - Информация о ресторане (вторым на мобильных) */}
+              <div className="w-full rounded-xl sm:rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4 sm:p-6 md:p-8 lg:p-11 shadow-2xl flex flex-col justify-between lg:justify-self-start order-2 lg:order-1">
+                <div>
+                  <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-6xl font-extrabold leading-tight mb-2 sm:mb-3 lg:mb-5">
+                    <span className="text-white">Кучер</span>
+                    <span className="text-white mx-1 sm:mx-2 lg:mx-3">&</span>
+                    <span className="text-white">Conga</span>
+                  </h1>
+                  <div className="space-y-1.5 sm:space-y-2 lg:space-y-4 text-xs sm:text-sm md:text-base lg:text-xl text-neutral-200 leading-relaxed">
+                    <p>
+                      Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
+                    </p>
+                    <p className="text-neutral-300">
+                      В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 sm:mt-5 lg:mt-7 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 lg:gap-4">
+                  <button
+                    onClick={() => scrollTo('#booking')}
+                    className="px-4 sm:px-6 lg:px-7 py-2 sm:py-2.5 lg:py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[180px] lg:min-w-[220px] h-[38px] sm:h-[42px] lg:h-[46px] text-xs sm:text-sm lg:text-base shadow-lg hover:shadow-xl whitespace-nowrap"
+                  >
+                    Забронировать стол
+                  </button>
+                  <button
+                    onClick={() => scrollTo('#menu')}
+                    className="px-4 sm:px-6 lg:px-7 py-2 sm:py-2.5 lg:py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-auto sm:min-w-[160px] lg:min-w-[200px] h-[38px] sm:h-[42px] lg:h-[46px] text-xs sm:text-sm lg:text-base shadow-lg hover:shadow-xl whitespace-nowrap"
+                  >
+                    Смотреть меню
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ADVANTAGES */}
-      <section id="about" className="py-12 sm:py-16 border-t border-white/10 pt-20 md:pt-16">
+      <section id="about" className="py-8 sm:py-12 lg:py-16 border-t border-white/10 pt-16 sm:pt-20 md:pt-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">ПОЧЕМУ ВЫБИРАЮТ НАС</h2>
-          <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
-              <Utensils className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
-              <h3 className="mt-4 text-xl font-semibold">Изысканное меню</h3>
-              <p className="mt-2 text-neutral-300">Наше меню сочетает в себе классические рецепты и современные гастрономические тенденции, предлагая блюда, которые восхищают своим вкусом и подачей</p>
+          <h2 className="text-center text-lg sm:text-xl md:text-2xl lg:text-4xl font-bold uppercase tracking-wider">ПОЧЕМУ ВЫБИРАЮТ НАС</h2>
+          <div className="mt-4 sm:mt-6 lg:mt-10 grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 lg:gap-6">
+            <div className="rounded-lg sm:rounded-xl lg:rounded-2xl bg-white/5 p-3 sm:p-4 lg:p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Utensils className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-amber-400 mb-2 sm:mb-3 lg:mb-4 hover:scale-110 transition-transform duration-200" />
+              <h3 className="mt-2 sm:mt-3 lg:mt-4 text-sm sm:text-base lg:text-xl font-semibold">Изысканное меню</h3>
+              <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm lg:text-base text-neutral-300">Наше меню сочетает в себе классические рецепты и современные гастрономические тенденции, предлагая блюда, которые восхищают своим вкусом и подачей</p>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
-              <Home className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
-              <h3 className="mt-4 text-xl font-semibold">Атмосферный интерьер</h3>
-              <p className="mt-2 text-neutral-300">Каждая деталь интерьера создаёт неповторимую атмосферу уюта и стиля, погружая вас в мир эстетического наслаждения и комфорта</p>
+            <div className="rounded-lg sm:rounded-xl lg:rounded-2xl bg-white/5 p-3 sm:p-4 lg:p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Home className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-amber-400 mb-2 sm:mb-3 lg:mb-4 hover:scale-110 transition-transform duration-200" />
+              <h3 className="mt-2 sm:mt-3 lg:mt-4 text-sm sm:text-base lg:text-xl font-semibold">Атмосферный интерьер</h3>
+              <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm lg:text-base text-neutral-300">Каждая деталь интерьера создаёт неповторимую атмосферу уюта и стиля, погружая вас в мир эстетического наслаждения и комфорта</p>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
-              <Users className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
-              <h3 className="mt-4 text-xl font-semibold">Безупречное обслуживание</h3>
-              <p className="mt-2 text-neutral-300">Наш персонал – это команда профессионалов, которые заботятся о каждом госте, обеспечивая высокий уровень сервиса и создавая приятные впечатления от посещения</p>
+            <div className="rounded-lg sm:rounded-xl lg:rounded-2xl bg-white/5 p-3 sm:p-4 lg:p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Users className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-amber-400 mb-2 sm:mb-3 lg:mb-4 hover:scale-110 transition-transform duration-200" />
+              <h3 className="mt-2 sm:mt-3 lg:mt-4 text-sm sm:text-base lg:text-xl font-semibold">Безупречное обслуживание</h3>
+              <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm lg:text-base text-neutral-300">Наш персонал – это команда профессионалов, которые заботятся о каждом госте, обеспечивая высокий уровень сервиса и создавая приятные впечатления от посещения</p>
             </div>
           </div>
         </div>
@@ -474,7 +474,7 @@ export default function Page() {
       <EnhancedMenuSection onAddToCart={add} cartItems={items} />
 
       {/* BOOKING FORM */}
-      <section id="booking" className="py-16 sm:py-20 border-t border-white/10">
+      <section id="booking" className="py-8 sm:py-12 lg:py-16 xl:py-20 border-t border-white/10">
         <div className="container mx-auto px-4">
           <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-stretch">
             {/* Левое изображение */}
@@ -482,31 +482,31 @@ export default function Page() {
               <img 
                 src="/konga_bron.webp" 
                 alt="Интерьер ресторана" 
-                className="w-full h-full object-cover object-right min-h-[600px]"
+                className="w-full h-full object-cover object-right min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]"
               />
             </div>
 
             {/* Форма бронирования */}
-            <div className="lg:col-span-6 rounded-2xl bg-white/5 border border-white/10 p-9 sm:p-11 md:p-13 shadow-lg">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold uppercase tracking-wider text-center mb-6 whitespace-nowrap">Забронировать стол</h2>
-              <p className="mt-2 text-xl text-neutral-300 text-center mb-10">Оставьте контакты — администратор подтвердит бронь.</p>
-              <form onSubmit={submitBooking} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
-                <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
-                <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" required />
-                <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" required />
-                <div className="md:col-span-2 flex items-center gap-5">
-                  <label htmlFor="guests" className="text-lg text-neutral-300 font-medium">Гостей:</label>
+            <div className="lg:col-span-6 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6 md:p-8 lg:p-10 shadow-lg">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold uppercase tracking-wider text-center mb-3 sm:mb-4 lg:mb-5 break-words">Забронировать стол</h2>
+              <p className="mt-1.5 sm:mt-2 text-sm sm:text-base lg:text-lg text-neutral-300 text-center mb-4 sm:mb-6 lg:mb-8">Оставьте контакты — администратор подтвердит бронь.</p>
+              <form onSubmit={submitBooking} className="mt-3 sm:mt-4 lg:mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 max-w-3xl mx-auto">
+                <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
+                <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
+                <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                <div className="md:col-span-2 flex items-center gap-2 sm:gap-3 lg:gap-4">
+                  <label htmlFor="guests" className="text-sm sm:text-base lg:text-lg text-neutral-300 font-medium">Гостей:</label>
                   <input
                     id="guests" name="guests" type="number" min={1} value={guests}
                     onChange={(e) => setGuests(Number(e.target.value))}
-                    className="w-36 bg-black/40 border border-white/10 rounded-lg px-5 py-4 text-lg outline-none focus:border-amber-400"
+                    className="w-24 sm:w-28 lg:w-32 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400"
                   />
                 </div>
-                <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-6 py-5 text-lg outline-none focus:border-amber-400" rows={4} placeholder="Пожелания (необязательно)" />
+                <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
                 <button 
                   type="submit"
-                  className="md:col-span-2 px-12 py-5 text-xl rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Отправить заявку
                 </button>
@@ -518,7 +518,7 @@ export default function Page() {
               <img 
                 src="/konga_bron_2.webp" 
                 alt="Интерьер ресторана" 
-                className="w-full h-full object-cover object-[20%_center] min-h-[600px]"
+                className="w-full h-full object-cover object-[20%_center] min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]"
               />
             </div>
           </div>
@@ -526,7 +526,7 @@ export default function Page() {
       </section>
 
       {/* GALLERY */}
-      <section id="gallery" className="py-12 sm:py-16 border-t border-white/10">
+      <section id="gallery" className="py-8 sm:py-12 lg:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">Атмосфера</h2>
           <div className="mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
@@ -574,7 +574,7 @@ export default function Page() {
             </button>
             
             {/* Левая стрелка */}
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+            <div className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -582,10 +582,10 @@ export default function Page() {
                   setCurrentGalleryIndex(newIndex);
                   setSelectedGalleryImage(gallery[newIndex]);
                 }}
-                className="p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
+                className="p-2 sm:p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
                 aria-label="Предыдущее изображение"
               >
-                <ChevronLeft className="w-8 h-8" />
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             </div>
             
@@ -598,7 +598,7 @@ export default function Page() {
             />
             
             {/* Правая стрелка */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+            <div className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -606,10 +606,10 @@ export default function Page() {
                   setCurrentGalleryIndex(newIndex);
                   setSelectedGalleryImage(gallery[newIndex]);
                 }}
-                className="p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
+                className="p-2 sm:p-3 rounded-full bg-gray-500/50 hover:bg-gray-500/70 text-white transition-all duration-200 backdrop-blur-sm"
                 aria-label="Следующее изображение"
               >
-                <ChevronRight className="w-8 h-8" />
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             </div>
           </div>
@@ -617,12 +617,12 @@ export default function Page() {
       )}
 
       {/* REVIEWS */}
-      <section id="reviews" className="py-12 sm:py-16 border-t border-white/10">
+      <section id="reviews" className="py-8 sm:py-12 lg:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
           <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-8 sm:mb-10">Отзывы гостей</h2>
           <div className="max-w-[760px] mx-auto">
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 p-2 sm:p-4">
-              <div className="w-full h-[700px] overflow-hidden relative">
+              <div className="w-full h-[500px] sm:h-[600px] md:h-[700px] overflow-hidden relative">
                 <iframe 
                   className="w-full h-full border border-white/10 rounded-lg"
                   src="https://yandex.ru/maps-reviews-widget/10214255530?comments"
@@ -647,14 +647,14 @@ export default function Page() {
       </section>
 
       {/* YANDEX MAP */}
-      <section className="py-12 sm:py-16 border-t border-white/10">
+      <section className="py-8 sm:py-12 lg:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-6 md:mb-12">
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-4 sm:mb-6 md:mb-12">
             Как нас найти
           </h2>
           <div className="max-w-6xl mx-auto">
             <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 p-4">
-              <div className="w-full h-[400px] rounded-lg overflow-hidden relative">
+              <div className="w-full h-[300px] sm:h-[350px] md:h-[400px] rounded-lg overflow-hidden relative">
                 {/* Яндекс карта через iframe */}
                 <iframe
                   src="https://yandex.ru/map-widget/v1/?um=constructor%3A1c90c41847ab12bb686f7ffc03fcb5b1930c854da9e094965c7ac7ad24f8e4b7&amp;source=constructor"
@@ -679,7 +679,7 @@ export default function Page() {
       </section>
 
       {/* CONTACTS */}
-      <section className="py-12 sm:py-16 border-t border-white/10">
+      <section className="py-8 sm:py-12 lg:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">

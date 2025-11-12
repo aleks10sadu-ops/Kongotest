@@ -345,7 +345,7 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-6">
                         {categoryItems.map((item) => (
                           <MenuItem
                             key={item.id}
@@ -527,7 +527,7 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
   return (
     <div 
       onClick={handleCardClick}
-      className="group overflow-hidden rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-amber-400/30 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] flex flex-col h-full cursor-pointer"
+      className="group overflow-hidden rounded-lg sm:rounded-xl lg:rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-amber-400/30 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] flex flex-col h-full cursor-pointer"
     >
       {/* Image */}
       <div className="relative aspect-square overflow-hidden">
@@ -538,23 +538,23 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
         />
       </div>
       
-      <div className="p-6 flex flex-col flex-grow">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <h4 className="text-lg font-semibold leading-tight flex-1">{item.name}</h4>
+      <div className="p-2 sm:p-3 lg:p-6 flex flex-col flex-grow">
+        <div className="flex items-start justify-between gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-3">
+          <h4 className="text-xs sm:text-sm lg:text-lg font-semibold leading-tight flex-1">{item.name}</h4>
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-bold text-amber-400 whitespace-nowrap">
+            <div className="text-xs sm:text-sm lg:text-lg font-bold text-amber-400 whitespace-nowrap">
               {item.price ? item.price.toLocaleString('ru-RU') : '0'} ₽
             </div>
             {item.weight && (
-              <div className="text-xs text-neutral-400">{item.weight}</div>
+              <div className="text-[9px] sm:text-[10px] lg:text-xs text-neutral-400">{item.weight}</div>
             )}
           </div>
         </div>
 
         {/* Description with fixed height */}
-        <div className="flex-grow mb-4">
+        <div className="flex-grow mb-1.5 sm:mb-2 lg:mb-4">
           {item.description && (
-            <p className="text-neutral-300 text-sm leading-relaxed line-clamp-3 h-16 overflow-hidden">
+            <p className="text-neutral-300 text-[10px] sm:text-xs lg:text-sm leading-relaxed line-clamp-2 h-8 sm:h-10 lg:h-16 overflow-hidden">
               {item.description}
             </p>
           )}
@@ -562,20 +562,20 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
 
         {/* Варианты для блюд с вариантами (например, Цезарь) */}
         {item.variants && Array.isArray(item.variants) && item.variants.length > 0 && (
-          <div className="mb-4">
-            <div className="text-sm text-neutral-400 mb-3">Выберите вариант:</div>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
+          <div className="mb-2 sm:mb-3 lg:mb-4">
+            <div className="text-[10px] sm:text-xs lg:text-sm text-neutral-400 mb-1.5 sm:mb-2 lg:mb-3">Выберите вариант:</div>
+            <div className="space-y-1 sm:space-y-2 max-h-24 sm:max-h-28 lg:max-h-32 overflow-y-auto">
               {item.variants.map((variant, index) => {
                 const variantId = `${item.id}_${variant.name}`;
                 const variantQuantity = getVariantQuantity(variantId);
                 return (
-                  <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
+                  <div key={index} className="flex justify-between items-center p-1.5 sm:p-2 bg-white/5 rounded-lg">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{variant.name || 'Вариант'}</div>
-                      <div className="text-xs text-neutral-400">{variant.weight || item.weight}</div>
+                      <div className="text-[10px] sm:text-xs lg:text-sm font-medium text-white truncate">{variant.name || 'Вариант'}</div>
+                      <div className="text-[9px] sm:text-[10px] lg:text-xs text-neutral-400">{variant.weight || item.weight}</div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm text-amber-400 font-semibold">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                      <span className="text-[10px] sm:text-xs lg:text-sm text-amber-400 font-semibold">
                         {variant.price ? variant.price.toLocaleString('ru-RU') : '0'} ₽
                       </span>
                       {variantQuantity === 0 ? (
@@ -584,7 +584,7 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                             e.stopPropagation();
                             handleAdd(variant);
                           }}
-                          className="px-3 py-1 text-xs rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
+                          className="px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-xs rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
                         >
                           Добавить
                         </button>
@@ -636,35 +636,35 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                   e.stopPropagation();
                   handleAdd();
                 }}
-                className="px-4 py-2 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 Добавить
               </button>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRemove();
                   }}
-                  className="p-2 rounded-full border border-white/20 hover:border-white/60 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
+                  className="p-1.5 sm:p-2 rounded-full border border-white/20 hover:border-white/60 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
                   aria-label="Убавить"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                   </svg>
                 </button>
-                <span className="w-8 text-center font-semibold">{quantity}</span>
+                <span className="w-6 sm:w-8 text-center text-sm sm:text-base font-semibold">{quantity}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAdd();
                   }}
                   disabled={quantity >= 99}
-                  className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="p-1.5 sm:p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   aria-label="Добавить"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </button>
