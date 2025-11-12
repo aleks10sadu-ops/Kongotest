@@ -1,24 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { X, Plus, Minus, Star, Clock, Scale } from 'lucide-react';
 import { getFoodImage } from '../data/foodImages';
 
-export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart }) {
-  const [quantity, setQuantity] = useState(0);
-  const [selectedVariants, setSelectedVariants] = useState({});
-
+export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, cartItems = [] }) {
   if (!isOpen || !item) return null;
+
+  // Получаем количество из корзины напрямую
+  const cartItem = cartItems.find(ci => ci.id === item.id);
+  const quantity = cartItem?.qty || 0;
+  
+  // Получаем количество вариантов из корзины
+  const getVariantQuantity = (variantId) => {
+    const cartVariant = cartItems.find(ci => ci.id === variantId);
+    return cartVariant?.qty || 0;
+  };
 
   const handleAdd = (variant = null) => {
     if (variant) {
       // Добавляем вариант
       const variantId = `${item.id}_${variant.name}`;
-      const newQuantity = (selectedVariants[variantId] || 0) + 1;
-      setSelectedVariants(prev => ({
-        ...prev,
-        [variantId]: newQuantity
-      }));
+      // Получаем текущее количество из корзины
+      const cartVariant = cartItems.find(ci => ci.id === variantId);
+      const currentQty = cartVariant?.qty || 0;
+      const newQuantity = currentQty + 1;
       
       onAddToCart({
         id: variantId,
@@ -26,18 +32,23 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart }) 
         price: variant.price || 0,
         weight: variant.weight || item.weight,
         description: item.description,
+        img: getFoodImage(item.id),
         qty: newQuantity
       });
     } else {
       // Добавляем основное блюдо
-      const newQuantity = quantity + 1;
-      setQuantity(newQuantity);
+      // Получаем текущее количество из корзины
+      const cartItem = cartItems.find(ci => ci.id === item.id);
+      const currentQty = cartItem?.qty || 0;
+      const newQuantity = currentQty + 1;
+      
       onAddToCart({
         id: item.id,
         name: item.name,
         price: item.price || 0,
         weight: item.weight,
         description: item.description,
+        img: getFoodImage(item.id),
         qty: newQuantity
       });
     }
@@ -47,21 +58,11 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart }) 
     if (variant) {
       // Убираем вариант
       const variantId = `${item.id}_${variant.name}`;
-      const currentQuantity = selectedVariants[variantId] || 0;
-      if (currentQuantity > 0) {
-        const newQuantity = currentQuantity - 1;
-        if (newQuantity === 0) {
-          setSelectedVariants(prev => {
-            const newVariants = { ...prev };
-            delete newVariants[variantId];
-            return newVariants;
-          });
-        } else {
-          setSelectedVariants(prev => ({
-            ...prev,
-            [variantId]: newQuantity
-          }));
-        }
+      const cartVariant = cartItems.find(ci => ci.id === variantId);
+      const currentQty = cartVariant?.qty || 0;
+      
+      if (currentQty > 0) {
+        const newQuantity = currentQty - 1;
         
         onAddToCart({
           id: variantId,
@@ -69,21 +70,26 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart }) 
           price: variant.price || 0,
           weight: variant.weight || item.weight,
           description: item.description,
-          qty: newQuantity
+          img: getFoodImage(item.id),
+          qty: newQuantity // Если newQuantity = 0, корзина удалит элемент
         });
       }
     } else {
       // Убираем основное блюдо
-      if (quantity > 0) {
-        const newQuantity = quantity - 1;
-        setQuantity(newQuantity);
+      const cartItem = cartItems.find(ci => ci.id === item.id);
+      const currentQty = cartItem?.qty || 0;
+      
+      if (currentQty > 0) {
+        const newQuantity = currentQty - 1;
+        
         onAddToCart({
           id: item.id,
           name: item.name,
           price: item.price || 0,
           weight: item.weight,
           description: item.description,
-          qty: newQuantity
+          img: getFoodImage(item.id),
+          qty: newQuantity // Если newQuantity = 0, корзина удалит элемент
         });
       }
     }
@@ -161,7 +167,7 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart }) 
                   <div className="space-y-3">
                     {item.variants.map((variant, index) => {
                       const variantId = `${item.id}_${variant.name}`;
-                      const variantQuantity = selectedVariants[variantId] || 0;
+                      const variantQuantity = getVariantQuantity(variantId);
                       return (
                         <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                           <div className="flex-1">

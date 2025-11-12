@@ -26,11 +26,20 @@ function useCart() {
   const add = useCallback((product) => {
     setItems(prev => {
       const idx = prev.findIndex(p => p.id === product.id);
+      // Если количество 0 или меньше, удаляем элемент
+      if (product.qty <= 0) {
+        if (idx >= 0) {
+          return prev.filter(p => p.id !== product.id);
+        }
+        return prev;
+      }
       if (idx >= 0) {
+        // Элемент уже есть в корзине - устанавливаем новое количество (не добавляем!)
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], qty: product.qty || copy[idx].qty + 1 };
+        copy[idx] = { ...copy[idx], qty: product.qty };
         return copy;
       }
+      // Новый элемент - добавляем с указанным количеством
       return [...prev, { ...product, qty: product.qty || 1 }];
     });
   }, []);
@@ -65,6 +74,7 @@ export default function Page() {
   const [cartOpen, setCartOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
   const { items, add, dec, remove, clear, count, total } = useCart();
 
   // Доставка: локальный стейт формы
@@ -72,24 +82,49 @@ export default function Page() {
 
   // Блокируем скролл body при открытых модалках (но не при меню)
   useEffect(() => {
-    const opened = cartOpen || deliveryOpen;
+    const opened = cartOpen || deliveryOpen || selectedGalleryImage;
     if (opened) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => (document.body.style.overflow = prev);
     }
-  }, [cartOpen, deliveryOpen]);
+  }, [cartOpen, deliveryOpen, selectedGalleryImage]);
 
-  // Закрываем меню при скролле
+  // Закрываем меню при клике вне его области
   useEffect(() => {
     if (menuOpen) {
-      const handleScroll = () => {
+      const handleClickOutside = (e) => {
+        // Проверяем, что клик был не на кнопке открытия меню
+        const menuButton = e.target.closest('button[aria-label*="меню"]');
+        if (menuButton && !menuButton.closest('aside[aria-label="Навигация"]')) {
+          // Кнопка открытия меню вне самого меню - не закрываем
+          return;
+        }
+        
+        // Проверяем, находится ли клик внутри любого из меню навигации (mobile или desktop)
+        const clickedInsideMenu = e.target.closest('aside[aria-label="Навигация"]');
+        
+        // Если клик был внутри меню, не закрываем его
+        if (clickedInsideMenu) {
+          return;
+        }
+        
+        // Если клик был вне меню, закрываем его
         setMenuOpen(false);
       };
-      window.addEventListener('scroll', handleScroll);
-      return () => window.removeEventListener('scroll', handleScroll);
+      
+      // Добавляем обработчик с небольшой задержкой, чтобы не сработал сразу при открытии
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('click', handleClickOutside);
+      };
     }
   }, [menuOpen]);
+
 
   // Закрытие по ESC
   useEffect(() => {
@@ -98,6 +133,7 @@ export default function Page() {
         setDeliveryOpen(false);
         setCartOpen(false);
         setMenuOpen(false);
+        setSelectedGalleryImage(null);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -207,36 +243,70 @@ export default function Page() {
     <div className="bg-neutral-950 text-white">
       {/* NAV */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-neutral-950/95 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => scrollTo('#top')} className="flex items-center">
-            <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" />
-          </button>
-          
-          {/* Кнопка меню (три полоски) */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition"
-            aria-label="Открыть меню"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+        <div className="container mx-auto px-4 py-3">
+          {/* Desktop layout: логотип слева, телефон и кнопки справа */}
+          <div className="hidden md:flex items-center justify-between">
+            <button 
+              onClick={() => scrollTo('#top')} 
+              className="flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
+            >
+              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" />
+            </button>
+            
+            <div className="flex items-center gap-3">
+              <a 
+                href="tel:+74992299222" 
+                className="flex items-center gap-2 text-sm hover:text-amber-400 hover:scale-105 active:scale-95 transition-all duration-200"
+              >
+                <Phone className="w-4 h-4" /> +7 (499) 229-92-22
+              </a>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className={`p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition-all duration-200 ${
+                  menuOpen ? 'scale-95 bg-white/10' : 'hover:scale-110 active:scale-95'
+                }`}
+                aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+              >
+                <Menu className={`w-6 h-6 transition-transform duration-200 ${menuOpen ? 'rotate-90' : ''}`} />
+              </button>
+              <button
+                aria-label="Открыть корзину"
+                onClick={() => setCartOpen(true)}
+                className="relative p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 hover:scale-110 active:scale-95 transition-all duration-200"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {count > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[11px] leading-none bg-amber-400 text-black px-1.5 py-0.5 rounded-full font-bold">
+                    {count}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
 
-          {/* Десктопная навигация - скрыта, все через меню */}
-          <div className="hidden md:flex items-center gap-3">
-            <a href="tel:+74992299222" className="flex items-center gap-2 text-sm hover:text-amber-400 transition">
-              <Phone className="w-4 h-4" /> +7 (499) 229-92-22
-            </a>
+          {/* Mobile/Tablet layout: меню слева, логотип по центру, корзина справа */}
+          <div className="md:hidden flex items-center justify-between">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition"
-              aria-label="Открыть меню"
+              className={`p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition-all duration-200 ${
+                menuOpen ? 'scale-95 bg-white/10' : 'hover:scale-110 active:scale-95'
+              }`}
+              aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
             >
-              <Menu className="w-6 h-6" />
+              <Menu className={`w-6 h-6 transition-transform duration-200 ${menuOpen ? 'rotate-90' : ''}`} />
             </button>
+            
+            <button 
+              onClick={() => scrollTo('#top')} 
+              className="flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
+            >
+              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" />
+            </button>
+            
             <button
               aria-label="Открыть корзину"
               onClick={() => setCartOpen(true)}
-              className="relative p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition"
+              className="relative p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 hover:scale-110 active:scale-95 transition-all duration-200"
             >
               <ShoppingCart className="w-5 h-5" />
               {count > 0 && (
@@ -246,115 +316,8 @@ export default function Page() {
               )}
             </button>
           </div>
-
-          {/* Мобильная корзина */}
-          <button
-            aria-label="Открыть корзину"
-            onClick={() => setCartOpen(true)}
-            className="md:hidden relative p-2 rounded-lg border border-white/10 hover:border-white/40 hover:bg-white/5 transition"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            {count > 0 && (
-              <span className="absolute -top-1 -right-1 text-[11px] leading-none bg-amber-400 text-black px-1.5 py-0.5 rounded-full font-bold">
-                {count}
-              </span>
-            )}
-          </button>
         </div>
 
-        {/* Выпадающее меню */}
-        {menuOpen && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div 
-              className="fixed top-[57px] right-4 md:right-8 bg-neutral-950 border border-white/20 rounded-xl z-50 shadow-2xl min-w-[280px] max-w-[320px] transition-all duration-300 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-white/10">
-                <h3 className="text-lg font-semibold uppercase tracking-wider text-amber-400">Навигация</h3>
-              </div>
-              <div className="p-3 max-h-[70vh] overflow-y-auto">
-                <nav className="flex flex-col gap-1">
-                  <button 
-                    onClick={() => { scrollTo('#menu'); setMenuOpen(false); }} 
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Меню
-                  </button>
-                  <button 
-                    onClick={() => { scrollTo('#about'); setMenuOpen(false); }} 
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    О ресторане
-                  </button>
-                  <button 
-                    onClick={() => { scrollTo('#gallery'); setMenuOpen(false); }} 
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Атмосфера
-                  </button>
-                  <a 
-                    href="/gallery" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Фотогалерея
-                  </a>
-                  <a 
-                    href="/halls" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Залы
-                  </a>
-                  <button 
-                    onClick={() => { scrollTo('#reviews'); setMenuOpen(false); }} 
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Отзывы
-                  </button>
-                  <button 
-                    onClick={() => { scrollTo('#booking'); setMenuOpen(false); }} 
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Бронь
-                  </button>
-                  <a 
-                    href="/events" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    События
-                  </a>
-                  <a 
-                    href="/vacancies" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Вакансии
-                  </a>
-                  <a 
-                    href="/blog" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Новостной блог
-                  </a>
-                  <a 
-                    href="/rules" 
-                    onClick={() => setMenuOpen(false)}
-                    className="text-left px-4 py-3 rounded-lg hover:bg-white/10 hover:text-amber-400 transition text-sm uppercase tracking-wider border border-transparent hover:border-white/10"
-                  >
-                    Правила нахождения
-                  </a>
-                </nav>
-              </div>
-            </div>
-          </>
-        )}
       </header>
 
 
@@ -370,55 +333,55 @@ export default function Page() {
         <div className="absolute inset-0 z-20 flex items-center">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl">
-              <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight mb-4 sm:mb-6">
                 <span className="text-white">Кучер</span>
-                <span className="text-white mx-3">&</span>
+                <span className="text-white mx-2 sm:mx-3">&</span>
                 <span className="text-white">Conga</span>
-              </h1>
-              <div className="space-y-4 text-lg md:text-xl text-neutral-200 leading-relaxed">
-                <p>
-                  Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
-                </p>
-                <p className="text-neutral-300">
-                  В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
-                </p>
-              </div>
+            </h1>
+              <div className="space-y-3 sm:space-y-4 text-base sm:text-lg md:text-xl text-neutral-200 leading-relaxed">
+              <p>
+                Кухня нашего Ресторана - это совершенно новый взгляд на продукт, постоянный поиск новых сочетаний и вкусов.
+              </p>
+              <p className="text-neutral-300">
+                В своей работе мы руководствуемся инновационным подходом в приготовлении продуктов с использованием новых техник и технологий.
+              </p>
+            </div>
               <div className="mt-8 flex flex-wrap gap-4">
                 <button
-                  onClick={() => scrollTo('#booking')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition text-center w-full sm:w-[220px] h-[48px]"
-                >
-                  Забронировать стол
+                onClick={() => scrollTo('#booking')}
+                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-[220px] h-[48px] shadow-lg hover:shadow-xl"
+              >
+                Забронировать стол
                 </button>
                 <button
                   onClick={() => scrollTo('#menu')}
-                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition text-center w-full sm:w-[220px] h-[48px]"
+                  className="px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 text-center w-full sm:w-[220px] h-[48px] shadow-lg hover:shadow-xl"
                 >
                   Смотреть меню
                 </button>
               </div>
             </div>
-          </div>
+            </div>
         </div>
       </section>
 
       {/* ADVANTAGES */}
-      <section id="about" className="py-16 border-t border-white/10 pt-20 md:pt-16">
+      <section id="about" className="py-12 sm:py-16 border-t border-white/10 pt-20 md:pt-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">ПОЧЕМУ ВЫБИРАЮТ НАС</h2>
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
-              <Utensils className="w-10 h-10 text-amber-400 mb-4" />
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">ПОЧЕМУ ВЫБИРАЮТ НАС</h2>
+          <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Utensils className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
               <h3 className="mt-4 text-xl font-semibold">Изысканное меню</h3>
               <p className="mt-2 text-neutral-300">Наше меню сочетает в себе классические рецепты и современные гастрономические тенденции, предлагая блюда, которые восхищают своим вкусом и подачей</p>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
-              <Home className="w-10 h-10 text-amber-400 mb-4" />
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Home className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
               <h3 className="mt-4 text-xl font-semibold">Атмосферный интерьер</h3>
               <p className="mt-2 text-neutral-300">Каждая деталь интерьера создаёт неповторимую атмосферу уюта и стиля, погружая вас в мир эстетического наслаждения и комфорта</p>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
-              <Users className="w-10 h-10 text-amber-400 mb-4" />
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
+              <Users className="w-10 h-10 text-amber-400 mb-4 hover:scale-110 transition-transform duration-200" />
               <h3 className="mt-4 text-xl font-semibold">Безупречное обслуживание</h3>
               <p className="mt-2 text-neutral-300">Наш персонал – это команда профессионалов, которые заботятся о каждом госте, обеспечивая высокий уровень сервиса и создавая приятные впечатления от посещения</p>
             </div>
@@ -426,23 +389,55 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ПОЛНОЕ МЕНЮ */}
-      <div className="pt-20 md:pt-0">
-        <EnhancedMenuSection onAddToCart={add} />
-      </div>
+      {/* МЕНЮ РЕСТОРАНА */}
+      <EnhancedMenuSection onAddToCart={add} cartItems={items} />
 
 
       {/* GALLERY */}
-      <section id="gallery" className="py-16 border-t border-white/10">
+      <section id="gallery" className="py-12 sm:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">Атмосфера</h2>
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-3 gap-3">
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">Атмосфера</h2>
+          <div className="mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
             {gallery.map((src, idx) => (
-              <img key={idx} src={src} alt={`Галерея ${idx + 1}`} className="h-56 md:h-64 w-full object-cover rounded-xl border border-white/10" />
+              <div 
+                key={idx}
+                onClick={() => setSelectedGalleryImage(src)}
+                className="overflow-hidden rounded-xl border border-white/10 hover:border-amber-400/30 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <img 
+                  src={src} 
+                  alt={`Галерея ${idx + 1}`} 
+                  className="h-56 md:h-64 w-full object-cover transition-transform duration-300 hover:scale-110" 
+                />
+              </div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Gallery Image Modal */}
+      {selectedGalleryImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setSelectedGalleryImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setSelectedGalleryImage(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition z-10"
+              aria-label="Закрыть"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={selectedGalleryImage} 
+              alt="Развернутое изображение" 
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* PHOTO GALLERY */}
       <section id="photo-gallery" className="py-16 border-t border-white/10">
@@ -455,18 +450,18 @@ export default function Page() {
       </section>
 
       {/* REVIEWS */}
-      <section id="reviews" className="py-16 border-t border-white/10">
+      <section id="reviews" className="py-12 sm:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <h2 className="text-center text-3xl md:text-4xl font-bold uppercase tracking-wider">Отзывы гостей</h2>
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">Отзывы гостей</h2>
+          <div className="mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {[
               { name: 'Анна', text: 'Отличная кухня и сервис. Обязательно вернёмся на дегустацию вин!' },
               { name: 'Игорь', text: 'Стейки топовые, уголь и прожарка как надо. Атмосфера — ❤' },
               { name: 'Мария', text: 'Красиво, вкусно, удобно добираться. Советую десерты и кофе.' },
             ].map((r, i) => (
-              <div key={i} className="rounded-2xl bg-white/5 p-6 border border-white/10">
+              <div key={i} className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-white/10" />
+                  <div className="h-10 w-10 rounded-full bg-white/10 hover:scale-110 transition-transform duration-200" />
                   <div>
                     <div className="font-semibold">{r.name}</div>
                     <div className="text-xs text-neutral-400">Гость</div>
@@ -480,10 +475,10 @@ export default function Page() {
       </section>
 
       {/* BOOKING FORM */}
-      <section id="booking" className="py-16 border-t border-white/10">
+      <section id="booking" className="py-12 sm:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-3xl rounded-2xl bg-white/5 border border-white/10 p-6 md:p-8">
-            <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-center">Забронировать стол</h2>
+          <div className="mx-auto max-w-3xl rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6 md:p-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-wider text-center">Забронировать стол</h2>
             <p className="mt-2 text-neutral-300 text-center">Оставьте контакты — администратор подтвердит бронь.</p>
             <form onSubmit={submitBooking} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" placeholder="Имя" required />
@@ -499,7 +494,10 @@ export default function Page() {
                 />
               </div>
               <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-4 py-3 outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
-              <button type="submit" className="md:col-span-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition">
+              <button 
+                type="submit"
+                className="md:col-span-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
                 Отправить заявку
               </button>
             </form>
@@ -508,20 +506,59 @@ export default function Page() {
         </div>
       </section>
 
-      {/* CONTACTS */}
-      <section className="py-16 border-t border-white/10">
+      {/* YANDEX MAP */}
+      <section className="py-12 sm:py-16 border-t border-white/10">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
-              <div className="uppercase text-xs tracking-widest text-neutral-400">Телефон</div>
-              <a href="tel:+74992299222" className="mt-2 block text-lg hover:text-amber-400"><Phone className="inline w-4 h-4 mr-2" />+7 (499) 229-92-22</a>
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-6 md:mb-12">
+            Как нас найти
+          </h2>
+          <div className="max-w-6xl mx-auto">
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 p-4">
+              <div className="w-full h-[400px] rounded-lg overflow-hidden relative">
+                {/* Яндекс карта через iframe */}
+                <iframe
+                  src="https://yandex.ru/map-widget/v1/?um=constructor%3A1c90c41847ab12bb686f7ffc03fcb5b1930c854da9e094965c7ac7ad24f8e4b7&amp;source=constructor"
+                  width="100%"
+                  height="400"
+                  frameBorder="0"
+                  allowFullScreen
+                  style={{ 
+                    border: 0,
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '400px'
+                  }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Карта расположения ресторана Кучер и Конга"
+                />
+              </div>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
+          </div>
+        </div>
+      </section>
+
+      {/* CONTACTS */}
+      <section className="py-12 sm:py-16 border-t border-white/10">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">
+              <div className="uppercase text-xs tracking-widest text-neutral-400">Телефон</div>
+              <a href="tel:+74992299222" className="mt-2 block text-lg hover:text-amber-400 hover:scale-105 transition-all duration-200"><Phone className="inline w-4 h-4 mr-2" />+7 (499) 229-92-22</a>
+            </div>
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">
               <div className="uppercase text-xs tracking-widest text-neutral-400">Адрес</div>
               <div className="mt-2 text-lg"><MapPin className="inline w-4 h-4 mr-2" />г. Дмитров, ул. Промышленная 20 Б</div>
-              <a href="https://yandex.kz/maps/-/CLvIEB9m" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-amber-400 hover:underline">Проложить маршрут</a>
+              <a 
+                href="https://yandex.ru/maps/?text=Ресторан Кучер и Конга, Дмитров, Промышленная улица, 20Б" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="mt-3 inline-block text-amber-400 hover:underline hover:scale-105 transition-all duration-200"
+              >
+                Открыть в Яндекс картах
+              </a>
             </div>
-            <div className="rounded-2xl bg-white/5 p-6 border border-white/10">
+            <div className="rounded-2xl bg-white/5 p-6 border border-white/10 hover:bg-white/10 hover:border-amber-400/30 hover:scale-105 active:scale-95 transition-all duration-300">
               <div className="uppercase text-xs tracking-widest text-neutral-400">Часы работы</div>
               <div className="mt-2 text-lg"><Clock className="inline w-4 h-4 mr-2" />Пн–Вс: 12:00 — 00:00</div>
             </div>
@@ -538,12 +575,207 @@ export default function Page() {
             </div>
             <div className="text-sm text-neutral-400">© {new Date().getFullYear()} Ресторан «Кучер и Конга». Все права защищены.</div>
             <div className="text-sm text-neutral-400 flex items-center gap-6 flex-wrap">
-              <a href="/privacy" className="hover:text-amber-400">Политика конфиденциальности</a>
-              <a href="/terms" className="hover:text-amber-400">Пользовательское соглашение</a>
+              <a href="/privacy" className="hover:text-amber-400 hover:scale-105 transition-all duration-200">Политика конфиденциальности</a>
+              <a href="/terms" className="hover:text-amber-400 hover:scale-105 transition-all duration-200">Пользовательское соглашение</a>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* --- NAVIGATION MENU --- */}
+      {/* Mobile/Tablet: меню выезжает слева */}
+      <aside
+        className={`md:hidden fixed left-0 top-0 z-50 h-full w-full sm:w-[420px] bg-neutral-950 border-r border-white/10 transform transition-transform duration-300 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        role="dialog"
+        aria-label="Навигация"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Menu className="w-5 h-5" />
+            <span className="font-semibold">Навигация</span>
+          </div>
+          <button onClick={() => setMenuOpen(false)} aria-label="Закрыть" className="p-2 rounded hover:bg-white/5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="h-[calc(100%-80px)] overflow-auto p-4">
+          <nav className="flex flex-col gap-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#menu'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Меню
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#about'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              О ресторане
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#gallery'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Атмосфера
+            </button>
+            <a 
+              href="/gallery" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Фотогалерея
+            </a>
+            <a 
+              href="/halls" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Залы
+            </a>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#reviews'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Отзывы
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#booking'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Бронь
+            </button>
+            <a 
+              href="/events" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              События
+            </a>
+            <a 
+              href="/vacancies" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Вакансии
+            </a>
+            <a 
+              href="/blog" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Новостной блог
+            </a>
+            <a 
+              href="/rules" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Правила нахождения
+            </a>
+          </nav>
+        </div>
+      </aside>
+
+      {/* Desktop: меню выезжает справа */}
+      <aside
+        className={`hidden md:block fixed right-0 top-0 z-50 h-full w-[420px] bg-neutral-950 border-l border-white/10 transform transition-transform duration-300 ${
+          menuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        role="dialog"
+        aria-label="Навигация"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Menu className="w-5 h-5" />
+            <span className="font-semibold">Навигация</span>
+          </div>
+          <button onClick={() => setMenuOpen(false)} aria-label="Закрыть" className="p-2 rounded hover:bg-white/5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="h-[calc(100%-80px)] overflow-auto p-4">
+          <nav className="flex flex-col gap-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#menu'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Меню
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#about'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              О ресторане
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#gallery'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Атмосфера
+            </button>
+            <a 
+              href="/gallery" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Фотогалерея
+            </a>
+            <a 
+              href="/halls" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Залы
+            </a>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#reviews'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Отзывы
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); scrollTo('#booking'); }} 
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Бронь
+            </button>
+            <a 
+              href="/events" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              События
+            </a>
+            <a 
+              href="/vacancies" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Вакансии
+            </a>
+            <a 
+              href="/blog" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Новостной блог
+            </a>
+            <a 
+              href="/rules" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Правила нахождения
+            </a>
+          </nav>
+        </div>
+      </aside>
 
       {/* --- CART DRAWER --- */}
       {cartOpen && <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setCartOpen(false)} aria-hidden />}
@@ -586,7 +818,7 @@ export default function Page() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => dec(i.id)}
-                        className="p-2 rounded-full border border-white/20 hover:border-white/60"
+                        className="p-2 rounded-full border border-white/20 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
                         aria-label="Убавить"
                       >
                         <Minus className="w-4 h-4" />
@@ -604,8 +836,8 @@ export default function Page() {
                         className="w-12 text-center bg-black/40 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-amber-400 text-sm"
                       />
                       <button
-                        onClick={() => add(i)}
-                        className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300"
+                        onClick={() => add({ ...i, qty: i.qty + 1 })}
+                        className="p-2 rounded-full bg-amber-400 text-black hover:bg-amber-300 hover:scale-110 active:scale-95 transition-all duration-200"
                         aria-label="Добавить"
                       >
                         <Plus className="w-4 h-4" />
@@ -642,11 +874,11 @@ export default function Page() {
           
           <div className="flex items-center gap-3">
             <button
-              disabled={items.length === 0 || (validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid)}
-              onClick={() => setDeliveryOpen(true)}
-              className="w-full px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Доставка
+            disabled={items.length === 0 || (validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid)}
+            onClick={() => setDeliveryOpen(true)}
+              className="w-full px-6 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-xl"
+          >
+            Доставка
             </button>
           </div>
           <p className="text-[12px] text-neutral-500">
@@ -709,7 +941,7 @@ export default function Page() {
           <button
             type="submit"
             disabled={items.length === 0 || (validateBusinessLunchOrder.businessLunchCount > 0 && !validateBusinessLunchOrder.isValid)}
-            className="mt-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-2 px-8 py-3 rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-xl"
           >
             Отправить заявку в Telegram
           </button>

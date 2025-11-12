@@ -16,6 +16,19 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
+
+  /* Плавные анимации для интерактивных элементов */
+  @media (hover: hover) {
+    /* Только для устройств с поддержкой hover */
+  }
+
+  @media (hover: none) {
+    /* Для touch устройств - убираем hover эффекты */
+    .hover\:scale-105:hover,
+    .hover\:scale-110:hover {
+      transform: none;
+    }
+  }
 }
 
 /* Глобальный reset */

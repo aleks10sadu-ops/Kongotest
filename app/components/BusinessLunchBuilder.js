@@ -49,15 +49,23 @@ export default function BusinessLunchBuilder({ onAddToCart }) {
     }));
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
+    // Предотвращаем всплытие события, чтобы не закрывать конструктор
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!isComplete || !selectedSetData) return;
 
     const dishesList = [];
+    const dishesIds = [];
     
-    // Добавляем блюда
-    Object.keys(selectedDishes).forEach(courseType => {
+    // Собираем список блюд и их ID для создания уникального идентификатора
+    Object.keys(selectedDishes).sort().forEach(courseType => {
       const dish = selectedDishes[courseType];
       dishesList.push(dish.name);
+      dishesIds.push(`${courseType}:${dish.name}`);
     });
 
     // Формируем название бизнес-ланча
@@ -66,33 +74,35 @@ export default function BusinessLunchBuilder({ onAddToCart }) {
     // Формируем описание
     const description = `Бизнес-ланч:\n${dishesList.map(d => `• ${d}`).join('\n')}\nГарнир: ${selectedSide}\nНапиток: ${selectedDrink}`;
 
-    // Создаем уникальный ID для каждого бизнес-ланча
-    const uniqueId = `business_lunch_${selectedSet}_${Date.now()}_${quantity}`;
+    // Создаем детерминированный ID на основе содержимого бизнес-ланча
+    // Это позволит объединять одинаковые наборы в один элемент корзины
+    const contentHash = `${selectedSet}_${dishesIds.join('|')}_${selectedSide}_${selectedDrink}`;
+    // Создаем простой хеш из строки для использования в ID
+    const hash = contentHash.split('').reduce((acc, char) => {
+      const hash = ((acc << 5) - acc) + char.charCodeAt(0);
+      return hash & hash;
+    }, 0);
+    const itemId = `business_lunch_${Math.abs(hash)}`;
 
-    for (let i = 0; i < quantity; i++) {
-      const itemId = i === 0 ? uniqueId : `${uniqueId}_${i}`;
-      
-      onAddToCart({
-        id: itemId,
-        name: businessLunchName,
-        price: selectedSetData.price,
-        weight: 'Бизнес-ланч',
-        description: description,
-        qty: 1,
-        isBusinessLunch: true,
-        setType: selectedSetData.name,
-        dishes: selectedDishes,
-        side: selectedSide,
-        drink: selectedDrink
-      });
-    }
+    // Добавляем один элемент с указанным количеством
+    // Логика корзины автоматически объединит элементы с одинаковым ID
+    onAddToCart({
+      id: itemId,
+      name: businessLunchName,
+      price: selectedSetData.price,
+      weight: 'Бизнес-ланч',
+      description: description,
+      qty: quantity, // Добавляем указанное количество
+      isBusinessLunch: true,
+      setType: selectedSetData.name,
+      dishes: selectedDishes,
+      side: selectedSide,
+      drink: selectedDrink
+    });
 
-    // Сброс формы
-    setSelectedSet(null);
-    setSelectedDishes({});
-    setSelectedSide('');
-    setSelectedDrink('');
-    setQuantity(1);
+    // НЕ сбрасываем опции конструктора, чтобы пользователь мог 
+    // добавить несколько одинаковых наборов в корзину без повторного выбора
+    // Все выбранные опции (блюда, гарнир, напиток, количество, набор) остаются без изменений
   };
 
   const currentDayName = useMemo(() => {
