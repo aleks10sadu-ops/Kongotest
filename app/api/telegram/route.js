@@ -21,8 +21,8 @@ function buildMessage(payload) {
     const { name, phone, date, time, guests, comment, items = [], total = 0 } = payload;
     const itemsBlock = items.length
       ? '\n<b>Заказ/пожелания (из корзины):</b>\n' +
-        items.map(i => `• ${escapeHtml(i.name)} × ${i.qty} = ${fmtCurrency(i.qty * i.price)} ₸`).join('\n') +
-        `\n<b>Итого:</b> ${fmtCurrency(total)} ₸`
+        items.map(i => `• ${escapeHtml(i.name)} × ${i.qty} = ${fmtCurrency(i.qty * i.price)} ₽`).join('\n') +
+        `\n<b>Итого:</b> ${fmtCurrency(total)} ₽`
       : '';
     return (
       `<b>🟩 Заявка: Бронирование</b>\n` +
@@ -38,7 +38,7 @@ function buildMessage(payload) {
   if (type === 'delivery') {
     const { name, phone, address, comment, items = [], total = 0 } = payload;
     const itemsBlock = items.length
-      ? items.map(i => `• ${escapeHtml(i.name)} × ${i.qty} = ${fmtCurrency(i.qty * i.price)} ₸`).join('\n')
+      ? items.map(i => `• ${escapeHtml(i.name)} × ${i.qty} = ${fmtCurrency(i.qty * i.price)} ₽`).join('\n')
       : '—';
     return (
       `<b>🟦 Заявка: Доставка</b>\n` +
@@ -47,7 +47,7 @@ function buildMessage(payload) {
       `<b>Адрес:</b> ${escapeHtml(address)}\n` +
       (comment ? `<b>Комментарий:</b> ${escapeHtml(comment)}\n` : '') +
       `\n<b>Позиции:</b>\n${itemsBlock}\n` +
-      `<b>Итого:</b> ${fmtCurrency(total)} ₸`
+      `<b>Итого:</b> ${fmtCurrency(total)} ₽`
     );
   }
 
