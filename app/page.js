@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import Image from 'next/image';
 import {
   Phone, MapPin, Clock, Star, Utensils, Wine,
   ShoppingCart, Plus, Minus, X, Trash2, Menu,
@@ -23,7 +24,7 @@ const events = [
   {
     id: 'new-year',
     title: 'Новогодняя ночь',
-    image: '/kongo_ng.png',
+    image: '/kongo_ng.webp',
     link: '/events/new-year'
   }
 ];
@@ -88,7 +89,13 @@ export default function Page() {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
   const { items, add, dec, remove, clear, count, total } = useCart();
+
+  // Устанавливаем флаг монтирования для избежания hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Доставка: локальный стейт формы
   const [dForm, setDForm] = useState({ name: '', phone: '', address: '', comment: '' });
@@ -287,7 +294,7 @@ export default function Page() {
               onClick={() => scrollTo('#top')} 
               className="flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
             >
-              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" />
+              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" loading="eager" fetchPriority="high" />
             </button>
             
             <div className="flex items-center gap-3">
@@ -337,7 +344,7 @@ export default function Page() {
               onClick={() => scrollTo('#top')} 
               className="flex items-center hover:scale-105 active:scale-95 transition-transform duration-200"
             >
-              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" />
+              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-7 w-auto" loading="eager" fetchPriority="high" />
             </button>
             
             <button
@@ -360,12 +367,15 @@ export default function Page() {
 
       {/* HERO */}
       <a id="top" />
-      <section className="relative">
+      <section className="relative w-full h-[70vh] sm:h-[75vh] lg:h-[80vh]">
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80 z-10" />
-        <img
-          src="/hero-image.jpg"
+        <Image
+          src="/hero-image.webp"
           alt="Ресторан Кучер и Конга — атмосфера вечера"
-          className="w-full h-[70vh] sm:h-[75vh] lg:h-[80vh] object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
         <div className="absolute inset-0 z-20 flex items-center">
           <div className="container mx-auto px-4">
@@ -381,10 +391,15 @@ export default function Page() {
                         idx === currentEventIndex ? 'opacity-100 z-10 relative' : 'opacity-0 z-0 absolute inset-0'
                       }`}
                     >
-                      <img
+                      <Image
                         src={event.image}
                         alt={event.title}
+                        width={600}
+                        height={400}
+                        sizes="(max-width: 1024px) 100vw, 50vw"
                         className="w-full h-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-500"
+                        loading={idx === 0 ? "eager" : "lazy"}
+                        priority={idx === 0}
                       />
                     </a>
                   ))}
@@ -478,11 +493,14 @@ export default function Page() {
         <div className="container mx-auto px-4">
           <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-stretch">
             {/* Левое изображение */}
-            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg">
-              <img 
+            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg relative min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
+              <Image 
                 src="/konga_bron.webp" 
                 alt="Интерьер ресторана" 
-                className="w-full h-full object-cover object-right min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]"
+                fill
+                sizes="(max-width: 1024px) 0vw, 25vw"
+                className="object-cover object-right"
+                loading="lazy"
               />
             </div>
 
@@ -490,35 +508,62 @@ export default function Page() {
             <div className="lg:col-span-6 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-6 md:p-8 lg:p-10 shadow-lg">
               <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold uppercase tracking-wider text-center mb-3 sm:mb-4 lg:mb-5 break-words">Забронировать стол</h2>
               <p className="mt-1.5 sm:mt-2 text-sm sm:text-base lg:text-lg text-neutral-300 text-center mb-4 sm:mb-6 lg:mb-8">Оставьте контакты — администратор подтвердит бронь.</p>
-              <form onSubmit={submitBooking} className="mt-3 sm:mt-4 lg:mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 max-w-3xl mx-auto">
-                <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
-                <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
-                <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
-                <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
-                <div className="md:col-span-2 flex items-center gap-2 sm:gap-3 lg:gap-4">
-                  <label htmlFor="guests" className="text-sm sm:text-base lg:text-lg text-neutral-300 font-medium">Гостей:</label>
-                  <input
-                    id="guests" name="guests" type="number" min={1} value={guests}
-                    onChange={(e) => setGuests(Number(e.target.value))}
-                    className="w-24 sm:w-28 lg:w-32 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400"
-                  />
-                </div>
-                <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
-                <button 
-                  type="submit"
-                  className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  Отправить заявку
-                </button>
-              </form>
+              {isMounted ? (
+                <form onSubmit={submitBooking} className="mt-3 sm:mt-4 lg:mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 max-w-3xl mx-auto">
+                  <input id="booking-name" name="name" aria-label="Имя" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
+                  <input id="booking-phone" name="phone" aria-label="Телефон" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
+                  <input id="booking-date" name="date" type="date" aria-label="Дата" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                  <input id="booking-time" name="time" type="time" aria-label="Время" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                  <div className="md:col-span-2 flex items-center gap-2 sm:gap-3 lg:gap-4">
+                    <label htmlFor="guests" className="text-sm sm:text-base lg:text-lg text-neutral-300 font-medium">Гостей:</label>
+                    <input
+                      id="guests" name="guests" type="number" min={1} value={guests}
+                      onChange={(e) => setGuests(Number(e.target.value))}
+                      className="w-24 sm:w-28 lg:w-32 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <textarea id="booking-comment" name="comment" aria-label="Пожелания" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
+                  <button 
+                    type="submit"
+                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Отправить заявку
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={submitBooking} className="mt-3 sm:mt-4 lg:mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 max-w-3xl mx-auto">
+                  <input name="name" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Имя" required />
+                  <input name="phone" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" placeholder="Телефон" required />
+                  <input name="date" type="date" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                  <input name="time" type="time" className="bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" required />
+                  <div className="md:col-span-2 flex items-center gap-2 sm:gap-3 lg:gap-4">
+                    <label htmlFor="guests" className="text-sm sm:text-base lg:text-lg text-neutral-300 font-medium">Гостей:</label>
+                    <input
+                      id="guests" name="guests" type="number" min={1} value={guests}
+                      onChange={(e) => setGuests(Number(e.target.value))}
+                      className="w-24 sm:w-28 lg:w-32 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
+                  <button 
+                    type="submit"
+                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Отправить заявку
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Правое изображение */}
-            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg">
-              <img 
-                src="/konga_bron_2.webp" 
+            <div className="hidden lg:block lg:col-span-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 shadow-lg relative min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
+              <Image 
+                src="/konga_bron_2.webp"
                 alt="Интерьер ресторана" 
-                className="w-full h-full object-cover object-[20%_center] min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]"
+                fill
+                sizes="(max-width: 1024px) 0vw, 25vw"
+                className="object-cover object-[20%_center]"
+                loading="lazy"
               />
             </div>
           </div>
@@ -539,12 +584,17 @@ export default function Page() {
                 }}
                 className="overflow-hidden rounded-xl border border-white/10 hover:border-amber-400/30 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
               >
-                <img 
+                <Image 
                   src={src} 
                   alt={`Галерея ${idx + 1}`} 
+                  width={400}
+                  height={300}
+                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, 33vw"
                   className={`h-56 md:h-64 w-full object-cover transition-transform duration-300 hover:scale-110 ${
                     idx === 0 ? 'object-[center_75%]' : ''
                   }`}
+                  loading={idx < 3 ? "eager" : "lazy"}
+                  style={{ objectFit: 'cover' }}
                 />
               </div>
             ))}
@@ -590,12 +640,19 @@ export default function Page() {
             </div>
             
             {/* Изображение */}
-            <img 
-              src={selectedGalleryImage} 
-              alt="Развернутое изображение" 
-              className="max-w-full max-h-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <div className="relative w-full h-full max-w-7xl max-h-[90vh] flex items-center justify-center">
+              <Image 
+                src={selectedGalleryImage} 
+                alt="Развернутое изображение" 
+                width={1920}
+                height={1080}
+                sizes="100vw"
+                className="max-w-full max-h-full object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+                priority
+                style={{ width: 'auto', height: 'auto' }}
+              />
+            </div>
             
             {/* Правая стрелка */}
             <div className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10">
@@ -717,12 +774,14 @@ export default function Page() {
       {/* --- NAVIGATION MENU --- */}
       {/* Mobile/Tablet: меню выезжает слева */}
       <aside
+        aria-label="Навигация"
+        aria-hidden={isMounted ? (menuOpen ? "false" : "true") : "true"}
+        role="dialog"
         className={`md:hidden fixed left-0 top-0 z-50 h-full w-full sm:w-[420px] bg-neutral-950 border-r border-white/10 transform transition-transform duration-300 ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        role="dialog"
-        aria-label="Навигация"
         onClick={(e) => e.stopPropagation()}
+        suppressHydrationWarning
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -807,12 +866,14 @@ export default function Page() {
 
       {/* Desktop: меню выезжает справа */}
       <aside
+        aria-label="Навигация"
+        aria-hidden={isMounted ? (menuOpen ? "false" : "true") : "true"}
+        role="dialog"
         className={`hidden md:block fixed right-0 top-0 z-50 h-full w-[420px] bg-neutral-950 border-l border-white/10 transform transition-transform duration-300 ${
           menuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
-        role="dialog"
-        aria-label="Навигация"
         onClick={(e) => e.stopPropagation()}
+        suppressHydrationWarning
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -898,11 +959,13 @@ export default function Page() {
       {/* --- CART DRAWER --- */}
       {cartOpen && <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setCartOpen(false)} aria-hidden />}
       <aside
+        aria-label="Корзина"
+        aria-hidden={isMounted ? (cartOpen ? "false" : "true") : "true"}
+        role="dialog"
         className={`fixed right-0 top-0 z-50 h-full w-full sm:w-[420px] bg-neutral-950 border-l border-white/10 transform transition-transform duration-300 ${
           cartOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
-        role="dialog"
-        aria-label="Корзина"
+        suppressHydrationWarning
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -1005,7 +1068,7 @@ export default function Page() {
             Доставка
             </button>
           </div>
-          <p className="text-[12px] text-neutral-500">
+          <p className="text-[12px] text-neutral-400">
             Оплата на месте/при получении. Администратор свяжется для подтверждения.
           </p>
         </div>

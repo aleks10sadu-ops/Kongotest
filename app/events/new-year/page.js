@@ -17,7 +17,7 @@ export default function NewYearEventPage() {
             
             <div className="rounded-2xl overflow-hidden border border-white/10 mb-8">
               <img
-                src="/kongo_ng.png"
+                src="/kongo_ng.webp"
                 alt="Новогодняя ночь в ресторане Кучер и Конга"
                 className="w-full h-auto object-cover"
               />

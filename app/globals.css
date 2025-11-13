@@ -45,3 +45,23 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Оптимизация загрузки шрифтов - для будущих кастомных шрифтов */
+@font-face {
+  font-family: 'System Fallback';
+  font-display: swap;
+  src: local('Arial');
+}
+
+/* Скрытые метки для доступности (screen reader only) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
