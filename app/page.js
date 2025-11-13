@@ -88,7 +88,6 @@ export default function Page() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
-  const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
   const { items, add, dec, remove, clear, count, total } = useCart();
 
@@ -175,14 +174,6 @@ export default function Page() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedGalleryImage, currentGalleryIndex]);
 
-  // Автопрокрутка карусели мероприятий
-  useEffect(() => {
-    if (events.length === 0) return;
-    const interval = setInterval(() => {
-      setCurrentEventIndex((prev) => (prev + 1) % events.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
 
   // Прокрутка к секциям с учетом фиксированного header
@@ -367,7 +358,7 @@ export default function Page() {
 
       {/* HERO */}
       <a id="top" />
-      <section className="relative w-full min-h-[90vh] sm:min-h-[95vh] lg:min-h-[100vh] pt-16 sm:pt-20 md:pt-16 pb-32 sm:pb-36 md:pb-28 overflow-hidden">
+      <section className="relative w-full min-h-[60vh] sm:min-h-[65vh] lg:min-h-[70vh] pt-16 sm:pt-20 md:pt-16 pb-32 sm:pb-36 md:pb-28 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80 z-10" />
         <Image
           src="/hero-image.webp"
@@ -379,52 +370,25 @@ export default function Page() {
         />
         <div className="relative z-20 flex items-center min-h-[calc(70vh-4rem)] sm:min-h-[calc(75vh-5rem)] md:min-h-[calc(80vh-4rem)] pt-12 sm:pt-16 md:pt-0 pb-24 sm:pb-28 md:pb-20">
           <div className="container mx-auto px-4 w-full">
-            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-12 items-start w-full max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 translate-y-[5%] sm:translate-y-[6%] lg:translate-y-[8%]">
-              {/* Второй контейнер - Карусель мероприятий (первым на мобильных) */}
-              {events.length > 0 && (
-                <div className="w-full max-w-[75px] sm:max-w-[90px] md:max-w-[112px] lg:w-[250px] lg:max-w-[250px] lg:h-auto rounded-xl sm:rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-2 sm:p-3 md:p-3 lg:p-3 shadow-2xl flex flex-col justify-center items-center order-1 lg:order-2 mx-auto lg:mx-0 lg:justify-self-end lg:ml-auto">
-                  <div className="relative w-full flex items-center justify-center min-h-0">
-                    {events.map((event, idx) => (
-                      <a
-                        key={event.id}
-                        href={event.link}
-                        className={`w-full h-full transition-opacity duration-500 flex items-center justify-center ${
-                          idx === currentEventIndex ? 'opacity-100 z-10 relative' : 'opacity-0 z-0 absolute inset-0'
-                        }`}
-                      >
-                        <Image
-                          src={event.image}
-                          alt={event.title}
-                          width={180}
-                          height={135}
-                          sizes="(max-width: 1024px) 100vw, 50vw"
-                          className="w-full h-auto max-h-[140px] sm:max-h-[160px] md:max-h-[180px] lg:max-h-[200px] object-contain cursor-pointer hover:scale-105 transition-transform duration-500"
-                          loading={idx === 0 ? "eager" : "lazy"}
-                          priority={idx === 0}
-                        />
-                      </a>
-                    ))}
-                  </div>
-                  {/* Индикаторы */}
-                  {events.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-                      {events.map((_, idx) => (
-                        <button
-                          key={idx}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setCurrentEventIndex(idx);
-                          }}
-                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                            idx === currentEventIndex ? 'bg-amber-400 w-8' : 'bg-white/50 hover:bg-white/70'
-                          }`}
-                          aria-label={`Перейти к мероприятию ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-12 items-stretch w-full max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 translate-y-[5%] sm:translate-y-[6%] lg:translate-y-[8%]" suppressHydrationWarning>
+              {/* Изображение мероприятия (первым на мобильных) */}
+              <a
+                href="/events/new-year"
+                className="w-full order-1 lg:order-2 mx-auto lg:mx-0 lg:justify-self-end block overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300 lg:h-full"
+                suppressHydrationWarning
+              >
+                <Image
+                  src="/kongo_ng.webp"
+                  alt="Новогодняя ночь"
+                  width={450}
+                  height={338}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  priority
+                  suppressHydrationWarning
+                />
+              </a>
 
               {/* Первый контейнер - Информация о ресторане (вторым на мобильных) */}
               <div className="w-full rounded-xl sm:rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4 sm:p-6 md:p-8 lg:p-11 shadow-2xl flex flex-col justify-between lg:justify-self-start lg:self-center order-2 lg:order-1">

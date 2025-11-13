@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -59,10 +61,11 @@ const nextConfig = {
     ];
   },
   // Настройка для современных браузеров (ES6+)
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  // Указываем корень проекта для устранения предупреждения о множественных lockfiles
+  outputFileTracingRoot: path.join(__dirname),
 }
 
 module.exports = nextConfig
