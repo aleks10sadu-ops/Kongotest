@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Edit2, Save, Trash2, Eye, EyeOff } from 'lucide-react';
 import { createSupabaseBrowserClient } from '../../lib/supabase/client';
+import { uploadImage, isSupabaseStorageUrl } from '../../lib/supabase/storage';
 
 export default function ContentManager({ category, isOpen, onClose }) {
   const [posts, setPosts] = useState([]);
@@ -16,6 +17,8 @@ export default function ContentManager({ category, isOpen, onClose }) {
     image_url: '',
     is_published: true,
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const categoryNames = {
     vacancies: 'Вакансии',
@@ -252,19 +255,96 @@ export default function ContentManager({ category, isOpen, onClose }) {
                       placeholder="Краткое описание (необязательно)"
                       className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
                     />
-                    <input
-                      type="text"
-                      value={editingPost?.image_url || newPost.image_url}
-                      onChange={(e) => {
-                        if (editingPost) {
-                          setEditingPost({ ...editingPost, image_url: e.target.value });
-                        } else {
-                          setNewPost({ ...newPost, image_url: e.target.value });
-                        }
-                      }}
-                      placeholder="URL изображения (необязательно)"
-                      className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
-                    />
+                    <div className="space-y-2">
+                      <label className="block text-sm text-neutral-300">Изображение</label>
+                      
+                      {/* Загрузка файла */}
+                      <label className="block cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            // Проверяем размер файла (макс 5MB)
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert('Размер файла не должен превышать 5MB');
+                              return;
+                            }
+                            
+                            setUploadingImage(true);
+                            
+                            try {
+                              // Создаем preview
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setImagePreview(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                              
+                              // Загружаем в Supabase Storage
+                              const postId = editingPost?.id || newPost.id || null;
+                              const uploadedUrl = await uploadImage(file, category, postId);
+                              
+                              if (editingPost) {
+                                setEditingPost({ ...editingPost, image_url: uploadedUrl });
+                              } else {
+                                setNewPost({ ...newPost, image_url: uploadedUrl });
+                              }
+                              
+                              setImagePreview(null); // Очищаем preview после загрузки
+                            } catch (err) {
+                              alert(`Ошибка загрузки изображения: ${err.message}`);
+                              setImagePreview(null);
+                            } finally {
+                              setUploadingImage(false);
+                            }
+                          }}
+                          className="hidden"
+                          disabled={uploadingImage}
+                        />
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 px-3 py-2 bg-black/40 border border-white/20 rounded text-sm text-neutral-300 hover:bg-black/60 transition text-center pointer-events-none">
+                            {uploadingImage ? 'Загрузка...' : '📤 Загрузить изображение'}
+                          </div>
+                        </div>
+                      </label>
+                      
+                      {/* Preview загружаемого изображения */}
+                      {imagePreview && (
+                        <div className="p-2 bg-white/5 rounded-lg">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-32 object-cover rounded"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Или ввести URL вручную */}
+                      <div className="text-xs text-neutral-400 text-center">или</div>
+                      <input
+                        type="text"
+                        value={editingPost?.image_url || newPost.image_url}
+                        onChange={(e) => {
+                          if (editingPost) {
+                            setEditingPost({ ...editingPost, image_url: e.target.value });
+                          } else {
+                            setNewPost({ ...newPost, image_url: e.target.value });
+                          }
+                        }}
+                        placeholder="Введите URL изображения (https://... или /local-image.webp)"
+                        className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
+                      />
+                      {(editingPost?.image_url || newPost.image_url) && (
+                        <div className="text-xs text-neutral-500">
+                          {isSupabaseStorageUrl(editingPost?.image_url || newPost.image_url) 
+                            ? '✓ Изображение в Supabase Storage' 
+                            : 'Внешний URL'}
+                        </div>
+                      )}
+                    </div>
                     <textarea
                       value={editingPost?.content || newPost.content}
                       onChange={(e) => {

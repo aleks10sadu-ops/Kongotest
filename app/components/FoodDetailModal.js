@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, Star, Clock, Scale, Edit2, Save, Trash2 } from 'lucide-react';
 import { getFoodImage } from '../data/foodImages';
 import { createSupabaseBrowserClient } from '../../lib/supabase/client';
+import { uploadDishImage, isSupabaseStorageUrl } from '../../lib/supabase/storage';
 import MenuTypesAndCategoriesManager from './MenuTypesAndCategoriesManager';
 
 export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, cartItems = [], isAdmin = false, categories = [], onUpdate, onDelete }) {
@@ -17,6 +18,8 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deleted, setDeleted] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (item) {
@@ -384,14 +387,83 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
               </div>
               {isEditing && (
                 <div className="space-y-2">
-                  <label className="block text-sm text-neutral-300">URL изображения</label>
-                  <input
-                    type="text"
-                    value={editImageUrl}
-                    onChange={(e) => setEditImageUrl(e.target.value)}
-                    placeholder="https://... или /local-image.webp"
-                    className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 outline-none focus:border-amber-400 text-sm"
-                  />
+                  <label className="block text-sm text-neutral-300">Изображение блюда</label>
+                  
+                  {/* Загрузка файла */}
+                  <div className="space-y-2">
+                    <label className="block cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          // Проверяем размер файла (макс 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            setError('Размер файла не должен превышать 5MB');
+                            return;
+                          }
+                          
+                          setUploadingImage(true);
+                          setError('');
+                          
+                          try {
+                            // Создаем preview
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setImagePreview(reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                            
+                            // Загружаем в Supabase Storage
+                            const dishId = item.id && item.id !== 'new' ? item.id : 'temp';
+                            const uploadedUrl = await uploadDishImage(file, dishId);
+                            setEditImageUrl(uploadedUrl);
+                            setImagePreview(null); // Очищаем preview после загрузки
+                          } catch (err) {
+                            setError(`Ошибка загрузки изображения: ${err.message}`);
+                            setImagePreview(null);
+                          } finally {
+                            setUploadingImage(false);
+                          }
+                        }}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 px-3 py-2 bg-black/40 border border-white/20 rounded-lg text-sm text-neutral-300 hover:bg-black/60 transition text-center pointer-events-none">
+                          {uploadingImage ? 'Загрузка...' : '📤 Загрузить изображение'}
+                        </div>
+                      </div>
+                    </label>
+                    
+                    {/* Preview загружаемого изображения */}
+                    {imagePreview && (
+                      <div className="mt-2 p-2 bg-white/5 rounded-lg">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Или ввести URL вручную */}
+                    <div className="text-xs text-neutral-400 text-center">или</div>
+                    <input
+                      type="text"
+                      value={editImageUrl}
+                      onChange={(e) => setEditImageUrl(e.target.value)}
+                      placeholder="Введите URL изображения (https://... или /local-image.webp)"
+                      className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 outline-none focus:border-amber-400 text-sm"
+                    />
+                    {editImageUrl && (
+                      <div className="text-xs text-neutral-500">
+                        {isSupabaseStorageUrl(editImageUrl) ? '✓ Изображение в Supabase Storage' : 'Внешний URL'}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               
