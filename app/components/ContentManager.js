@@ -86,6 +86,15 @@ export default function ContentManager({ category, isOpen, onClose }) {
       }
 
       const slug = post.slug || generateSlug(post.title);
+      
+      // Отладочная информация
+      console.log('Сохранение записи:', {
+        id: post.id,
+        title: post.title,
+        image_url: post.image_url,
+        hasImage: !!post.image_url,
+        isSupabaseUrl: post.image_url ? isSupabaseStorageUrl(post.image_url) : false
+      });
 
       if (post.id) {
         // Обновление
@@ -108,7 +117,7 @@ export default function ContentManager({ category, isOpen, onClose }) {
         }
       } else {
         // Создание
-        const { error } = await supabase
+        const { data: newPostData, error } = await supabase
           .from('content_posts')
           .insert({
             category: category,
@@ -120,11 +129,154 @@ export default function ContentManager({ category, isOpen, onClose }) {
             is_published: post.is_published,
             published_at: post.is_published ? new Date().toISOString() : null,
             created_by: user.id,
-          });
+          })
+          .select()
+          .single();
 
         if (error) {
           alert('Ошибка создания: ' + error.message);
           return;
+        }
+
+        // Если изображение было загружено в temp, перемещаем его в папку с ID записи
+        let finalImageUrl = post.image_url;
+        if (newPostData && post.image_url && isSupabaseStorageUrl(post.image_url)) {
+          try {
+            // Извлекаем путь к файлу из URL
+            const urlParts = post.image_url.split('/');
+            const bucketIndex = urlParts.indexOf('public');
+            if (bucketIndex !== -1 && bucketIndex < urlParts.length - 1) {
+              const bucketName = urlParts[bucketIndex + 1];
+              const oldPath = urlParts.slice(bucketIndex + 2).join('/');
+              
+              // Если файл в temp, перемещаем его
+              if (oldPath.includes('/temp/')) {
+                const fileName = oldPath.split('/temp/')[1];
+                const newPath = `${category}/${newPostData.id}/${fileName}`;
+                
+                console.log('Перемещение изображения:', { oldPath, newPath, bucketName });
+                
+                // Проверяем, что исходный файл существует
+                const { data: oldFileData, error: oldFileError } = await supabase.storage
+                  .from(bucketName)
+                  .list(oldPath.split('/').slice(0, -1).join('/'), {
+                    search: oldPath.split('/').pop()
+                  });
+                
+                if (oldFileError || !oldFileData || oldFileData.length === 0) {
+                  console.error('❌ Исходный файл не найден в temp:', oldPath);
+                  console.error('Ошибка:', oldFileError);
+                  alert('Внимание: Файл не найден в временной папке. Возможно, он был удален. Проверьте Storage.');
+                } else {
+                  console.log('✅ Исходный файл найден:', oldFileData);
+                  
+                  // Копируем файл в новое место
+                  const { data: copyData, error: copyError } = await supabase.storage
+                    .from(bucketName)
+                    .copy(oldPath, newPath);
+                  
+                  if (copyError) {
+                    console.error('❌ Ошибка копирования изображения:', copyError);
+                    console.error('Детали:', {
+                      oldPath,
+                      newPath,
+                      bucketName,
+                      error: copyError.message
+                    });
+                    alert(`Ошибка перемещения файла: ${copyError.message}. URL останется временным.`);
+                  } else {
+                    console.log('✅ Файл скопирован:', { oldPath, newPath });
+                    
+                    // Проверяем, что новый файл существует
+                    const { data: newFileData, error: newFileError } = await supabase.storage
+                      .from(bucketName)
+                      .list(newPath.split('/').slice(0, -1).join('/'), {
+                        search: newPath.split('/').pop()
+                      });
+                    
+                    if (newFileError || !newFileData || newFileData.length === 0) {
+                      console.error('❌ Новый файл не найден после копирования:', newPath);
+                      alert('Файл скопирован, но не найден в новом месте. Проверьте Storage.');
+                    } else {
+                      console.log('✅ Новый файл подтвержден:', newFileData);
+                      
+                      // Получаем новый URL
+                      const { data: { publicUrl } } = supabase.storage
+                        .from(bucketName)
+                        .getPublicUrl(newPath);
+                      
+                      console.log('✅ Файл скопирован, новый URL:', publicUrl);
+                      
+                      // Обновляем URL в базе данных
+                      const { error: updateError } = await supabase
+                        .from('content_posts')
+                        .update({ image_url: publicUrl })
+                        .eq('id', newPostData.id);
+                      
+                      if (updateError) {
+                        console.error('❌ Ошибка обновления URL изображения:', updateError);
+                        alert('Изображение загружено, но не удалось обновить URL. Попробуйте обновить запись вручную.');
+                      } else {
+                        console.log('✅ Изображение успешно перемещено и URL обновлен:', publicUrl);
+                        finalImageUrl = publicUrl;
+                        
+                        // Проверяем, что URL действительно обновился
+                        const { data: verifyData, error: verifyError } = await supabase
+                          .from('content_posts')
+                          .select('image_url')
+                          .eq('id', newPostData.id)
+                          .single();
+                        
+                        if (!verifyError && verifyData) {
+                          console.log('✅ Проверка: URL в базе данных после обновления:', verifyData.image_url);
+                          if (verifyData.image_url !== publicUrl) {
+                            console.warn('⚠️ ВНИМАНИЕ: URL в базе данных не совпадает с ожидаемым!');
+                            console.warn('Ожидалось:', publicUrl);
+                            console.warn('В базе:', verifyData.image_url);
+                          }
+                        }
+                      }
+                      
+                      // Удаляем старый файл из temp только после успешного копирования
+                      const { error: removeError } = await supabase.storage
+                        .from(bucketName)
+                        .remove([oldPath]);
+                      
+                      if (removeError) {
+                        console.warn('⚠️ Не удалось удалить временный файл:', removeError);
+                      } else {
+                        console.log('✅ Временный файл удален');
+                      }
+                    }
+                  }
+                }
+              } else {
+                // Файл уже не в temp, URL уже правильный
+                console.log('Изображение уже в правильной папке:', oldPath);
+              }
+            }
+          } catch (moveError) {
+            console.error('Ошибка перемещения изображения:', moveError);
+            alert('Изображение загружено, но произошла ошибка при перемещении. Проверьте консоль.');
+          }
+        } else if (newPostData && post.image_url) {
+          // Логируем, если URL есть, но не из Supabase Storage
+          console.log('Изображение сохранено (внешний URL):', post.image_url);
+        } else if (newPostData) {
+          console.log('Запись создана без изображения');
+        }
+        
+        // Проверяем финальный URL в базе данных
+        if (newPostData) {
+          const { data: checkData, error: checkError } = await supabase
+            .from('content_posts')
+            .select('image_url')
+            .eq('id', newPostData.id)
+            .single();
+          
+          if (!checkError && checkData) {
+            console.log('Финальный URL в базе данных:', checkData.image_url);
+          }
         }
       }
 
@@ -137,7 +289,11 @@ export default function ContentManager({ category, isOpen, onClose }) {
         image_url: '',
         is_published: true,
       });
-      loadPosts();
+      setImagePreview(null);
+      
+      // Небольшая задержка перед перезагрузкой, чтобы дать время обновиться URL
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadPosts();
     } catch (err) {
       alert('Ошибка: ' + String(err?.message || err));
     }
@@ -284,8 +440,23 @@ export default function ContentManager({ category, isOpen, onClose }) {
                               reader.readAsDataURL(file);
                               
                               // Загружаем в Supabase Storage
-                              const postId = editingPost?.id || newPost.id || null;
+                              // Для новых записей используем temp, для существующих - их ID
+                              const postId = editingPost?.id || null;
                               const uploadedUrl = await uploadImage(file, category, postId);
+                              
+                              console.log('Изображение загружено:', { 
+                                uploadedUrl, 
+                                postId, 
+                                category,
+                                urlType: typeof uploadedUrl,
+                                urlLength: uploadedUrl?.length,
+                                isValid: uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://') || uploadedUrl.startsWith('/'))
+                              });
+                              
+                              // Проверяем валидность URL перед сохранением
+                              if (!uploadedUrl || (typeof uploadedUrl === 'string' && uploadedUrl.trim().length === 0)) {
+                                throw new Error('Получен пустой URL изображения');
+                              }
                               
                               if (editingPost) {
                                 setEditingPost({ ...editingPost, image_url: uploadedUrl });
@@ -293,8 +464,9 @@ export default function ContentManager({ category, isOpen, onClose }) {
                                 setNewPost({ ...newPost, image_url: uploadedUrl });
                               }
                               
-                              setImagePreview(null); // Очищаем preview после загрузки
+                              // Preview оставляем для отображения
                             } catch (err) {
+                              console.error('Ошибка загрузки изображения:', err);
                               alert(`Ошибка загрузки изображения: ${err.message}`);
                               setImagePreview(null);
                             } finally {

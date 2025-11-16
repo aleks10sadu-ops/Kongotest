@@ -9,8 +9,15 @@ import ContentManager from '../components/ContentManager';
 // Вспомогательная функция для проверки валидности URL для Next.js Image
 const isValidImageUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
-  // Должен быть абсолютный URL (http:// или https://) или относительный путь, начинающийся с /
-  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+  const trimmedUrl = url.trim();
+  if (trimmedUrl.length === 0) return false;
+  try {
+    if (trimmedUrl.startsWith('/')) return true;
+    new URL(trimmedUrl);
+    return trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+  } catch {
+    return false;
+  }
 };
 
 export default function VacanciesPage() {
@@ -133,40 +140,79 @@ export default function VacanciesPage() {
               <p>Информация о вакансиях будет добавлена позже</p>
             </div>
           ) : (
-            <div className="space-y-8">
-              {posts.map((post) => (
-                <article key={post.id} className="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-                  {post.image_url && isValidImageUrl(post.image_url) && (
-                    <div className="relative w-full h-64 md:h-96">
-                      <Image
-                        src={post.image_url}
-                        alt={post.title}
-                        fill
-                        className="object-cover"
-                      />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {posts.map((post, index) => {
+                const isLarge = index % 6 === 0;
+                const isWide = index % 6 === 3;
+                
+                return (
+                  <Link
+                    key={post.id}
+                    href={`/vacancies/${post.slug}`}
+                    className={`group relative overflow-hidden rounded-2xl md:rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-amber-400/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-amber-400/10 flex flex-col ${
+                      isLarge ? 'md:col-span-2 md:row-span-2' : ''
+                    } ${isWide ? 'md:col-span-2' : ''}`}
+                  >
+                    {post.image_url && isValidImageUrl(post.image_url) ? (
+                      <div className={`relative w-full ${isLarge ? 'h-64 md:h-80' : 'h-48 md:h-56'} overflow-hidden flex-shrink-0 bg-neutral-900`}>
+                        {post.image_url.includes('supabase.co') ? (
+                          <img
+                            src={post.image_url}
+                            alt={post.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        ) : (
+                          <Image
+                            src={post.image_url}
+                            alt={post.title}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20 pointer-events-none" />
+                      </div>
+                    ) : (
+                      <div className={`relative w-full ${isLarge ? 'h-48 md:h-64' : 'h-40 md:h-48'} overflow-hidden flex-shrink-0 bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center`}>
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">💼</div>
+                          <p className="text-xs text-neutral-500">Нет изображения</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col flex-1 p-4 md:p-6 min-h-0">
+                      <h2 className={`font-bold mb-2 md:mb-3 line-clamp-2 group-hover:text-amber-400 transition-colors ${
+                        isLarge ? 'text-xl md:text-2xl lg:text-3xl' : 'text-lg md:text-xl lg:text-2xl'
+                      }`}>
+                        {post.title}
+                      </h2>
+                      
+                      {post.excerpt && (
+                        <p className={`text-neutral-300 mb-3 md:mb-4 flex-1 ${
+                          isLarge ? 'text-sm md:text-base line-clamp-4' : 'text-xs md:text-sm line-clamp-3'
+                        }`}>
+                          {post.excerpt}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center justify-between mt-auto pt-3 md:pt-4 border-t border-white/10">
+                        {post.published_at && (
+                          <p className="text-xs md:text-sm text-neutral-400">
+                            {new Date(post.published_at).toLocaleDateString('ru-RU', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        )}
+                        <span className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity text-lg md:text-xl">
+                          →
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <div className="p-6 md:p-8">
-                    <h2 className="text-2xl md:text-3xl font-bold mb-4">{post.title}</h2>
-                    {post.excerpt && (
-                      <p className="text-lg text-neutral-300 mb-4">{post.excerpt}</p>
-                    )}
-                    <div 
-                      className="prose prose-invert max-w-none text-neutral-200"
-                      dangerouslySetInnerHTML={{ __html: post.content }}
-                    />
-                    {post.published_at && (
-                      <p className="text-sm text-neutral-500 mt-4">
-                        {new Date(post.published_at).toLocaleDateString('ru-RU', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </article>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
