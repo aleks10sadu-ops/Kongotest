@@ -564,22 +564,6 @@ export default function EnhancedMenuSection({
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <button
                 type="button"
-                onClick={() => setEditMode((v) => !v)}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-                  editMode
-                    ? 'bg-amber-400 text-black border-amber-400'
-                    : 'bg-white/5 text-neutral-200 border-white/20 hover:bg-white/10'
-                }`}
-              >
-                <span>Режим редактирования меню</span>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    editMode ? 'bg-green-700' : 'bg-neutral-500'
-                  }`}
-                />
-              </button>
-              <button
-                type="button"
                 onClick={() => {
                   // Открываем модальное окно для добавления блюда
                   setSelectedItem({
