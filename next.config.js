@@ -48,9 +48,9 @@ const nextConfig = {
           },
         ],
       },
-      // Кеширование для JS и CSS файлов
+      // Кеширование для статических чанков Next.js (с хешем в имени)
       {
-        source: '/:all*(js|css)',
+        source: '/_next/static/chunks/:path*',
         headers: [
           {
             key: 'Cache-Control',
@@ -58,7 +58,7 @@ const nextConfig = {
           },
         ],
       },
-      // Кеширование для других статических файлов
+      // Кеширование для статических файлов Next.js (CSS, JS с хешем)
       {
         source: '/_next/static/:path*',
         headers: [
