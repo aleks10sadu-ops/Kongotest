@@ -402,8 +402,10 @@ export default function Page() {
           alt="Ресторан Кучер и Конга — атмосфера вечера"
           fill
           priority
+          fetchPriority="high"
           sizes="100vw"
           className="object-cover"
+          quality={85}
         />
         <div className="relative z-20 flex items-center min-h-[calc(70vh-4rem)] sm:min-h-[calc(75vh-5rem)] md:min-h-[calc(80vh-4rem)] pt-12 sm:pt-16 md:pt-0 pb-24 sm:pb-28 md:pb-20">
           <div className="container mx-auto px-4 w-full">

@@ -76,6 +76,22 @@ const nextConfig = {
   },
   // Указываем корень проекта для устранения предупреждения о множественных lockfiles
   outputFileTracingRoot: path.join(__dirname),
+  // Настройки для обработки ошибок загрузки чанков
+  onDemandEntries: {
+    // Период времени в мс, в течение которого страница остается в памяти
+    maxInactiveAge: 25 * 1000,
+    // Количество страниц, которые должны быть сохранены одновременно
+    pagesBufferLength: 2,
+  },
+  // Отключаем строгую проверку типов для production сборки (может помочь с chunk ошибками)
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  // Настройки для улучшения стабильности сборки
+  experimental: {
+    // Улучшенная обработка ошибок
+    optimizePackageImports: ['lucide-react'],
+  },
 }
 
 module.exports = nextConfig

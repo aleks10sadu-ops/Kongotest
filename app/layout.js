@@ -25,28 +25,73 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof window !== 'undefined') {
-                window.addEventListener('error', function(e) {
-                  if (e.message && e.message.includes('Failed to load chunk')) {
-                    console.log('Chunk loading error detected, reloading page...');
-                    window.location.reload();
-                  }
-                });
+                let reloadAttempts = 0;
+                const maxReloadAttempts = 2;
                 
-                // Обработка ошибок из Turbopack
-                if (window.__NEXT_DATA__) {
-                  const originalError = window.onerror;
-                  window.onerror = function(msg, url, line, col, error) {
-                    if (msg && (msg.includes('Failed to load chunk') || msg.includes('chunk'))) {
-                      console.log('Chunk error detected, reloading...');
-                      setTimeout(() => window.location.reload(), 100);
+                // Обработка ошибок загрузки ресурсов (404 для chunk файлов)
+                window.addEventListener('error', function(e) {
+                  const target = e.target;
+                  const isChunkError = target && (
+                    (target.tagName === 'SCRIPT' && target.src && target.src.includes('/_next/static/chunks/')) ||
+                    (target.tagName === 'LINK' && target.href && target.href.includes('/_next/static/chunks/'))
+                  );
+                  
+                  if (isChunkError && e.target.status === 404) {
+                    console.warn('Chunk file 404 error detected:', e.target.src || e.target.href);
+                    if (reloadAttempts < maxReloadAttempts) {
+                      reloadAttempts++;
+                      console.log('Attempting to reload page... (attempt ' + reloadAttempts + ')');
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1000);
+                    } else {
+                      console.error('Max reload attempts reached. Please clear cache and reload manually.');
+                    }
+                    e.preventDefault();
+                    return false;
+                  }
+                  
+                  // Обработка ошибок загрузки через сообщения
+                  if (e.message && (
+                    e.message.includes('Failed to load chunk') ||
+                    e.message.includes('Loading chunk') ||
+                    e.message.includes('ChunkLoadError')
+                  )) {
+                    console.warn('Chunk loading error:', e.message);
+                    if (reloadAttempts < maxReloadAttempts) {
+                      reloadAttempts++;
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1000);
+                    }
+                  }
+                }, true);
+                
+                // Обработка ошибок через window.onerror
+                const originalError = window.onerror;
+                window.onerror = function(msg, url, line, col, error) {
+                  const isChunkRelated = url && (
+                    url.includes('/_next/static/chunks/') ||
+                    url.includes('chunk') ||
+                    (msg && (msg.includes('Failed to load chunk') || msg.includes('ChunkLoadError')))
+                  );
+                  
+                  if (isChunkRelated) {
+                    console.warn('Chunk error detected:', msg, url);
+                    if (reloadAttempts < maxReloadAttempts) {
+                      reloadAttempts++;
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1000);
                       return true;
                     }
-                    if (originalError) {
-                      return originalError.apply(this, arguments);
-                    }
-                    return false;
-                  };
-                }
+                  }
+                  
+                  if (originalError) {
+                    return originalError.apply(this, arguments);
+                  }
+                  return false;
+                };
               }
             `,
           }}
