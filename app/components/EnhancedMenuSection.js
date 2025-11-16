@@ -1,18 +1,30 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, X, ChevronDown } from 'lucide-react';
-import { menuData, searchMenuItems } from '../data/menu';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Filter, X, ChevronDown, Plus } from 'lucide-react';
+import { menuData as staticMenuData, searchMenuItems } from '../data/menu';
 import { menuTypes, getActiveMenuType, setActiveMenuType } from '../data/menuTypes';
 import { getFoodImage } from '../data/foodImages';
 import FoodDetailModal from './FoodDetailModal';
-import { promotionsData } from '../data/promotionsData';
-import { kidsMenuData } from '../data/kidsMenuData';
-import { barMenuData } from '../data/barMenuData';
-import { wineMenuData } from '../data/wineMenuData';
+import { promotionsData as staticPromotionsData } from '../data/promotionsData';
+import { kidsMenuData as staticKidsMenuData } from '../data/kidsMenuData';
+import { barMenuData as staticBarMenuData } from '../data/barMenuData';
+import { wineMenuData as staticWineMenuData } from '../data/wineMenuData';
 import BusinessLunchBuilder from './BusinessLunchBuilder';
+import { createSupabaseBrowserClient } from '../../lib/supabase/client';
 
-export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
+/**
+ * props.ssrMenuDataByType приходит с SSR-страниц (например, /menu) и
+ * содержит данные из Supabase. Если пропсы не переданы, компонент
+ * использует локальные статические JS-данные, как раньше.
+ */
+export default function EnhancedMenuSection({
+  onAddToCart,
+  cartItems = [],
+  ssrMenuDataByType,
+  // Включать ли админ-режим редактирования (например, на /menu)
+  enableAdminEditing = false,
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedMenuType, setSelectedMenuType] = useState('main');
@@ -22,22 +34,401 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [menuExpanded, setMenuExpanded] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [clientMenuData, setClientMenuData] = useState(null);
+  const [clientMenuLoading, setClientMenuLoading] = useState(false);
+  const [supabaseMenuTypes, setSupabaseMenuTypes] = useState([]); // Типы меню из Supabase
+  const [allCategories, setAllCategories] = useState([]); // Все категории для выбора при добавлении блюда
+  const [allMenuDataByType, setAllMenuDataByType] = useState({}); // Все данные меню по типам для глобального поиска
+
+  // Проверка, является ли текущий пользователь админом (по таблице admins)
+  useEffect(() => {
+    if (!enableAdminEditing) {
+      setIsAdmin(false);
+      setAdminLoading(false);
+      return;
+    }
+
+    const run = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) {
+          setIsAdmin(false);
+          setAdminLoading(false);
+          return;
+        }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setIsAdmin(false);
+          setAdminLoading(false);
+          return;
+        }
+        const { data: adminRecord } = await supabase
+          .from('admins')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        setIsAdmin(!!adminRecord);
+      } catch {
+        setIsAdmin(false);
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+
+    run();
+  }, [enableAdminEditing]);
+
+  // Сохраняем ssrMenuDataByType для глобального поиска
+  useEffect(() => {
+    if (ssrMenuDataByType) {
+      setAllMenuDataByType(ssrMenuDataByType);
+    }
+  }, [ssrMenuDataByType]);
+
+  // Realtime синхронизация для автоматического обновления данных
+  useEffect(() => {
+    // Работает только если используются данные из Supabase (либо с сервера, либо загружены на клиенте)
+    if (!ssrMenuDataByType && !clientMenuData) return;
+
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    // Подписка на изменения в таблице dishes
+    const dishesChannel = supabase
+      .channel('dishes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'dishes',
+        },
+        () => {
+          // При любом изменении перезагружаем страницу для получения актуальных данных
+          // В production можно было бы обновлять только конкретные элементы
+          window.location.reload();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения в таблице categories
+    const categoriesChannel = supabase
+      .channel('categories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories',
+        },
+        () => {
+          window.location.reload();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(dishesChannel);
+      supabase.removeChannel(categoriesChannel);
+    };
+  }, [ssrMenuDataByType, clientMenuData]);
+
+  // Загрузка типов меню из Supabase
+  useEffect(() => {
+    const loadMenuTypes = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) return;
+
+        const { data: menuTypesData, error } = await supabase
+          .from('menu_types')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (!error && menuTypesData) {
+          setSupabaseMenuTypes(menuTypesData);
+        }
+      } catch (err) {
+        console.error('Error loading menu types:', err);
+      }
+    };
+
+    loadMenuTypes();
+
+    // Realtime синхронизация для типов меню
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const menuTypesChannel = supabase
+      .channel('menu-types-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'menu_types',
+        },
+        () => {
+          loadMenuTypes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(menuTypesChannel);
+    };
+  }, []);
+
+  // Загрузка всех категорий для выбора при добавлении блюда
+  useEffect(() => {
+    const loadAllCategories = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) return;
+
+        const { data: categoriesData, error } = await supabase
+          .from('categories')
+          .select('id, name, menu_type_id')
+          .order('name', { ascending: true });
+
+        if (!error && categoriesData) {
+          setAllCategories(categoriesData);
+        }
+      } catch (err) {
+        console.error('Error loading all categories:', err);
+      }
+    };
+
+    loadAllCategories();
+
+    // Realtime синхронизация для категорий
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const categoriesChannel = supabase
+      .channel('all-categories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories',
+        },
+        () => {
+          loadAllCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(categoriesChannel);
+    };
+  }, []);
+
+  // Загрузка данных из Supabase на клиенте, если ssrMenuDataByType не передан
+  useEffect(() => {
+    if (ssrMenuDataByType) return; // Если данные уже есть с сервера, не загружаем
+
+    const loadMenuData = async () => {
+      setClientMenuLoading(true);
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) {
+          setClientMenuLoading(false);
+          return;
+        }
+
+        // Загружаем все типы меню из Supabase, а не только определенные slug'и
+        const { data: allMenuTypes } = await supabase
+          .from('menu_types')
+          .select('id, slug')
+          .neq('slug', 'business') // Исключаем бизнес-ланч, он обрабатывается отдельно
+          .neq('slug', 'banquet'); // Исключаем банкет
+
+        if (!allMenuTypes || allMenuTypes.length === 0) {
+          setClientMenuLoading(false);
+          return;
+        }
+
+        const menuTypesToLoad = allMenuTypes.map(mt => mt.slug);
+        const loadedData = {};
+
+        for (const menuTypeSlug of menuTypesToLoad) {
+          try {
+            // Находим menu_type по slug
+            const menuType = allMenuTypes.find(mt => mt.slug === menuTypeSlug);
+            if (!menuType) continue;
+
+            // Загружаем категории
+            const { data: categories } = await supabase
+              .from('categories')
+              .select('id, name, sort_order, note')
+              .eq('menu_type_id', menuType.id)
+              .order('sort_order', { ascending: true });
+
+            if (!categories?.length) continue;
+
+            // Загружаем блюда
+            const categoryIds = categories.map((c) => c.id);
+            const { data: dishes } = await supabase
+              .from('dishes')
+              .select('id, category_id, name, description, price, weight, image_url, is_active')
+              .in('category_id', categoryIds)
+              .eq('is_active', true);
+
+            if (!dishes?.length) continue;
+
+            // Загружаем варианты
+            const dishIds = dishes.map((d) => d.id);
+            const { data: variants } = await supabase
+              .from('dish_variants')
+              .select('id, dish_id, name, price, weight')
+              .in('dish_id', dishIds);
+
+            const variantsByDish = {};
+            (variants || []).forEach((v) => {
+              if (!variantsByDish[v.dish_id]) variantsByDish[v.dish_id] = [];
+              variantsByDish[v.dish_id].push({
+                id: v.id,
+                name: v.name,
+                price: Number(v.price),
+                weight: v.weight || null,
+              });
+            });
+
+            const itemsByCategory = {};
+            dishes.forEach((d) => {
+              if (!itemsByCategory[d.category_id]) itemsByCategory[d.category_id] = [];
+              itemsByCategory[d.category_id].push({
+                id: d.id,
+                name: d.name,
+                description: d.description || '',
+                price: Number(d.price),
+                weight: d.weight || null,
+                image: d.image_url || undefined,
+                variants: variantsByDish[d.id] || [],
+              });
+            });
+
+            loadedData[menuTypeSlug] = {
+              categories: categories.map((c) => ({
+                id: c.id,
+                name: c.name,
+                note: c.note || undefined,
+                items: (itemsByCategory[c.id] || []).map((item) => ({
+                  ...item,
+                  image: item.image || null,
+                })),
+              })),
+            };
+          } catch (err) {
+            console.error(`Error loading menu type ${menuTypeSlug}:`, err);
+          }
+        }
+
+        setClientMenuData(loadedData);
+        setAllMenuDataByType(loadedData); // Сохраняем все данные для глобального поиска
+      } catch (err) {
+        console.error('Error loading menu data:', err);
+      } finally {
+        setClientMenuLoading(false);
+      }
+    };
+
+    loadMenuData();
+  }, [ssrMenuDataByType, supabaseMenuTypes]); // Перезагружаем данные при изменении типов меню
+
+  // Используем типы меню из Supabase, если они загружены, иначе статические
+  const availableMenuTypes = supabaseMenuTypes.length > 0 
+    ? supabaseMenuTypes.map(mt => ({ id: mt.slug, name: mt.name, description: mt.description }))
+    : menuTypes;
+
+  // Функция для поиска блюд во всех типах меню
+  const searchAllMenuTypes = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    const query = searchQuery.toLowerCase();
+    const results = [];
+    
+    // Получаем все доступные данные меню (приоритет: allMenuDataByType > ssrMenuDataByType > clientMenuData)
+    const allData = allMenuDataByType && Object.keys(allMenuDataByType).length > 0
+      ? allMenuDataByType
+      : ssrMenuDataByType || clientMenuData || {};
+    
+    // Если данных нет, используем статические
+    const dataToSearch = Object.keys(allData).length > 0 
+      ? allData 
+      : {
+          main: staticMenuData,
+          promotions: staticPromotionsData,
+          kids: staticKidsMenuData,
+          bar: staticBarMenuData,
+          wine: staticWineMenuData,
+        };
+    
+    // Ищем во всех типах меню
+    Object.entries(dataToSearch).forEach(([menuTypeSlug, menuData]) => {
+      if (!menuData || !menuData.categories) return;
+      
+      const menuTypeName = availableMenuTypes.find(mt => mt.id === menuTypeSlug)?.name || menuTypeSlug;
+      
+      menuData.categories.forEach(category => {
+        category.items.forEach(item => {
+          const matches = 
+            item.name?.toLowerCase().includes(query) ||
+            item.description?.toLowerCase().includes(query) ||
+            (item.ingredients && item.ingredients.some(ing => ing.toLowerCase().includes(query)));
+          
+          if (matches) {
+            results.push({
+              ...item,
+              _searchMeta: {
+                menuTypeSlug,
+                menuTypeName,
+                categoryName: category.name,
+                categoryId: category.id,
+                isFromOtherMenuType: menuTypeSlug !== selectedMenuType,
+              }
+            });
+          }
+        });
+      });
+    });
+    
+    return results;
+  }, [searchQuery, allMenuDataByType, ssrMenuDataByType, clientMenuData, selectedMenuType, availableMenuTypes]);
 
   // Функция для получения данных меню по типу
   const getMenuDataByType = (menuType) => {
+    // 1) Если пришли данные с сервера (Supabase) — используем их
+    if (ssrMenuDataByType && ssrMenuDataByType[menuType]) {
+      return ssrMenuDataByType[menuType];
+    }
+
+    // 2) Если загружены данные на клиенте — используем их
+    if (clientMenuData && clientMenuData[menuType]) {
+      return clientMenuData[menuType];
+    }
+
+    // 3) Иначе используем локальные статики как fallback
     switch (menuType) {
       case 'main':
-        return menuData;
+        return staticMenuData;
       case 'promotions':
-        return promotionsData;
+        return staticPromotionsData;
       case 'kids':
-        return kidsMenuData;
+        return staticKidsMenuData;
       case 'bar':
-        return barMenuData;
+        return staticBarMenuData;
       case 'wine':
-        return wineMenuData;
+        return staticWineMenuData;
       default:
-        return menuData;
+        return staticMenuData;
     }
   };
 
@@ -62,20 +453,51 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
     
     // Поиск по тексту
     if (searchQuery.trim()) {
+      // Сначала ищем в текущем типе меню
       if (selectedMenuType === 'main') {
         categories = searchMenuItems(searchQuery, categories);
       } else {
         categories = searchMenuItemsUniversal(searchQuery, categories);
       }
+      
+      // Если есть результаты глобального поиска, добавляем блюда из других типов меню
+      if (searchAllMenuTypes.length > 0) {
+        // Группируем результаты глобального поиска по категориям
+        const otherMenuTypeItems = searchAllMenuTypes.filter(item => 
+          item._searchMeta?.isFromOtherMenuType
+        );
+        
+        if (otherMenuTypeItems.length > 0) {
+          // Группируем блюда из других типов меню по их категориям
+          const groupedByCategory = {};
+          otherMenuTypeItems.forEach(item => {
+            const categoryKey = `${item._searchMeta.menuTypeSlug}_${item._searchMeta.categoryId}`;
+            if (!groupedByCategory[categoryKey]) {
+              groupedByCategory[categoryKey] = {
+                id: categoryKey,
+                name: item._searchMeta.categoryName,
+                items: [],
+                _isSearchResult: true,
+              };
+            }
+            groupedByCategory[categoryKey].items.push(item);
+          });
+          
+          // Добавляем категории с блюдами из других типов меню в начало списка
+          categories = [...Object.values(groupedByCategory), ...categories];
+        }
+      }
     }
     
-    // Фильтр по категории
+    // Фильтр по категории (не применяем к результатам поиска из других типов меню)
     if (selectedCategory !== 'all') {
-      categories = categories.filter(cat => cat.id === selectedCategory);
+      categories = categories.filter(cat => 
+        cat.id === selectedCategory || cat._isSearchResult
+      );
     }
     
     return categories;
-  }, [searchQuery, selectedCategory, selectedMenuType]);
+  }, [searchQuery, selectedCategory, selectedMenuType, searchAllMenuTypes]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -127,20 +549,74 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
     setIsDetailModalOpen(false);
     setSelectedItem(null);
   };
-
-  const selectedMenuTypeData = menuTypes.find(type => type.id === selectedMenuType);
+  
+  const selectedMenuTypeData = availableMenuTypes.find(type => type.id === selectedMenuType) || 
+    menuTypes.find(type => type.id === selectedMenuType);
 
   return (
     <section id="menu" className="py-8 sm:py-12 md:py-16 border-t border-white/10">
       <div className="container mx-auto px-4">
-        <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider mb-6 md:mb-12">
-          Меню ресторана
-        </h2>
+        <div className="flex flex-col items-center gap-3 mb-6 md:mb-8">
+          <h2 className="text-center text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wider">
+            Меню ресторана
+          </h2>
+          {enableAdminEditing && !adminLoading && isAdmin && (
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => setEditMode((v) => !v)}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                  editMode
+                    ? 'bg-amber-400 text-black border-amber-400'
+                    : 'bg-white/5 text-neutral-200 border-white/20 hover:bg-white/10'
+                }`}
+              >
+                <span>Режим редактирования меню</span>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    editMode ? 'bg-green-700' : 'bg-neutral-500'
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Открываем модальное окно для добавления блюда
+                  setSelectedItem({
+                    id: 'new',
+                    name: '',
+                    description: '',
+                    price: 0,
+                    weight: '',
+                    image_url: '',
+                    category_id: allCategories.length > 0 ? allCategories[0]?.id : (currentMenuDataForFilter.categories?.[0]?.id || ''),
+                  });
+                  setIsDetailModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500 text-white border border-green-500 hover:bg-green-600 text-xs font-medium transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Добавить блюдо</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Открываем модальное окно для управления типами меню и категориями
+                  setSelectedItem({ id: 'manage-menu-types', type: 'menu-types' });
+                  setIsDetailModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500 text-white border border-blue-500 hover:bg-blue-600 text-xs font-medium transition-all"
+              >
+                <span>Управление типами меню и категориями</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Выбор типа меню */}
         <div className="max-w-6xl mx-auto mb-6 sm:mb-8">
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-            {menuTypes.map((type) => (
+            {availableMenuTypes.map((type) => (
               <button
                 key={type.id}
                 onClick={() => type.id !== 'banquet' && handleMenuTypeChange(type.id)}
@@ -295,7 +771,11 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
 
         {/* Меню по категориям или конструктор бизнес-ланча */}
         {selectedMenuType === 'business' ? (
-          <BusinessLunchBuilder onAddToCart={onAddToCart} />
+          <BusinessLunchBuilder 
+            onAddToCart={onAddToCart}
+            isAdmin={enableAdminEditing && isAdmin}
+            enableAdminEditing={enableAdminEditing}
+          />
         ) : (
           <div className="space-y-16">
             {filteredMenu.length === 0 ? (
@@ -353,6 +833,9 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
                             onAddToCart={onAddToCart}
                             onItemClick={handleItemClick}
                             cartItems={cartItems}
+                            isAdmin={enableAdminEditing && isAdmin}
+                            editMode={editMode}
+                            allCategories={currentMenuDataForFilter.categories || []}
                           />
                         ))}
                       </div>
@@ -393,6 +876,16 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
           onClose={handleCloseModal}
           onAddToCart={onAddToCart}
           cartItems={cartItems}
+          isAdmin={enableAdminEditing && isAdmin}
+          categories={allCategories.length > 0 ? allCategories : (currentMenuDataForFilter.categories || [])}
+          onUpdate={() => {
+            // Перезагружаем страницу для обновления данных
+            window.location.reload();
+          }}
+          onDelete={() => {
+            // Перезагружаем страницу для обновления данных
+            window.location.reload();
+          }}
         />
       )}
     </section>
@@ -400,7 +893,15 @@ export default function EnhancedMenuSection({ onAddToCart, cartItems = [] }) {
 }
 
 // Компонент отдельного блюда
-function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
+function MenuItem({
+  item,
+  onAddToCart,
+  onItemClick,
+  cartItems = [],
+  isAdmin = false,
+  editMode = false,
+  allCategories = [],
+}) {
   // Получаем количество из корзины напрямую (без локального состояния)
   const cartItem = cartItems.find(ci => ci.id === item.id);
   const quantity = cartItem?.qty || 0;
@@ -506,6 +1007,64 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
     }
   };
 
+  // Admin local state (inline редактирование)
+  const [adminName, setAdminName] = React.useState(item.name);
+  const [adminPrice, setAdminPrice] = React.useState(item.price || 0);
+  const [adminWeight, setAdminWeight] = React.useState(item.weight || '');
+  const [adminImageUrl, setAdminImageUrl] = React.useState(item.image || '');
+  const [adminCategoryId, setAdminCategoryId] = React.useState(item.categoryId || '');
+  const [adminSaving, setAdminSaving] = React.useState(false);
+  const [adminError, setAdminError] = React.useState('');
+  const [deleted, setDeleted] = React.useState(false);
+
+  const canEdit = isAdmin && editMode && !!item.id;
+
+  const handleAdminSave = async (e) => {
+    e.stopPropagation();
+    try {
+      setAdminSaving(true);
+      setAdminError('');
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) {
+        setAdminError('Supabase не настроен');
+        setAdminSaving(false);
+        return;
+      }
+      const { error } = await supabase
+        .from('dishes')
+        .update({
+          name: adminName,
+          price: adminPrice,
+          weight: adminWeight,
+          image_url: adminImageUrl,
+          category_id: adminCategoryId || null,
+        })
+        .eq('id', item.id);
+      if (error) {
+        setAdminError(error.message);
+      }
+    } catch (err) {
+      setAdminError(String(err?.message || err));
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
+  const handleAdminDelete = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm('Удалить это блюдо?')) return;
+    try {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) return;
+      await supabase.from('dishes').delete().eq('id', item.id);
+      setDeleted(true);
+    } catch {
+      // игнорируем, можно добавить ошибку
+    }
+  };
+
+  if (deleted) return null;
+
   // Grid view
   const handleCardClick = (e) => {
     // Проверяем, был ли клик на кнопку или элемент управления количеством
@@ -540,20 +1099,50 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
       
       <div className="p-2 sm:p-3 lg:p-6 flex flex-col flex-grow">
         <div className="flex items-start justify-between gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-3">
-          <h4 className="text-xs sm:text-sm lg:text-lg font-semibold leading-tight flex-1">{item.name}</h4>
-          <div className="text-right flex-shrink-0">
-            <div className="text-xs sm:text-sm lg:text-lg font-bold text-amber-400 whitespace-nowrap">
-              {item.price ? item.price.toLocaleString('ru-RU') : '0'} ₽
-            </div>
-            {item.weight && (
-              <div className="text-[9px] sm:text-[10px] lg:text-xs text-neutral-400">{item.weight}</div>
-            )}
-          </div>
+          {canEdit ? (
+            <>
+              <div className="flex-1 space-y-1">
+                <input
+                  value={adminName}
+                  onChange={(e) => setAdminName(e.target.value)}
+                  className="w-full bg-black/40 border border-white/20 rounded px-1.5 py-1 text-[10px] sm:text-xs lg:text-sm outline-none focus:border-amber-400"
+                />
+                <div className="flex items-center gap-2 text-[10px] sm:text-xs lg:text-sm">
+                  <input
+                    type="number"
+                    min={0}
+                    value={adminPrice}
+                    onChange={(e) => setAdminPrice(Number(e.target.value || 0))}
+                    className="w-20 bg-black/40 border border-white/20 rounded px-1.5 py-1 outline-none focus:border-amber-400"
+                  />
+                  <span className="text-neutral-300">₽</span>
+                  <input
+                    value={adminWeight}
+                    onChange={(e) => setAdminWeight(e.target.value)}
+                    placeholder="Вес"
+                    className="flex-1 bg-black/40 border border-white/20 rounded px-1.5 py-1 outline-none focus:border-amber-400 text-[10px] sm:text-xs"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h4 className="text-xs sm:text-sm lg:text-lg font-semibold leading-tight flex-1">{item.name}</h4>
+              <div className="text-right flex-shrink-0">
+                <div className="text-xs sm:text-sm lg:text-lg font-bold text-amber-400 whitespace-nowrap">
+                  {item.price ? item.price.toLocaleString('ru-RU') : '0'} ₽
+                </div>
+                {item.weight && (
+                  <div className="text-[9px] sm:text-[10px] lg:text-xs text-neutral-400">{item.weight}</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Description with fixed height */}
         <div className="flex-grow mb-1.5 sm:mb-2 lg:mb-4">
-          {item.description && (
+          {item.description && !canEdit && (
             <p className="text-neutral-300 text-[10px] sm:text-xs lg:text-sm leading-relaxed line-clamp-2 h-8 sm:h-10 lg:h-16 overflow-hidden">
               {item.description}
             </p>
@@ -595,7 +1184,7 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                               e.stopPropagation();
                               handleRemove(variant);
                             }}
-                            className="p-1 rounded-full border border-white/20 hover:border-white/60 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
+                            className="p-1 rounded-full border border-white/20 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
                             aria-label="Убавить"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -626,8 +1215,8 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
           </div>
         )}
 
-        {/* Кнопки управления количеством - только для блюд без вариантов */}
-        {(!item.variants || !Array.isArray(item.variants) || item.variants.length === 0) && (
+        {/* Кнопки управления количеством - только для блюд без вариантов, когда не в режиме админа */}
+        {(!item.variants || !Array.isArray(item.variants) || item.variants.length === 0) && !canEdit && (
           <div className="mt-auto">
             <div className="flex items-center justify-between">
             {quantity === 0 ? (
@@ -647,7 +1236,7 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                     e.stopPropagation();
                     handleRemove();
                   }}
-                  className="p-1.5 sm:p-2 rounded-full border border-white/20 hover:border-white/60 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
+                  className="p-1.5 sm:p-2 rounded-full border border-white/20 hover:border-amber-400/50 hover:scale-110 active:scale-95 transition-all duration-200"
                   aria-label="Убавить"
                 >
                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -670,6 +1259,61 @@ function MenuItem({ item, onAddToCart, onItemClick, cartItems = [] }) {
                 </button>
               </div>
             )}
+            </div>
+          </div>
+        )}
+
+        {/* Admin inline controls */}
+        {canEdit && (
+          <div className="mt-2 border-t border-white/10 pt-2 space-y-2">
+            <div className="text-[10px] text-neutral-400">
+              ID блюда: {item.id.slice(0, 8)}…
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-neutral-400">URL изображения</label>
+              <input
+                value={adminImageUrl}
+                onChange={(e) => setAdminImageUrl(e.target.value)}
+                placeholder="https://... или /local-image.webp"
+                className="w-full bg-black/40 border border-white/20 rounded px-1.5 py-1 text-[10px] outline-none focus:border-amber-400"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-neutral-400">Категория</label>
+              <select
+                value={adminCategoryId}
+                onChange={(e) => setAdminCategoryId(e.target.value)}
+                className="bg-black/40 border border-white/20 rounded px-1.5 py-1 text-[10px] outline-none focus:border-amber-400"
+              >
+                <option value="">Без категории</option>
+                {allCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {adminError && (
+              <div className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/30 rounded px-1.5 py-1">
+                {adminError}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleAdminSave}
+                disabled={adminSaving}
+                className="flex-1 px-2 py-1 rounded-full bg-amber-400 text-black text-[11px] font-semibold hover:bg-amber-300 disabled:opacity-60"
+              >
+                {adminSaving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+              <button
+                type="button"
+                onClick={handleAdminDelete}
+                className="px-2 py-1 rounded-full bg-red-500/20 text-red-300 text-[11px] hover:bg-red-500/30"
+              >
+                Удалить
+              </button>
             </div>
           </div>
         )}

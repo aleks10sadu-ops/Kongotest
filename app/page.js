@@ -8,6 +8,8 @@ import {
   Home, Users, AlertCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import EnhancedMenuSection from './components/EnhancedMenuSection';
+import ContentManager from './components/ContentManager';
+import { createSupabaseBrowserClient } from '../lib/supabase/client';
 
 /* --- ДАННЫЕ --- */
 
@@ -25,7 +27,7 @@ const events = [
     id: 'new-year',
     title: 'Новогодняя ночь',
     image: '/kongo_ng.webp',
-    link: '/events/new-year'
+    link: '/events'
   }
 ];
 
@@ -89,11 +91,45 @@ export default function Page() {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const [contentManagerOpen, setContentManagerOpen] = useState(false);
+  const [contentManagerCategory, setContentManagerCategory] = useState(null);
   const { items, add, dec, remove, clear, count, total } = useCart();
 
   // Устанавливаем флаг монтирования для избежания hydration mismatch
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  // Проверка админского статуса
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) {
+          setAdminLoading(false);
+          return;
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsAdmin(false);
+          setAdminLoading(false);
+          return;
+        }
+        const { data: adminRecord } = await supabase
+          .from('admins')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        setIsAdmin(!!adminRecord);
+      } catch {
+        setIsAdmin(false);
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+    checkAdmin();
   }, []);
 
   // Доставка: локальный стейт формы
@@ -275,6 +311,7 @@ export default function Page() {
   }
 
   return (
+    <>
     <div className="bg-neutral-950 text-white">
       {/* NAV */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-neutral-950/95 backdrop-blur-md">
@@ -373,7 +410,7 @@ export default function Page() {
             <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-12 items-stretch w-full max-w-full lg:max-w-7xl mx-auto px-2 sm:px-4 translate-y-[5%] sm:translate-y-[6%] lg:translate-y-[8%]" suppressHydrationWarning>
               {/* Изображение мероприятия (первым на мобильных) */}
               <a
-                href="/events/new-year"
+                href="/events"
                 className="w-full order-1 lg:order-2 mx-auto lg:mx-0 lg:justify-self-end block overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300 lg:h-full"
                 suppressHydrationWarning
               >
@@ -452,7 +489,60 @@ export default function Page() {
       </section>
 
       {/* МЕНЮ РЕСТОРАНА */}
-      <EnhancedMenuSection onAddToCart={add} cartItems={items} />
+      <EnhancedMenuSection 
+        onAddToCart={add} 
+        cartItems={items}
+        enableAdminEditing={true}
+      />
+
+      {/* Админ-панель управления контентом */}
+      {!adminLoading && isAdmin && (
+        <section className="py-8 border-t border-white/10">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-2xl font-bold mb-4 text-center">Управление контентом</h2>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => {
+                    setContentManagerCategory('vacancies');
+                    setContentManagerOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-blue-500 text-white font-semibold hover:bg-blue-600 transition"
+                >
+                  Управление вакансиями
+                </button>
+                <button
+                  onClick={() => {
+                    setContentManagerCategory('events');
+                    setContentManagerOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-purple-500 text-white font-semibold hover:bg-purple-600 transition"
+                >
+                  Управление событиями
+                </button>
+                <button
+                  onClick={() => {
+                    setContentManagerCategory('blog');
+                    setContentManagerOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-green-500 text-white font-semibold hover:bg-green-600 transition"
+                >
+                  Управление блогом
+                </button>
+                <button
+                  onClick={() => {
+                    setContentManagerCategory('halls');
+                    setContentManagerOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600 transition"
+                >
+                  Управление залами
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* BOOKING FORM */}
       <section id="booking" className="py-8 sm:py-12 lg:py-16 xl:py-20 border-t border-white/10">
@@ -826,6 +916,13 @@ export default function Page() {
             >
               Правила нахождения
             </a>
+            <a 
+              href="/account" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Личный кабинет
+            </a>
           </nav>
         </div>
       </aside>
@@ -917,6 +1014,13 @@ export default function Page() {
               className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
             >
               Правила нахождения
+            </a>
+            <a 
+              href="/account" 
+              onClick={(e) => e.stopPropagation()}
+              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
+            >
+              Личный кабинет
             </a>
           </nav>
         </div>
@@ -1109,5 +1213,18 @@ export default function Page() {
         </form>
       </div>
     </div>
+
+    {/* Модальное окно управления контентом */}
+    {contentManagerOpen && contentManagerCategory && (
+      <ContentManager
+        category={contentManagerCategory}
+        isOpen={contentManagerOpen}
+        onClose={() => {
+          setContentManagerOpen(false);
+          setContentManagerCategory(null);
+        }}
+      />
+    )}
+    </>
   );
 }
