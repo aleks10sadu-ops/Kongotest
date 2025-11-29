@@ -36,6 +36,65 @@ const nextConfig = {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
           },
+          // Защита от кликджекинга
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          // Предотвращение MIME-sniffing атак
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          // Защита от XSS атак
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          // Политика реферера
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          },
+          // Изоляция источников (COOP)
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups'
+          },
+          // Политика встраивания (COEP) - мягкая для совместимости с внешними ресурсами
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'unsafe-none'
+          },
+          // Permissions Policy (бывший Feature-Policy)
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()'
+          },
+          // Строгий HSTS (только для production с HTTPS)
+          ...(process.env.NODE_ENV === 'production' ? [{
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload'
+          }] : []),
+          // Content Security Policy (только для production, в dev может мешать hot reload)
+          ...(process.env.NODE_ENV === 'production' ? [{
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://yandex.ru https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.yandex.ru",
+              "img-src 'self' data: blob: https: http:",
+              "font-src 'self' https://fonts.gstatic.com data:",
+              "frame-src 'self' https://yandex.ru https://*.yandex.ru https://*.yandex.kz",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net",
+              "media-src 'self'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'self'",
+              "upgrade-insecure-requests"
+            ].join('; ')
+          }] : []),
         ],
       },
       // Кеширование для статических ресурсов

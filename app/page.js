@@ -3,13 +3,21 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import Image from 'next/image';
 import {
-  Phone, MapPin, Clock, Star, Utensils, Wine,
+  Phone, MapPin, Clock, Utensils,
   ShoppingCart, Plus, Minus, X, Trash2, Menu,
   Home, Users, AlertCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import EnhancedMenuSection from './components/EnhancedMenuSection';
 import ContentManager from './components/ContentManager';
-import { createSupabaseBrowserClient } from '../lib/supabase/client';
+import useAdminCheck from '../lib/hooks/useAdminCheck';
+
+/* --- УТИЛИТА СКРОЛЛА --- */
+const scrollTo = (target) => {
+  const element = document.querySelector(target);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
 
 /* --- ДАННЫЕ --- */
 
@@ -30,6 +38,51 @@ const events = [
     link: '/events'
   }
 ];
+
+/* --- НАВИГАЦИОННЫЕ ССЫЛКИ --- */
+const NAVIGATION_ITEMS = [
+  { type: 'scroll', target: '#menu', label: 'Меню' },
+  { type: 'scroll', target: '#about', label: 'О ресторане' },
+  { type: 'scroll', target: '#gallery', label: 'Атмосфера' },
+  { type: 'link', href: '/halls', label: 'Залы' },
+  { type: 'scroll', target: '#reviews', label: 'Отзывы' },
+  { type: 'scroll', target: '#booking', label: 'Бронь' },
+  { type: 'link', href: '/events', label: 'События' },
+  { type: 'link', href: '/vacancies', label: 'Вакансии' },
+  { type: 'link', href: '/blog', label: 'Новостной блог' },
+  { type: 'link', href: '/rules', label: 'Правила нахождения' },
+  { type: 'link', href: '/account', label: 'Личный кабинет' },
+];
+
+/* --- КОМПОНЕНТ НАВИГАЦИОННЫХ ССЫЛОК --- */
+function NavigationLinks({ scrollTo }) {
+  const linkClassName = "text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white";
+  
+  return (
+    <>
+      {NAVIGATION_ITEMS.map((item, index) => (
+        item.type === 'scroll' ? (
+          <button
+            key={index}
+            onClick={(e) => { e.stopPropagation(); scrollTo(item.target); }}
+            className={linkClassName}
+          >
+            {item.label}
+          </button>
+        ) : (
+          <a
+            key={index}
+            href={item.href}
+            onClick={(e) => e.stopPropagation()}
+            className={linkClassName}
+          >
+            {item.label}
+          </a>
+        )
+      ))}
+    </>
+  );
+}
 
 /* --- УТИЛИТЫ КОРЗИНЫ --- */
 function useCart() {
@@ -91,45 +144,16 @@ export default function Page() {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(true);
   const [contentManagerOpen, setContentManagerOpen] = useState(false);
   const [contentManagerCategory, setContentManagerCategory] = useState(null);
   const { items, add, dec, remove, clear, count, total } = useCart();
+  
+  // Используем хук для проверки админа
+  const { isAdmin, loading: adminLoading } = useAdminCheck(true);
 
   // Устанавливаем флаг монтирования для избежания hydration mismatch
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  // Проверка админского статуса
-  useEffect(() => {
-    const checkAdmin = async () => {
-      try {
-        const supabase = createSupabaseBrowserClient();
-        if (!supabase) {
-          setAdminLoading(false);
-          return;
-        }
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setIsAdmin(false);
-          setAdminLoading(false);
-          return;
-        }
-        const { data: adminRecord } = await supabase
-          .from('admins')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-        setIsAdmin(!!adminRecord);
-      } catch {
-        setIsAdmin(false);
-      } finally {
-        setAdminLoading(false);
-      }
-    };
-    checkAdmin();
   }, []);
 
   // Доставка: локальный стейт формы
@@ -212,19 +236,6 @@ export default function Page() {
 
 
 
-  // Прокрутка к секциям с учетом фиксированного header
-  const scrollTo = (id) => {
-    const el = document.querySelector(id);
-    if (el) {
-      const headerOffset = 80; // Высота фиксированного header
-      const elementPosition = el.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
-    }
-  };
 
   // Для карточки: есть ли в корзине
   const qtyInCart = (id) => items.find(i => i.id === id)?.qty ?? 0;
@@ -405,7 +416,7 @@ export default function Page() {
           fetchPriority="high"
           sizes="100vw"
           className="object-cover"
-          quality={85}
+          quality={75}
         />
         <div className="relative z-20 flex items-center min-h-[calc(70vh-4rem)] sm:min-h-[calc(75vh-5rem)] md:min-h-[calc(80vh-4rem)] pt-12 sm:pt-16 md:pt-0 pb-24 sm:pb-28 md:pb-20">
           <div className="container mx-auto px-4 w-full">
@@ -421,10 +432,12 @@ export default function Page() {
                   alt="Новогодняя ночь"
                   width={450}
                   height={338}
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 450px"
                   className="w-full h-full object-cover"
                   loading="eager"
                   priority
+                  fetchPriority="high"
+                  quality={70}
                   suppressHydrationWarning
                 />
               </a>
@@ -818,7 +831,7 @@ export default function Page() {
         <div className="container mx-auto px-4 py-10">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center">
-              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-6 w-auto" />
+              <img src="/kongo_logo_main.svg" alt="КОНГО" className="h-6 w-auto" loading="lazy" />
             </div>
             <div className="text-sm text-neutral-400">© {new Date().getFullYear()} Ресторан «Кучер и Конга». Все права защищены.</div>
             <div className="text-sm text-neutral-400 flex items-center gap-6 flex-wrap">
@@ -853,78 +866,7 @@ export default function Page() {
 
         <div className="h-[calc(100%-80px)] overflow-auto p-4">
           <nav className="flex flex-col gap-2">
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#menu'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Меню
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#about'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              О ресторане
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#gallery'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Атмосфера
-            </button>
-            <a 
-              href="/halls" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Залы
-            </a>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#reviews'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Отзывы
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#booking'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Бронь
-            </button>
-            <a 
-              href="/events" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              События
-            </a>
-            <a 
-              href="/vacancies" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Вакансии
-            </a>
-            <a 
-              href="/blog" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Новостной блог
-            </a>
-            <a 
-              href="/rules" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Правила нахождения
-            </a>
-            <a 
-              href="/account" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Личный кабинет
-            </a>
+            <NavigationLinks scrollTo={scrollTo} />
           </nav>
         </div>
       </aside>
@@ -952,78 +894,7 @@ export default function Page() {
 
         <div className="h-[calc(100%-80px)] overflow-auto p-4">
           <nav className="flex flex-col gap-2">
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#menu'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Меню
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#about'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              О ресторане
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#gallery'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Атмосфера
-            </button>
-            <a 
-              href="/halls" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Залы
-            </a>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#reviews'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Отзывы
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); scrollTo('#booking'); }} 
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Бронь
-            </button>
-            <a 
-              href="/events" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              События
-            </a>
-            <a 
-              href="/vacancies" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Вакансии
-            </a>
-            <a 
-              href="/blog" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Новостной блог
-            </a>
-            <a 
-              href="/rules" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Правила нахождения
-            </a>
-            <a 
-              href="/account" 
-              onClick={(e) => e.stopPropagation()}
-              className="text-left px-4 py-3 rounded-lg hover:bg-white/5 hover:text-amber-400 transition-colors duration-200 text-sm font-medium text-white"
-            >
-              Личный кабинет
-            </a>
+            <NavigationLinks scrollTo={scrollTo} />
           </nav>
         </div>
       </aside>

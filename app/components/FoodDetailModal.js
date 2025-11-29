@@ -7,6 +7,11 @@ import { createSupabaseBrowserClient } from '../../lib/supabase/client';
 import { uploadDishImage, isSupabaseStorageUrl } from '../../lib/supabase/storage';
 import MenuTypesAndCategoriesManager from './MenuTypesAndCategoriesManager';
 
+/**
+ * Модальное окно с детальной информацией о блюде.
+ * Доступно для ВСЕХ пользователей (не только админов).
+ * Админы получают дополнительные возможности редактирования.
+ */
 export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, cartItems = [], isAdmin = false, categories = [], onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item?.name || '');
@@ -198,6 +203,9 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
     }
   };
 
+  // Получаем правильное изображение (из редактирования, БД или fallback)
+  const displayImage = editImageUrl || item?.image_url || item?.image || getFoodImage(item?.id);
+
   const handleAdd = (variant = null) => {
     if (variant) {
       const variantId = `${item.id}_${variant.name}`;
@@ -214,7 +222,7 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
         price: variant.price || 0,
         weight: variant.weight || item.weight,
         description: item.description,
-        img: editImageUrl || getFoodImage(item.id),
+        img: displayImage,
         qty: newQuantity
       });
     } else {
@@ -231,7 +239,7 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
         price: item.price || 0,
         weight: item.weight,
         description: item.description,
-        img: editImageUrl || getFoodImage(item.id),
+        img: displayImage,
         qty: newQuantity
       });
     }
@@ -252,7 +260,7 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
           price: variant.price || 0,
           weight: variant.weight || item.weight,
           description: item.description,
-          img: editImageUrl || getFoodImage(item.id),
+          img: displayImage,
           qty: newQuantity
         });
       }
@@ -269,14 +277,13 @@ export default function FoodDetailModal({ item, isOpen, onClose, onAddToCart, ca
           price: item.price || 0,
           weight: item.weight,
           description: item.description,
-          img: editImageUrl || getFoodImage(item.id),
+          img: displayImage,
           qty: newQuantity
         });
       }
     }
   };
 
-  const displayImage = editImageUrl || getFoodImage(item.id);
   const displayName = isEditing ? editName : item.name;
   const displayDescription = isEditing ? editDescription : (item.description || 'Описание блюда будет добавлено в ближайшее время.');
   const displayPrice = isEditing ? editPrice : (item.price || 0);

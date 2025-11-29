@@ -1,31 +1,55 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Edit2, Save, Trash2, Eye, EyeOff } from 'lucide-react';
 import { createSupabaseBrowserClient } from '../../lib/supabase/client';
 import { uploadImage, isSupabaseStorageUrl } from '../../lib/supabase/storage';
+
+// Начальное состояние для новой записи
+const INITIAL_POST_STATE = {
+  title: '',
+  slug: '',
+  content: '',
+  excerpt: '',
+  image_url: '',
+  is_published: true,
+};
+
+// Названия категорий
+const CATEGORY_NAMES = {
+  vacancies: 'Вакансии',
+  events: 'События',
+  blog: 'Новостной блог',
+  halls: 'Залы',
+};
 
 export default function ContentManager({ category, isOpen, onClose }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPost, setEditingPost] = useState(null);
-  const [newPost, setNewPost] = useState({
-    title: '',
-    slug: '',
-    content: '',
-    excerpt: '',
-    image_url: '',
-    is_published: true,
-  });
+  const [newPost, setNewPost] = useState(INITIAL_POST_STATE);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
-  const categoryNames = {
-    vacancies: 'Вакансии',
-    events: 'События',
-    blog: 'Новостной блог',
-    halls: 'Залы',
-  };
+  // Получаем текущую редактируемую запись (либо editingPost, либо newPost)
+  const currentPost = editingPost || newPost;
+  const isEditMode = !!editingPost;
+
+  // Универсальный обработчик изменения полей формы
+  const handleFieldChange = useCallback((field, value) => {
+    if (editingPost) {
+      setEditingPost(prev => ({ ...prev, [field]: value }));
+    } else {
+      setNewPost(prev => ({ ...prev, [field]: value }));
+    }
+  }, [editingPost]);
+
+  // Сброс формы
+  const resetForm = useCallback(() => {
+    setEditingPost(null);
+    setNewPost(INITIAL_POST_STATE);
+    setImagePreview(null);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -280,16 +304,7 @@ export default function ContentManager({ category, isOpen, onClose }) {
         }
       }
 
-      setEditingPost(null);
-      setNewPost({
-        title: '',
-        slug: '',
-        content: '',
-        excerpt: '',
-        image_url: '',
-        is_published: true,
-      });
-      setImagePreview(null);
+      resetForm();
       
       // Небольшая задержка перед перезагрузкой, чтобы дать время обновиться URL
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -351,7 +366,7 @@ export default function ContentManager({ category, isOpen, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-neutral-900 border border-white/10 rounded-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-neutral-900 border-b border-white/10 p-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Управление: {categoryNames[category]}</h2>
+          <h2 className="text-2xl font-bold">Управление: {CATEGORY_NAMES[category]}</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-white/10 transition"
@@ -366,48 +381,30 @@ export default function ContentManager({ category, isOpen, onClose }) {
           ) : (
             <>
               {/* Форма добавления/редактирования */}
-              {(editingPost || (!editingPost && newPost.title)) && (
+              {(isEditMode || currentPost.title) && (
                 <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
                   <h3 className="text-lg font-bold mb-3">
-                    {editingPost ? 'Редактировать запись' : 'Добавить новую запись'}
+                    {isEditMode ? 'Редактировать запись' : 'Добавить новую запись'}
                   </h3>
                   <div className="space-y-3">
                     <input
                       type="text"
-                      value={editingPost?.title || newPost.title}
-                      onChange={(e) => {
-                        if (editingPost) {
-                          setEditingPost({ ...editingPost, title: e.target.value });
-                        } else {
-                          setNewPost({ ...newPost, title: e.target.value });
-                        }
-                      }}
+                      value={currentPost.title}
+                      onChange={(e) => handleFieldChange('title', e.target.value)}
                       placeholder="Заголовок"
                       className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
                     />
                     <input
                       type="text"
-                      value={editingPost?.slug || newPost.slug || generateSlug(editingPost?.title || newPost.title)}
-                      onChange={(e) => {
-                        if (editingPost) {
-                          setEditingPost({ ...editingPost, slug: e.target.value });
-                        } else {
-                          setNewPost({ ...newPost, slug: e.target.value });
-                        }
-                      }}
+                      value={currentPost.slug || generateSlug(currentPost.title)}
+                      onChange={(e) => handleFieldChange('slug', e.target.value)}
                       placeholder="Slug (URL)"
                       className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
                     />
                     <input
                       type="text"
-                      value={editingPost?.excerpt || newPost.excerpt}
-                      onChange={(e) => {
-                        if (editingPost) {
-                          setEditingPost({ ...editingPost, excerpt: e.target.value });
-                        } else {
-                          setNewPost({ ...newPost, excerpt: e.target.value });
-                        }
-                      }}
+                      value={currentPost.excerpt}
+                      onChange={(e) => handleFieldChange('excerpt', e.target.value)}
                       placeholder="Краткое описание (необязательно)"
                       className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
                     />
@@ -458,11 +455,7 @@ export default function ContentManager({ category, isOpen, onClose }) {
                                 throw new Error('Получен пустой URL изображения');
                               }
                               
-                              if (editingPost) {
-                                setEditingPost({ ...editingPost, image_url: uploadedUrl });
-                              } else {
-                                setNewPost({ ...newPost, image_url: uploadedUrl });
-                              }
+                              handleFieldChange('image_url', uploadedUrl);
                               
                               // Preview оставляем для отображения
                             } catch (err) {
@@ -498,34 +491,22 @@ export default function ContentManager({ category, isOpen, onClose }) {
                       <div className="text-xs text-neutral-400 text-center">или</div>
                       <input
                         type="text"
-                        value={editingPost?.image_url || newPost.image_url}
-                        onChange={(e) => {
-                          if (editingPost) {
-                            setEditingPost({ ...editingPost, image_url: e.target.value });
-                          } else {
-                            setNewPost({ ...newPost, image_url: e.target.value });
-                          }
-                        }}
+                        value={currentPost.image_url}
+                        onChange={(e) => handleFieldChange('image_url', e.target.value)}
                         placeholder="Введите URL изображения (https://... или /local-image.webp)"
                         className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400"
                       />
-                      {(editingPost?.image_url || newPost.image_url) && (
+                      {currentPost.image_url && (
                         <div className="text-xs text-neutral-500">
-                          {isSupabaseStorageUrl(editingPost?.image_url || newPost.image_url) 
+                          {isSupabaseStorageUrl(currentPost.image_url) 
                             ? '✓ Изображение в Supabase Storage' 
                             : 'Внешний URL'}
                         </div>
                       )}
                     </div>
                     <textarea
-                      value={editingPost?.content || newPost.content}
-                      onChange={(e) => {
-                        if (editingPost) {
-                          setEditingPost({ ...editingPost, content: e.target.value });
-                        } else {
-                          setNewPost({ ...newPost, content: e.target.value });
-                        }
-                      }}
+                      value={currentPost.content}
+                      onChange={(e) => handleFieldChange('content', e.target.value)}
                       placeholder="Содержание (HTML поддерживается)"
                       rows={10}
                       className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm outline-none focus:border-amber-400 font-mono"
@@ -534,40 +515,22 @@ export default function ContentManager({ category, isOpen, onClose }) {
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={editingPost?.is_published ?? newPost.is_published}
-                          onChange={(e) => {
-                            if (editingPost) {
-                              setEditingPost({ ...editingPost, is_published: e.target.checked });
-                            } else {
-                              setNewPost({ ...newPost, is_published: e.target.checked });
-                            }
-                          }}
+                          checked={currentPost.is_published}
+                          onChange={(e) => handleFieldChange('is_published', e.target.checked)}
                           className="rounded"
                         />
                         <span className="text-sm">Опубликовано</span>
                       </label>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => {
-                            handleSave(editingPost || newPost);
-                          }}
+                          onClick={() => handleSave(currentPost)}
                           className="px-4 py-2 rounded bg-amber-400 text-black font-semibold hover:bg-amber-300 text-sm"
                         >
                           <Save className="w-4 h-4 inline mr-1" />
                           Сохранить
                         </button>
                         <button
-                          onClick={() => {
-                            setEditingPost(null);
-                            setNewPost({
-                              title: '',
-                              slug: '',
-                              content: '',
-                              excerpt: '',
-                              image_url: '',
-                              is_published: true,
-                            });
-                          }}
+                          onClick={resetForm}
                           className="px-4 py-2 rounded bg-white/10 text-white text-sm"
                         >
                           Отмена
@@ -579,9 +542,9 @@ export default function ContentManager({ category, isOpen, onClose }) {
               )}
 
               {/* Кнопка добавления новой записи */}
-              {!editingPost && !newPost.title && (
+              {!isEditMode && !currentPost.title && (
                 <button
-                  onClick={() => setNewPost({ ...newPost, title: ' ' })}
+                  onClick={() => setNewPost({ ...INITIAL_POST_STATE, title: ' ' })}
                   className="w-full px-4 py-3 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600 transition"
                 >
                   <Plus className="w-4 h-4 inline mr-2" />

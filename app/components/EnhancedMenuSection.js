@@ -12,6 +12,7 @@ import { barMenuData as staticBarMenuData } from '../data/barMenuData';
 import { wineMenuData as staticWineMenuData } from '../data/wineMenuData';
 import BusinessLunchBuilder from './BusinessLunchBuilder';
 import { createSupabaseBrowserClient } from '../../lib/supabase/client';
+import useAdminCheck from '../../lib/hooks/useAdminCheck';
 
 /**
  * props.ssrMenuDataByType приходит с SSR-страниц (например, /menu) и
@@ -34,8 +35,6 @@ export default function EnhancedMenuSection({
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [menuExpanded, setMenuExpanded] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [clientMenuData, setClientMenuData] = useState(null);
   const [clientMenuLoading, setClientMenuLoading] = useState(false);
@@ -43,45 +42,8 @@ export default function EnhancedMenuSection({
   const [allCategories, setAllCategories] = useState([]); // Все категории для выбора при добавлении блюда
   const [allMenuDataByType, setAllMenuDataByType] = useState({}); // Все данные меню по типам для глобального поиска
 
-  // Проверка, является ли текущий пользователь админом (по таблице admins)
-  useEffect(() => {
-    if (!enableAdminEditing) {
-      setIsAdmin(false);
-      setAdminLoading(false);
-      return;
-    }
-
-    const run = async () => {
-      try {
-        const supabase = createSupabaseBrowserClient();
-        if (!supabase) {
-          setIsAdmin(false);
-          setAdminLoading(false);
-          return;
-        }
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          setIsAdmin(false);
-          setAdminLoading(false);
-          return;
-        }
-        const { data: adminRecord } = await supabase
-          .from('admins')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-        setIsAdmin(!!adminRecord);
-      } catch {
-        setIsAdmin(false);
-      } finally {
-        setAdminLoading(false);
-      }
-    };
-
-    run();
-  }, [enableAdminEditing]);
+  // Используем хук для проверки админа
+  const { isAdmin, loading: adminLoading } = useAdminCheck(enableAdminEditing);
 
   // Сохраняем ssrMenuDataByType для глобального поиска
   useEffect(() => {
@@ -788,6 +750,9 @@ export default function EnhancedMenuSection({
                 return acc;
               }, {});
               
+              // Подсчитываем глобальный индекс для приоритетной загрузки первых 6 изображений
+              let globalItemIndex = 0;
+              
               return (
                 <>
                   {Object.values(itemsByCategory).map(({ category, items: categoryItems }) => (
@@ -810,18 +775,23 @@ export default function EnhancedMenuSection({
                       )}
 
                       <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-6">
-                        {categoryItems.map((item) => (
-                          <MenuItem
-                            key={item.id}
-                            item={item}
-                            onAddToCart={onAddToCart}
-                            onItemClick={handleItemClick}
-                            cartItems={cartItems}
-                            isAdmin={enableAdminEditing && isAdmin}
-                            editMode={editMode}
-                            allCategories={currentMenuDataForFilter.categories || []}
-                          />
-                        ))}
+                        {categoryItems.map((item) => {
+                          const isPriority = globalItemIndex < 6;
+                          globalItemIndex++;
+                          return (
+                            <MenuItem
+                              key={item.id}
+                              item={item}
+                              onAddToCart={onAddToCart}
+                              onItemClick={handleItemClick}
+                              cartItems={cartItems}
+                              isAdmin={enableAdminEditing && isAdmin}
+                              editMode={editMode}
+                              allCategories={currentMenuDataForFilter.categories || []}
+                              priority={isPriority}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -876,8 +846,8 @@ export default function EnhancedMenuSection({
   );
 }
 
-// Компонент отдельного блюда
-function MenuItem({
+// Компонент отдельного блюда (мемоизированный для оптимизации)
+const MenuItem = React.memo(function MenuItem({
   item,
   onAddToCart,
   onItemClick,
@@ -901,6 +871,9 @@ function MenuItem({
     return null;
   }
 
+  // Получаем правильное изображение (из БД или fallback)
+  const itemImage = item.image || getFoodImage(item.id);
+
   const handleAdd = (variant = null) => {
     if (variant) {
       // Добавляем вариант
@@ -922,7 +895,7 @@ function MenuItem({
         price: variant.price || 0,
         weight: variant.weight || item.weight,
         description: item.description,
-        img: getFoodImage(item.id),
+        img: itemImage,
         qty: newQuantity
       });
     } else {
@@ -944,7 +917,7 @@ function MenuItem({
         price: item.price || 0,
         weight: item.weight,
         description: item.description,
-        img: getFoodImage(item.id),
+        img: itemImage,
         qty: newQuantity
       });
     }
@@ -966,7 +939,7 @@ function MenuItem({
           price: variant.price || 0,
           weight: variant.weight || item.weight,
           description: item.description,
-          img: getFoodImage(item.id),
+          img: itemImage,
           qty: newQuantity // Если newQuantity = 0, корзина удалит элемент
         });
       }
@@ -984,7 +957,7 @@ function MenuItem({
           price: item.price || 0,
           weight: item.weight,
           description: item.description,
-          img: getFoodImage(item.id),
+          img: itemImage,
           qty: newQuantity // Если newQuantity = 0, корзина удалит элемент
         });
       }
@@ -1075,7 +1048,7 @@ function MenuItem({
       {/* Image */}
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={getFoodImage(item.id)}
+          src={itemImage}
           alt={item.name}
           className="w-full h-full object-cover transition-transform group-hover:scale-105"
         />
@@ -1304,4 +1277,4 @@ function MenuItem({
       </div>
     </div>
   );
-}
+});
