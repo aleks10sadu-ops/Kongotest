@@ -10,6 +10,7 @@ import {
 import EnhancedMenuSection from './components/EnhancedMenuSection';
 import ContentManager from './components/ContentManager';
 import useAdminCheck from '../lib/hooks/useAdminCheck';
+import { createReservation } from '../lib/reservations';
 
 /* --- УТИЛИТА СКРОЛЛА --- */
 const scrollTo = (target) => {
@@ -146,6 +147,8 @@ export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [contentManagerOpen, setContentManagerOpen] = useState(false);
   const [contentManagerCategory, setContentManagerCategory] = useState(null);
+  const [bookingMessage, setBookingMessage] = useState(null); // { type: 'success' | 'error', text: string }
+  const [bookingLoading, setBookingLoading] = useState(false);
   const { items, add, dec, remove, clear, count, total } = useCart();
   
   // Используем хук для проверки админа
@@ -254,21 +257,97 @@ export default function Page() {
   // Сабмит БРОНИ (из секции booking)
   async function submitBooking(e) {
     e.preventDefault();
+    setBookingLoading(true);
+    setBookingMessage(null);
+
     const form = new FormData(e.currentTarget);
-    const payload = {
-      type: 'booking',
-      name: form.get('name') || '',
-      phone: form.get('phone') || '',
-      date: form.get('date') || '',
-      time: form.get('time') || '',
-      guests: form.get('guests') || '',
-      comment: form.get('comment') || '',
-      items,
-      total,
-    };
-    await notifyTelegram(payload);
-    alert('Заявка на бронирование отправлена! Мы свяжемся с вами.');
-    e.currentTarget.reset();
+    const name = form.get('name') || '';
+    const phone = form.get('phone') || '';
+    const date = form.get('date') || '';
+    const time = form.get('time') || '';
+    const guestsValue = form.get('guests') || guests;
+    const comment = form.get('comment') || '';
+
+    // URL API сайта бронирований из переменной окружения
+    // Настройте переменную NEXT_PUBLIC_RESERVATIONS_API_URL в .env.local
+    // Пример: NEXT_PUBLIC_RESERVATIONS_API_URL=https://your-reservations-site.vercel.app
+    const reservationsApiUrl = process.env.NEXT_PUBLIC_RESERVATIONS_API_URL || '';
+
+    try {
+      // Если указан URL API бронирований, отправляем туда
+      if (reservationsApiUrl) {
+        const reservationData = {
+          name: name,
+          phone: phone,
+          date: date,
+          time: time,
+          guests_count: Number(guestsValue) || guests,
+          comments: comment || undefined,
+        };
+
+        const result = await createReservation(reservationData, reservationsApiUrl);
+
+        if (result.success) {
+          setBookingMessage({
+            type: 'success',
+            text: 'Бронирование успешно создано! Мы свяжемся с вами для подтверждения.',
+          });
+          e.currentTarget.reset();
+          setGuests(2);
+          
+          // Также отправляем в Telegram как резервный вариант
+          try {
+            await notifyTelegram({
+              type: 'booking',
+              name,
+              phone,
+              date,
+              time,
+              guests: guestsValue,
+              comment,
+              items,
+              total,
+            });
+          } catch (telegramError) {
+            console.warn('Failed to send to Telegram:', telegramError);
+            // Не показываем ошибку пользователю, так как основное бронирование создано
+          }
+        } else {
+          setBookingMessage({
+            type: 'error',
+            text: result.error || 'Ошибка при создании бронирования. Попробуйте позже.',
+          });
+        }
+      } else {
+        // Если URL API не указан, отправляем только в Telegram (старое поведение)
+        const payload = {
+          type: 'booking',
+          name,
+          phone,
+          date,
+          time,
+          guests: guestsValue,
+          comment,
+          items,
+          total,
+        };
+        await notifyTelegram(payload);
+        setBookingMessage({
+          type: 'success',
+          text: 'Заявка на бронирование отправлена! Мы свяжемся с вами.',
+        });
+        e.currentTarget.reset();
+        setGuests(2);
+      }
+    } catch (error) {
+      console.error('Booking submission error:', error);
+      setBookingMessage({
+        type: 'error',
+        text: 'Произошла ошибка при отправке заявки. Попробуйте позже или свяжитесь с нами по телефону.',
+      });
+    } finally {
+      setBookingLoading(false);
+    }
   }
 
   // Проверка условий заказа бизнес-ланчей
@@ -594,11 +673,28 @@ export default function Page() {
                     />
                   </div>
                   <textarea id="booking-comment" name="comment" aria-label="Пожелания" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
+                  {bookingMessage && (
+                    <div className={`md:col-span-2 p-3 sm:p-4 rounded-lg border ${
+                      bookingMessage.type === 'success' 
+                        ? 'bg-green-500/20 border-green-500/50 text-green-300' 
+                        : 'bg-red-500/20 border-red-500/50 text-red-300'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {bookingMessage.type === 'success' ? (
+                          <span className="text-green-400">✓</span>
+                        ) : (
+                          <AlertCircle className="w-4 h-4" />
+                        )}
+                        <span className="text-sm sm:text-base">{bookingMessage.text}</span>
+                      </div>
+                    </div>
+                  )}
                   <button 
                     type="submit"
-                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    disabled={bookingLoading}
+                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    Отправить заявку
+                    {bookingLoading ? 'Отправка...' : 'Отправить заявку'}
                   </button>
                 </form>
               ) : (
@@ -616,11 +712,28 @@ export default function Page() {
                     />
                   </div>
                   <textarea name="comment" className="md:col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 sm:px-4 lg:px-5 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg outline-none focus:border-amber-400" rows={3} placeholder="Пожелания (необязательно)" />
+                  {bookingMessage && (
+                    <div className={`md:col-span-2 p-3 sm:p-4 rounded-lg border ${
+                      bookingMessage.type === 'success' 
+                        ? 'bg-green-500/20 border-green-500/50 text-green-300' 
+                        : 'bg-red-500/20 border-red-500/50 text-red-300'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {bookingMessage.type === 'success' ? (
+                          <span className="text-green-400">✓</span>
+                        ) : (
+                          <AlertCircle className="w-4 h-4" />
+                        )}
+                        <span className="text-sm sm:text-base">{bookingMessage.text}</span>
+                      </div>
+                    </div>
+                  )}
                   <button 
                     type="submit"
-                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    disabled={bookingLoading}
+                    className="md:col-span-2 px-6 sm:px-8 lg:px-10 py-2.5 sm:py-3 lg:py-4 text-sm sm:text-base lg:text-lg rounded-full bg-amber-400 text-black font-semibold hover:bg-amber-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    Отправить заявку
+                    {bookingLoading ? 'Отправка...' : 'Отправить заявку'}
                   </button>
                 </form>
               )}
