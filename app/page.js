@@ -288,9 +288,14 @@ export default function Page() {
         const result = await createReservation(reservationData, reservationsApiUrl);
 
         if (result.success) {
+          // Если есть предупреждение о CORS, но бронирование создано
+          const message = result.warning 
+            ? 'Бронирование успешно создано! (Если оно появилось на сайте бронирований, значит всё в порядке)'
+            : result.message || 'Бронирование успешно создано! Мы свяжемся с вами для подтверждения.';
+          
           setBookingMessage({
             type: 'success',
-            text: 'Бронирование успешно создано! Мы свяжемся с вами для подтверждения.',
+            text: message,
           });
           e.currentTarget.reset();
           setGuests(2);
