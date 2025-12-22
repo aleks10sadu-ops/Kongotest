@@ -8,6 +8,7 @@ export const metadata = {
 };
 
 import './globals.css';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export default function RootLayout({ children }) {
   return (
@@ -97,6 +98,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased bg-slate-50">
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
