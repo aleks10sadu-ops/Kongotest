@@ -6,10 +6,6 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
@@ -20,8 +16,12 @@ const nextConfig = {
       },
     ],
     formats: ['image/webp', 'image/avif'],
-    qualities: [75, 80, 85, 90],
-    minimumCacheTTL: 60,
+    qualities: [70, 75, 80, 85, 90],
+    // Увеличенное время кеширования изображений (1 неделя)
+    minimumCacheTTL: 604800,
+    // Настройки для оптимизации
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   // Оптимизация производительности
   compress: true,
@@ -76,7 +76,8 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains; preload'
           }] : []),
-          // Content Security Policy (только для production, в dev может мешать hot reload)
+          // Content Security Policy
+          // В dev режиме более мягкая политика для hot reload, но с доменом бронирований
           ...(process.env.NODE_ENV === 'production' ? [{
             key: 'Content-Security-Policy',
             value: [
@@ -86,7 +87,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https: http:",
               "font-src 'self' https://fonts.gstatic.com data:",
               "frame-src 'self' https://yandex.ru https://*.yandex.ru https://*.yandex.kz",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net https://k-c-reservations.vercel.app https://*.vercel.app",
               "media-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",
@@ -94,7 +95,23 @@ const nextConfig = {
               "frame-ancestors 'self'",
               "upgrade-insecure-requests"
             ].join('; ')
-          }] : []),
+          }] : [{
+            // Dev режим: более мягкая CSP для разработки, но с доменом бронирований
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://yandex.ru https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.yandex.ru",
+              "img-src 'self' data: blob: https: http:",
+              "font-src 'self' https://fonts.gstatic.com data:",
+              "frame-src 'self' https://yandex.ru https://*.yandex.ru https://*.yandex.kz",
+              "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.supabase.co wss://*.supabase.co https://api-maps.yandex.ru https://*.yandex.ru https://*.yandex.net https://k-c-reservations.vercel.app https://*.vercel.app",
+              "media-src 'self'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'"
+            ].join('; ')
+          }]),
         ],
       },
       // Кеширование для статических ресурсов
