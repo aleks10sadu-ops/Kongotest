@@ -336,13 +336,13 @@ export default function FoodDetailModal({
 
 
 
-    const handleAdd = (variant: MenuItemVariant | null = null) => {
+    const handleAdd = (variant: MenuItemVariant | null = null): boolean => {
         if (variant) {
             const variantId = `${item.id}_${variant.name}`;
             const cartVariant = cartItems.find(ci => ci.id === variantId);
             const currentQty = cartVariant?.qty || 0;
 
-            if (currentQty >= 99) return;
+            if (currentQty >= 99) return false;
 
             const newQuantity = currentQty + 1;
 
@@ -355,16 +355,17 @@ export default function FoodDetailModal({
                 img: displayImage,
                 qty: newQuantity
             });
+            return true;
         } else {
             // Если у блюда есть модификаторы — учитываем выбор в id/названии/цене
-            if (hasModifiers && !modsValid) return;
+            if (hasModifiers && !modsValid) return false;
             const cartId = hasModifiers && modsKey ? `${item.id}__${modsKey}` : item.id;
             const cartPrice = (item.price || 0) + (hasModifiers ? modsExtraPrice : 0);
 
             const cartItem = cartItems.find(ci => ci.id === cartId);
             const currentQty = cartItem?.qty || 0;
 
-            if (currentQty >= 99) return;
+            if (currentQty >= 99) return false;
 
             const newQuantity = currentQty + 1;
 
@@ -379,6 +380,7 @@ export default function FoodDetailModal({
                 productId: String(item.id),
                 modifiers: hasModifiers ? selectedModifiers : undefined,
             });
+            return true;
         }
     };
 
@@ -794,7 +796,9 @@ export default function FoodDetailModal({
                                         </p>
                                     )}
                                     <button
-                                        onClick={() => handleAdd()}
+                                        onClick={() => {
+                                            if (handleAdd()) onClose();
+                                        }}
                                         disabled={!modsValid}
                                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-6 py-3.5 font-bold text-[#FBF3EA] transition hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:opacity-50"
                                     >
