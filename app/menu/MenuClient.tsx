@@ -67,13 +67,13 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
         <article
             aria-disabled={stopped}
             onClick={activate}
-            className={`group min-w-0 rounded-[1.35rem] border border-white/[0.07] bg-white/[0.035] p-2.5 transition duration-300 sm:p-3 ${
+            className={`group min-w-0 rounded-[1.35rem] border border-white/[0.07] bg-white/[0.035] p-2.5 transition duration-300 sm:p-3 xl:rounded-[1.15rem] xl:p-2 ${
                 stopped
                     ? 'cursor-not-allowed opacity-55'
                     : 'cursor-pointer hover:-translate-y-1 hover:border-brass/30 hover:bg-white/[0.055] hover:shadow-[0_20px_50px_rgba(0,0,0,0.24)]'
             }`}
         >
-            <div className="relative aspect-square overflow-hidden rounded-[1.05rem] bg-forest-mid lg:aspect-[4/3]">
+            <div className="relative aspect-square overflow-hidden rounded-[1.05rem] bg-forest-mid lg:aspect-[4/3] xl:rounded-[0.9rem]">
                 {item.image ? (
                     <DishThumb src={item.image} alt={item.name} />
                 ) : (
@@ -100,7 +100,7 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
                                 type="button"
                                 onClick={onOpen}
                                 aria-label={`Выбрать ${item.name}`}
-                                className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-cream text-forest-ink shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-white sm:h-12 sm:w-12"
+                                className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-cream text-forest-ink shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-white sm:h-12 sm:w-12 xl:h-10 xl:w-10"
                             >
                                 <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
                             </button>
@@ -109,7 +109,7 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
                                 type="button"
                                 onClick={() => onSetQuantity(1)}
                                 aria-label={`Добавить ${item.name} в корзину`}
-                                className="grid h-11 w-11 place-items-center rounded-full bg-terracotta text-[#FBF3EA] shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-terracotta-dark sm:h-12 sm:w-12"
+                                className="grid h-11 w-11 place-items-center rounded-full bg-terracotta text-[#FBF3EA] shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-terracotta-dark sm:h-12 sm:w-12 xl:h-10 xl:w-10"
                             >
                                 <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
                             </button>
@@ -138,24 +138,24 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
                 ) : null}
             </div>
 
-            <div className="px-1 pb-1 pt-3 sm:px-1.5 sm:pt-4">
+            <div className="px-1 pb-1 pt-3 sm:px-1.5 sm:pt-4 xl:pt-2.5">
                 {item.price ? (
-                    <div className="mb-1.5 text-lg font-black tracking-tight text-brass sm:text-xl">
+                    <div className="mb-1 text-lg font-black tracking-tight text-brass sm:text-xl xl:text-lg">
                         {item.price.toLocaleString('ru-RU')} ₽
                     </div>
                 ) : null}
-                <h3 className="min-h-[2.6rem] sm:min-h-[3rem]">
+                <h3 className="min-h-[2.6rem] sm:min-h-[3rem] xl:min-h-[2.5rem]">
                     <button
                         type="button"
                         disabled={stopped}
                         onClick={onOpen}
-                        className="w-full overflow-hidden text-left font-display text-[15px] font-bold leading-[1.28] text-cream transition-colors group-hover:text-white disabled:cursor-not-allowed sm:text-lg"
+                        className="w-full overflow-hidden text-left font-display text-[15px] font-bold leading-[1.28] text-cream transition-colors group-hover:text-white disabled:cursor-not-allowed sm:text-lg xl:text-base"
                         style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
                     >
                         {item.name}
                     </button>
                 </h3>
-                <div className="mt-1 min-h-5 text-xs text-cream/45 sm:text-sm">
+                <div className="mt-0.5 min-h-5 text-xs text-cream/45 sm:text-sm xl:text-xs">
                     {weight || (requiresChoice ? 'Есть варианты на выбор' : '\u00A0')}
                 </div>
             </div>
@@ -254,12 +254,12 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
             <ForestHeader />
             <main className="min-h-screen bg-forest-ink pb-24 font-body text-cream">
                 {/* Компактный заголовок */}
-                <section className="relative overflow-hidden border-b border-white/5 px-5 pb-7 pt-10 md:px-8 md:pt-14">
+                <section className="relative overflow-hidden border-b border-white/5 px-5 pb-5 pt-7 md:px-8 md:pb-5 md:pt-8 xl:py-5">
                     <img src="/hero-image.webp" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-b from-forest-ink/90 via-forest-ink/95 to-forest-ink" />
-                    <div className="relative z-10 mx-auto max-w-[1000px]">
-                        <span className="text-[13px] uppercase tracking-[0.18em] text-brass">Кухня, бар, доставка</span>
-                        <h1 className="mt-2 font-display text-[clamp(2.2rem,5vw,3.6rem)] font-black leading-[1.05] text-cream">Меню</h1>
+                    <div className="relative z-10 mx-auto max-w-[1280px]">
+                        <span className="text-[13px] uppercase tracking-[0.18em] text-brass xl:text-xs">Кухня, бар, доставка</span>
+                        <h1 className="mt-1.5 font-display text-[clamp(2.2rem,5vw,3.6rem)] font-black leading-[1.05] text-cream xl:text-4xl">Меню</h1>
                     </div>
                 </section>
 
@@ -277,43 +277,45 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
 
                 {/* Липкая навигация: типы меню + категории */}
                 <div className="sticky top-16 z-30 border-b border-white/10 bg-forest-ink/90 backdrop-blur-md">
-                    <div className="mx-auto max-w-[1000px] px-5 py-3 md:px-8">
-                        {availableTypes.length > 1 && (
-                            <div className="mb-2 flex flex-wrap gap-2">
-                                {availableTypes.map((t) => (
-                                    <button key={t.id} onClick={() => selectType(t.id)} className={pill(activeType === t.id && t.id !== 'banquet')}>
-                                        {t.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                    <div className="mx-auto max-w-[1280px] px-5 py-3 md:px-8 xl:py-2.5">
+                        <div className="xl:flex xl:items-center xl:gap-3">
+                            {availableTypes.length > 1 && (
+                                <div className="mb-2 flex flex-wrap gap-2 xl:mb-0 xl:flex-none">
+                                    {availableTypes.map((t) => (
+                                        <button key={t.id} onClick={() => selectType(t.id)} className={pill(activeType === t.id && t.id !== 'banquet')}>
+                                            {t.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
 
-                        {activeType !== 'business' && (
-                            <div className="relative mb-2">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream/40" />
-                                <input
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    placeholder="Поиск по меню…"
-                                    aria-label="Поиск по меню"
-                                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-9 pr-9 text-sm text-cream placeholder-cream/40 outline-none transition focus:border-brass/50"
-                                />
-                                {query && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setQuery('')}
-                                        aria-label="Очистить поиск"
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-cream/50 transition-colors hover:bg-white/10 hover:text-cream"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            {activeType !== 'business' && (
+                                <div className="relative mb-2 xl:mb-0 xl:min-w-0 xl:flex-1">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream/40" />
+                                    <input
+                                        value={query}
+                                        onChange={(e) => setQuery(e.target.value)}
+                                        placeholder="Поиск по меню…"
+                                        aria-label="Поиск по меню"
+                                        className="w-full rounded-lg border border-white/10 bg-white/[0.04] py-2 pl-9 pr-9 text-sm text-cream placeholder-cream/40 outline-none transition focus:border-brass/50"
+                                    />
+                                    {query && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuery('')}
+                                            aria-label="Очистить поиск"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-cream/50 transition-colors hover:bg-white/10 hover:text-cream"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         {activeType !== 'business' && categories.length > 0 && !q && (
                             <>
-                                <div className="scrollbar-brass hidden gap-5 overflow-x-auto pb-1 md:flex">
+                                <div className="scrollbar-brass hidden gap-5 overflow-x-auto pb-1 md:flex xl:mt-2">
                                     {categories.map((category: any) => (
                                         <button
                                             key={category.id}
@@ -364,7 +366,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                 </div>
 
                 {/* Контент */}
-                <div className="mx-auto max-w-[1500px] px-3 pt-8 sm:px-5 md:px-8 md:pt-10">
+                <div className="mx-auto max-w-[1280px] px-3 pt-6 sm:px-5 md:px-8 md:pt-7 xl:pt-5">
                     {activeType === 'business' ? (
                         <div className="mx-auto max-w-3xl space-y-8">
                             {/* Меню бизнес-ланчей на неделю (афиша от админа) */}
@@ -406,16 +408,16 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                             />
                         </div>
                     ) : (
-                        <div className="mx-auto max-w-[1480px] space-y-14 md:space-y-20">
+                        <div className="mx-auto max-w-[1240px] space-y-12 md:space-y-16">
                             {q && shownCategories.length === 0 && (
                                 <p className="py-16 text-center text-cream/55">По запросу «{query}» ничего не нашлось.</p>
                             )}
                             {shownCategories.map((category: any) => (
-                                <section key={category.id} id={category.id} className="scroll-mt-[172px]">
-                                    <h2 className="mb-6 font-display text-2xl font-black tracking-tight text-cream md:mb-8 md:text-4xl">
+                                <section key={category.id} id={category.id} className="scroll-mt-[172px] xl:scroll-mt-[132px]">
+                                    <h2 className="mb-6 font-display text-2xl font-black tracking-tight text-cream md:mb-6 md:text-3xl xl:mb-4">
                                         {category.name}
                                     </h2>
-                                    <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-3 xl:grid-cols-4">
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-4 xl:gap-y-5">
                                         {category.items.map((item: any) => {
                                             const quantity = cart.items.find((cartItem) => cartItem.id === item.id)?.qty || 0;
                                             return (
