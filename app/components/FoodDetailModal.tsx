@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, Plus, Minus, Star, Clock, Scale, Edit2, Save, Trash2, Check } from 'lucide-react';
+import { X, Plus, Minus, Scale, Edit2, Save, Trash2, Check, ImageOff } from 'lucide-react';
 import { BLUR_DATA_URL } from '@/lib/ui/blurPlaceholder';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { uploadDishImage, isSupabaseStorageUrl } from '@/lib/supabase/storage';
@@ -66,6 +66,20 @@ export default function FoodDetailModal({
     useEffect(() => {
         setModalImageError(false);
     }, [displayImage]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [isOpen, onClose]);
 
     useEffect(() => {
         if (item) {
@@ -413,15 +427,15 @@ export default function FoodDetailModal({
     const displayWeight = isEditing ? editWeight : item.weight;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/75 backdrop-blur-sm"
                 onClick={onClose}
             />
 
-            <div className="relative w-full max-w-4xl max-h-[90vh] bg-forest text-cream font-body rounded-2xl border border-white/10 overflow-hidden">
+            <div className="relative max-h-[100dvh] w-full overflow-hidden rounded-t-[1.75rem] border border-white/10 bg-forest font-body text-cream shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:max-h-[92dvh] sm:max-w-6xl sm:rounded-[2rem]">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div className="flex items-center justify-between border-b border-white/10 p-4 sm:px-6 sm:py-5">
                     <div className="flex items-center gap-3 flex-1">
                         {isEditing ? (
                             <input
@@ -432,7 +446,7 @@ export default function FoodDetailModal({
                                 placeholder="Название блюда"
                             />
                         ) : (
-                            <h2 className="text-2xl font-bold">{item.name}</h2>
+                            <h2 className="font-display text-xl font-black sm:text-2xl">{item.name}</h2>
                         )}
                         {isAdmin && !isEditing && item.id !== 'new' && (
                             <button
@@ -489,7 +503,7 @@ export default function FoodDetailModal({
                         {!isEditing && (
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/10 transition"
+                                className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] transition hover:bg-white/10"
                                 aria-label="Закрыть"
                             >
                                 <X className="w-6 h-6" />
@@ -499,24 +513,22 @@ export default function FoodDetailModal({
                 </div>
 
                 {/* Content */}
-                <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+                <div className="max-h-[calc(100dvh-73px)] overflow-y-auto sm:max-h-[calc(92dvh-81px)]">
                     {error && (
                         <div className="mx-6 mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                             {error}
                         </div>
                     )}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+                    <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-8 lg:p-7">
                         {/* Image */}
                         <div className="space-y-4">
-                            <div className="aspect-square rounded-xl overflow-hidden bg-forest-mid relative">
+                            <div className="relative aspect-[4/3] overflow-hidden bg-forest-mid sm:mx-5 sm:mt-5 sm:rounded-[1.5rem] lg:m-0 lg:aspect-square">
                                 {/* Плейсхолдер если нет изображения */}
                                 {!hasDisplayImage && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-forest-mid to-forest-deep">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-forest-mid">
                                         <div className="text-center p-8">
                                             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-forest-mid flex items-center justify-center">
-                                                <svg className="w-10 h-10 text-cream/45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
+                                                <ImageOff className="h-10 w-10 text-cream/45" />
                                             </div>
                                             <span className="text-sm text-cream/45">Изображение отсутствует</span>
                                         </div>
@@ -525,12 +537,10 @@ export default function FoodDetailModal({
 
                                 {/* Плейсхолдер при ошибке */}
                                 {hasDisplayImage && modalImageError && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-forest-mid to-forest-deep">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-forest-mid">
                                         <div className="text-center p-8">
                                             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-forest-mid flex items-center justify-center">
-                                                <svg className="w-10 h-10 text-cream/45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                </svg>
+                                                <ImageOff className="h-10 w-10 text-cream/45" />
                                             </div>
                                             <span className="text-sm text-cream/45">Ошибка загрузки</span>
                                         </div>
@@ -637,7 +647,7 @@ export default function FoodDetailModal({
                             )}
 
                             {/* Price and Weight */}
-                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                            <div className="mx-4 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4 sm:mx-5 lg:mx-0">
                                 <div className="flex items-center gap-4">
                                     {isEditing ? (
                                         <div className="flex items-center gap-2">
@@ -673,17 +683,11 @@ export default function FoodDetailModal({
                                         )
                                     )}
                                 </div>
-                                {!isEditing && (
-                                    <div className="flex items-center gap-1 text-brass">
-                                        <Star className="w-4 h-4 fill-current" />
-                                        <span className="text-sm font-medium">Рекомендуем</span>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
                         {/* Details */}
-                        <div className="space-y-6">
+                        <div className="space-y-6 px-5 pb-8 pt-6 lg:px-0 lg:py-1">
                             {/* Description */}
                             <div>
                                 <h3 className="text-lg font-semibold mb-3">Описание</h3>
@@ -719,7 +723,7 @@ export default function FoodDetailModal({
                                         </h3>
                                         <div className="grid grid-cols-4 gap-2">
                                             {cells.map((c) => (
-                                                <div key={c.label} className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div key={c.label} className="rounded-xl border border-white/[0.07] bg-white/[0.04] p-2.5 text-center sm:p-3">
                                                     <div className="text-base lg:text-lg font-bold text-brass">{c.value}</div>
                                                     <div className="text-[11px] lg:text-xs text-cream/55 mt-0.5">{c.label}</div>
                                                 </div>
@@ -758,10 +762,10 @@ export default function FoodDetailModal({
                                                                 disabled={stopped}
                                                                 aria-disabled={stopped}
                                                                 onClick={() => toggleMod(g, opt.id)}
-                                                                className={`w-full flex items-center justify-between gap-3 p-3 rounded-lg border text-left transition ${stopped ? 'border-white/10 bg-white/[0.02] opacity-50 cursor-not-allowed' : checked ? 'border-brass bg-brass/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                                                                className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition ${stopped ? 'cursor-not-allowed border-white/10 bg-white/[0.02] opacity-50' : checked ? 'border-terracotta/70 bg-terracotta/10' : 'border-white/10 bg-white/[0.04] hover:border-brass/35 hover:bg-white/[0.07]'}`}
                                                             >
                                                                 <span className="flex items-center gap-3">
-                                                                    <span className={`flex items-center justify-center w-5 h-5 flex-shrink-0 ${single ? 'rounded-full' : 'rounded'} border ${checked && !stopped ? 'border-brass bg-terracotta text-[#FBF3EA]' : 'border-white/30'}`}>
+                                                                    <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center ${single ? 'rounded-full' : 'rounded-md'} border ${checked && !stopped ? 'border-terracotta bg-terracotta text-[#FBF3EA]' : 'border-white/30'}`}>
                                                                         {checked && !stopped && <Check className="w-3.5 h-3.5" />}
                                                                     </span>
                                                                     <span className={`text-sm text-white ${stopped ? 'line-through' : ''}`}>{cleanOptName(opt.name)}</span>
@@ -783,7 +787,7 @@ export default function FoodDetailModal({
 
                             {/* Добавить в корзину — для блюд с модификаторами */}
                             {hasModifiers && !isEditing && item.id !== 'new' && (
-                                <div className="pt-4 border-t border-white/10">
+                                <div className="sticky bottom-0 -mx-5 border-t border-white/10 bg-forest/95 px-5 py-4 backdrop-blur-lg lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:pb-0">
                                     {!modsValid && (
                                         <p className="text-brass text-sm mb-3">
                                             Выберите: {requiredUnmet.map((g) => cleanOptName(g.name)).join(', ')}
@@ -792,7 +796,7 @@ export default function FoodDetailModal({
                                     <button
                                         onClick={() => handleAdd()}
                                         disabled={!modsValid}
-                                        className="w-full px-6 py-3 rounded-full bg-terracotta text-[#FBF3EA] font-semibold hover:bg-terracotta-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-terracotta px-6 py-3.5 font-bold text-[#FBF3EA] transition hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Plus className="w-5 h-5" />
                                         Добавить в корзину — {((item.price || 0) + modsExtraPrice).toLocaleString('ru-RU')} ₽
@@ -828,7 +832,7 @@ export default function FoodDetailModal({
                                             const variantId = `${item.id}_${variant.name}`;
                                             const variantQuantity = getVariantQuantity(variantId);
                                             return (
-                                                <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                                                            <div key={index} className="flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.04] p-3">
                                                     <div className="flex-1">
                                                         <div className="font-medium text-white">{variant.name}</div>
                                                         <div className="text-sm text-cream/55">{variant.weight || item.weight}</div>
@@ -840,7 +844,7 @@ export default function FoodDetailModal({
                                                         {variantQuantity === 0 ? (
                                                             <button
                                                                 onClick={() => handleAdd(variant)}
-                                                                className="px-4 py-2 text-sm rounded-full bg-terracotta text-[#FBF3EA] font-semibold hover:bg-terracotta-dark transition"
+                                                                className="rounded-xl bg-terracotta px-4 py-2 text-sm font-semibold text-[#FBF3EA] transition hover:bg-terracotta-dark"
                                                             >
                                                                 Добавить
                                                             </button>
@@ -874,30 +878,30 @@ export default function FoodDetailModal({
 
                             {/* Add to Cart - only for items without variants/modifiers and not in edit mode, and not new items */}
                             {(!item.variants || !Array.isArray(item.variants) || item.variants.length === 0) && !hasModifiers && !isEditing && item.id !== 'new' && (
-                                <div className="pt-4 border-t border-white/10">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-lg font-semibold">Добавить в корзину</span>
+                                <div className="sticky bottom-0 -mx-5 border-t border-white/10 bg-forest/95 px-5 py-4 backdrop-blur-lg lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:pb-0">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-sm font-semibold text-cream/70 sm:text-base">Количество</span>
                                         {quantity === 0 ? (
                                             <button
                                                 onClick={() => handleAdd()}
-                                                className="px-6 py-3 rounded-full bg-terracotta text-[#FBF3EA] font-semibold hover:bg-terracotta-dark transition"
+                                                className="flex-1 rounded-xl bg-terracotta px-6 py-3.5 font-bold text-[#FBF3EA] transition hover:bg-terracotta-dark sm:max-w-xs"
                                             >
-                                                Добавить
+                                                Добавить · {displayPrice.toLocaleString('ru-RU')} ₽
                                             </button>
                                         ) : (
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1.5">
                                                 <button
                                                     onClick={() => handleRemove()}
-                                                    className="p-3 rounded-full border border-white/20 hover:border-white/60 transition"
+                                                    className="grid h-10 w-10 place-items-center rounded-lg transition hover:bg-white/10"
                                                     aria-label="Убавить"
                                                 >
                                                     <Minus className="w-5 h-5" />
                                                 </button>
-                                                <span className="w-12 text-center text-xl font-semibold">{quantity}</span>
+                                                <span className="w-8 text-center text-lg font-bold">{quantity}</span>
                                                 <button
                                                     onClick={() => handleAdd()}
                                                     disabled={quantity >= 99}
-                                                    className="p-3 rounded-full bg-terracotta text-[#FBF3EA] hover:bg-terracotta-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="grid h-10 w-10 place-items-center rounded-lg bg-terracotta text-[#FBF3EA] transition hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:opacity-50"
                                                     aria-label="Добавить"
                                                 >
                                                     <Plus className="w-5 h-5" />
@@ -908,19 +912,6 @@ export default function FoodDetailModal({
                                 </div>
                             )}
 
-                            {/* Additional Info */}
-                            {!isEditing && (
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-                                    <div className="flex items-center gap-2 text-sm text-cream/55">
-                                        <Clock className="w-4 h-4" />
-                                        <span>Время приготовления: 15-25 мин</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-cream/55">
-                                        <Star className="w-4 h-4" />
-                                        <span>Популярное блюдо</span>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

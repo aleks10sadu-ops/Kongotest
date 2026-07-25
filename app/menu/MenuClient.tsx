@@ -36,13 +36,131 @@ function DishThumb({ src, alt }: { src: string; alt: string }) {
                 src={src}
                 alt={alt}
                 fill
-                sizes="(max-width: 768px) 80px, 128px"
+                sizes="(max-width: 640px) 50vw, (max-width: 1279px) 33vw, 25vw"
                 className="object-cover"
                 onError={() => setBroken(true)}
             />
         );
     }
     return <img src={src} alt={alt} loading="lazy" decoding="async" className="h-full w-full object-cover" onError={() => setBroken(true)} />;
+}
+
+type DishCardProps = {
+    item: any;
+    stopped: boolean;
+    quantity: number;
+    onOpen: () => void;
+    onSetQuantity: (quantity: number) => void;
+};
+
+function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardProps) {
+    const requiresChoice = Boolean(item.variants?.length || item.modifierGroups?.length);
+    const weight = item.weight
+        ? typeof item.weight === 'number' ? `${item.weight} г` : item.weight
+        : item.volume && item.volume_unit ? `${item.volume} ${item.volume_unit}` : null;
+
+    const activate = () => {
+        if (!stopped) onOpen();
+    };
+
+    return (
+        <article
+            aria-disabled={stopped}
+            onClick={activate}
+            className={`group min-w-0 rounded-[1.35rem] border border-white/[0.07] bg-white/[0.035] p-2.5 transition duration-300 sm:p-3 ${
+                stopped
+                    ? 'cursor-not-allowed opacity-55'
+                    : 'cursor-pointer hover:-translate-y-1 hover:border-brass/30 hover:bg-white/[0.055] hover:shadow-[0_20px_50px_rgba(0,0,0,0.24)]'
+            }`}
+        >
+            <div className="relative aspect-square overflow-hidden rounded-[1.05rem] bg-forest-mid lg:aspect-[4/3]">
+                {item.image ? (
+                    <DishThumb src={item.image} alt={item.name} />
+                ) : (
+                    <div className="absolute inset-0 grid place-items-center px-4 text-center text-xs text-cream/35">
+                        Фото скоро появится
+                    </div>
+                )}
+
+                {stopped && (
+                    <div className="absolute inset-0 grid place-items-center bg-forest-ink/75 px-3 text-center">
+                        <span className="rounded-full border border-white/20 bg-forest-ink/80 px-3 py-1.5 text-[11px] font-semibold text-cream sm:text-xs">
+                            Временно недоступно
+                        </span>
+                    </div>
+                )}
+
+                {!stopped && item.price ? (
+                    <div
+                        className="absolute bottom-2.5 right-2.5"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        {requiresChoice ? (
+                            <button
+                                type="button"
+                                onClick={onOpen}
+                                aria-label={`Выбрать ${item.name}`}
+                                className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-cream text-forest-ink shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-white sm:h-12 sm:w-12"
+                            >
+                                <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
+                            </button>
+                        ) : quantity === 0 ? (
+                            <button
+                                type="button"
+                                onClick={() => onSetQuantity(1)}
+                                aria-label={`Добавить ${item.name} в корзину`}
+                                className="grid h-11 w-11 place-items-center rounded-full bg-terracotta text-[#FBF3EA] shadow-lg shadow-black/30 transition hover:scale-105 hover:bg-terracotta-dark sm:h-12 sm:w-12"
+                            >
+                                <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-1 rounded-full border border-white/15 bg-forest-ink/95 p-1 shadow-lg shadow-black/30">
+                                <button
+                                    type="button"
+                                    onClick={() => onSetQuantity(quantity - 1)}
+                                    aria-label={`Уменьшить количество ${item.name}`}
+                                    className="grid h-8 w-8 place-items-center rounded-full text-cream transition hover:bg-white/10"
+                                >
+                                    <Minus className="h-4 w-4" />
+                                </button>
+                                <span className="min-w-[1.5rem] text-center text-sm font-bold text-cream">{quantity}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => onSetQuantity(quantity + 1)}
+                                    aria-label={`Увеличить количество ${item.name}`}
+                                    className="grid h-8 w-8 place-items-center rounded-full bg-terracotta text-[#FBF3EA] transition hover:bg-terracotta-dark"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+            </div>
+
+            <div className="px-1 pb-1 pt-3 sm:px-1.5 sm:pt-4">
+                {item.price ? (
+                    <div className="mb-1.5 text-lg font-black tracking-tight text-brass sm:text-xl">
+                        {item.price.toLocaleString('ru-RU')} ₽
+                    </div>
+                ) : null}
+                <h3 className="min-h-[2.6rem] sm:min-h-[3rem]">
+                    <button
+                        type="button"
+                        disabled={stopped}
+                        onClick={onOpen}
+                        className="w-full overflow-hidden text-left font-display text-[15px] font-bold leading-[1.28] text-cream transition-colors group-hover:text-white disabled:cursor-not-allowed sm:text-lg"
+                        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+                    >
+                        {item.name}
+                    </button>
+                </h3>
+                <div className="mt-1 min-h-5 text-xs text-cream/45 sm:text-sm">
+                    {weight || (requiresChoice ? 'Есть варианты на выбор' : '\u00A0')}
+                </div>
+            </div>
+        </article>
+    );
 }
 
 const TYPE_ORDER = ['main', 'business', 'bar', 'wine', 'kids', 'promotions'];
@@ -246,7 +364,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                 </div>
 
                 {/* Контент */}
-                <div className="mx-auto max-w-[1000px] px-5 pt-10 md:px-8">
+                <div className="mx-auto max-w-[1500px] px-3 pt-8 sm:px-5 md:px-8 md:pt-10">
                     {activeType === 'business' ? (
                         <div className="mx-auto max-w-3xl space-y-8">
                             {/* Меню бизнес-ланчей на неделю (афиша от админа) */}
@@ -288,145 +406,37 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                             />
                         </div>
                     ) : (
-                        <div className="mx-auto max-w-4xl space-y-16 md:space-y-20">
+                        <div className="mx-auto max-w-[1480px] space-y-14 md:space-y-20">
                             {q && shownCategories.length === 0 && (
                                 <p className="py-16 text-center text-cream/55">По запросу «{query}» ничего не нашлось.</p>
                             )}
                             {shownCategories.map((category: any) => (
                                 <section key={category.id} id={category.id} className="scroll-mt-[172px]">
-                                    <h2 className="mb-7 border-b border-white/10 pb-3 font-display text-2xl font-bold text-cream md:text-3xl">
+                                    <h2 className="mb-6 font-display text-2xl font-black tracking-tight text-cream md:mb-8 md:text-4xl">
                                         {category.name}
                                     </h2>
-                                    <div className="grid gap-4 md:gap-5">
-                                        {category.items.map((item: any) => (
-                                            <div
-                                                key={item.id}
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={() => { if (!isStopped(item)) setSelectedItem(item); }}
-                                                onKeyDown={(e) => { if (e.key === 'Enter' && !isStopped(item)) setSelectedItem(item); }}
-                                                className={`group cursor-pointer rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 transition-colors hover:border-brass/25 hover:bg-white/[0.06] md:p-6 ${isStopped(item) ? 'opacity-55' : ''}`}
-                                            >
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="mb-2 flex items-baseline justify-between gap-4">
-                                                            <h3 className="font-display text-lg font-bold text-cream transition-colors group-hover:text-brass md:text-xl">
-                                                                {item.name}
-                                                            </h3>
-                                                            {item.price && (
-                                                                <span className="whitespace-nowrap text-lg font-bold text-brass md:text-xl">{item.price} ₽</span>
-                                                            )}
-                                                        </div>
-
-                                                        {item.description && (
-                                                            <p className="mb-2 text-sm leading-relaxed text-cream/60 md:text-[15px]">{item.description}</p>
-                                                        )}
-
-                                                        {(item.type || item.grape || item.strength) && (
-                                                            <div className="mb-2 flex flex-wrap gap-2 text-xs text-cream/70">
-                                                                {item.type && <span className="rounded bg-white/[0.06] px-2 py-1">{item.type}</span>}
-                                                                {item.grape && <span className="rounded bg-white/[0.06] px-2 py-1">{item.grape}</span>}
-                                                                {item.strength && <span className="rounded bg-white/[0.06] px-2 py-1">{item.strength}</span>}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center gap-4 text-xs text-cream/45 md:text-sm">
-                                                            {item.weight && <span>{typeof item.weight === 'number' ? `${item.weight} г` : item.weight}</span>}
-                                                            {item.volume && item.volume_unit && <span>{item.volume} {item.volume_unit}</span>}
-                                                        </div>
-
-                                                        {item.nutrition && (
-                                                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-cream/45 md:text-sm">
-                                                                {item.nutrition.calories != null && <span>{Math.round(item.nutrition.calories)} ккал</span>}
-                                                                {item.nutrition.proteins != null && <span>Б {item.nutrition.proteins}</span>}
-                                                                {item.nutrition.fats != null && <span>Ж {item.nutrition.fats}</span>}
-                                                                {item.nutrition.carbs != null && <span>У {item.nutrition.carbs}</span>}
-                                                                <span className="opacity-60">/ 100 г</span>
-                                                            </div>
-                                                        )}
-
-                                                        {item.variants && item.variants.length > 0 && (
-                                                            <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-3">
-                                                                {item.variants.map((variant: any, idx: number) => (
-                                                                    <div key={idx} className="flex items-center justify-between text-sm">
-                                                                        <span className="text-cream/75">{variant.name}</span>
-                                                                        <div className="flex items-center gap-3">
-                                                                            {variant.weight && <span className="text-xs text-cream/45">{variant.weight}</span>}
-                                                                            <span className="font-semibold text-brass">{variant.price} ₽</span>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {item.modifierGroups && item.modifierGroups.length > 0 && (
-                                                            <div className="mt-4 space-y-3 border-t border-white/[0.07] pt-3">
-                                                                {item.modifierGroups.map((group: any) => (
-                                                                    <div key={group.id}>
-                                                                        <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-cream/80 md:text-sm">
-                                                                            <span>{group.name}</span>
-                                                                            {group.min > 0 && (
-                                                                                <span className="rounded bg-brass/10 px-1.5 py-0.5 text-[10px] text-brass md:text-xs">обязательно</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {group.options.map((opt: any) => (
-                                                                                <span key={opt.id} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-cream/75 md:text-sm">
-                                                                                    {String(opt.name).replace(/^[-–—]\s*/, '')}
-                                                                                    {opt.price > 0 && <span className="ml-1 text-brass">+{opt.price} ₽</span>}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Быстрое добавление: простые блюда — сразу в корзину;
-                                                            блюда с вариантами/модификаторами — «Выбрать» (открывает карточку). */}
-                                                        {item.price ? (
-                                                            <div className="mt-4 border-t border-white/[0.07] pt-3" onClick={(e) => e.stopPropagation()}>
-                                                                {isStopped(item) ? (
-                                                                    <span className="inline-flex items-center rounded-full border border-white/15 px-3 py-1.5 text-xs text-cream/60">Закончилось — временно недоступно</span>
-                                                                ) : (item.variants?.length || item.modifierGroups?.length) ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setSelectedItem(item)}
-                                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-brass/40 bg-white/[0.04] px-4 py-2 text-sm font-medium text-brass transition-colors hover:bg-white/[0.09]"
-                                                                    >
-                                                                        Выбрать и добавить
-                                                                    </button>
-                                                                ) : (() => {
-                                                                    const qty = cart.items.find((c) => c.id === item.id)?.qty || 0;
-                                                                    const setQty = (n: number) => cart.add({ id: item.id, name: item.name, price: item.price, weight: item.weight || '', img: item.image, qty: n, productId: String(item.id) });
-                                                                    return qty === 0 ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => setQty(1)}
-                                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-terracotta px-4 py-2 text-sm font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark"
-                                                                        >
-                                                                            <Plus className="h-4 w-4" /> В корзину
-                                                                        </button>
-                                                                    ) : (
-                                                                        <div className="inline-flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
-                                                                            <button type="button" onClick={() => cart.dec(item.id)} aria-label="Меньше" className="grid h-8 w-8 place-items-center rounded-md bg-white/[0.06] text-cream transition-colors hover:bg-white/[0.12]"><Minus className="h-4 w-4" /></button>
-                                                                            <span className="min-w-[2ch] text-center font-semibold text-cream">{qty}</span>
-                                                                            <button type="button" onClick={() => setQty(qty + 1)} aria-label="Больше" className="grid h-8 w-8 place-items-center rounded-md bg-terracotta text-[#FBF3EA] transition-colors hover:bg-terracotta-dark"><Plus className="h-4 w-4" /></button>
-                                                                        </div>
-                                                                    );
-                                                                })()}
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-
-                                                    {item.image && (
-                                                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-forest-mid md:h-32 md:w-32">
-                                                            <DishThumb src={item.image} alt={item.name} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-3 xl:grid-cols-4">
+                                        {category.items.map((item: any) => {
+                                            const quantity = cart.items.find((cartItem) => cartItem.id === item.id)?.qty || 0;
+                                            return (
+                                                <DishCard
+                                                    key={item.id}
+                                                    item={item}
+                                                    stopped={isStopped(item)}
+                                                    quantity={quantity}
+                                                    onOpen={() => setSelectedItem(item)}
+                                                    onSetQuantity={(nextQuantity) => cart.add({
+                                                        id: item.id,
+                                                        name: item.name,
+                                                        price: item.price,
+                                                        weight: item.weight || '',
+                                                        img: item.image,
+                                                        qty: nextQuantity,
+                                                        productId: String(item.id),
+                                                    })}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 </section>
                             ))}
