@@ -14,18 +14,52 @@ export type Hall = {
 // Базовые данные залов (фолбэк для первого рендера / если CRM недоступна).
 export const FALLBACK_HALLS: Hall[] = [
     { id: 'fallback-1', name: 'Conga', capacity: 140, description: 'Главный зал ресторана Conga — подвешенный лес и лампы-грибы.', image: '/halls/conga.jpg' },
-    { id: 'fallback-2', name: 'Морской (Кучер)', capacity: 52, description: 'Морской зал ресторана Кучер.', image: '/halls/morskoy.jpg' },
-    { id: 'fallback-3', name: 'Барный (Кучер)', capacity: 36, description: 'Уютный барный зал.', image: '/halls/bar.jpg' },
-    { id: 'fallback-4', name: 'Веранда (Кучер)', capacity: 20, description: 'Веранда ресторана Кучер.', image: '/halls/veranda.jpg' },
-    { id: 'fallback-5', name: 'Кальянная зона (Кучер)', capacity: 50, description: 'Летняя веранда с кальянной зоной.', image: '/halls/letka.jpg' },
-    { id: 'fallback-6', name: 'Беседки (Кучер)', capacity: '6–8', description: 'Беседки с первой по четвёртую.', image: '/halls/gazebo.jpg' },
-    { id: 'fallback-7', name: 'Банкетные залы (Кучер)', capacity: 25, description: 'Шоколад, Рубин, Изумруд — для банкетов.', image: '/halls/banquet.jpg' },
+    {
+        id: 'fallback-2',
+        name: 'Морской зал',
+        capacity: 52,
+        description: 'Светлый зал с морскими деталями, цветными креслами и выразительным интерьером для семейных встреч и праздников.',
+        image: '/halls/morskoy.webp',
+    },
+    {
+        id: 'fallback-3',
+        name: 'Барный зал',
+        capacity: 36,
+        description: 'Камерный зал в тёплом дереве с собственной барной стойкой и камином — для дружеских встреч, семейных ужинов и небольших праздников.',
+        image: '/halls/bar.webp',
+    },
+    {
+        id: 'fallback-4',
+        name: 'Веранда (Кучер)',
+        capacity: 20,
+        description: 'Светлая закрытая веранда с панорамными окнами и бирюзовыми акцентами для спокойных встреч в любое время года.',
+        image: '/halls/veranda.webp',
+    },
+    {
+        id: 'fallback-5',
+        name: 'Летняя веранда',
+        capacity: 50,
+        description: 'Просторная веранда среди берёз с мягкими диванами и яркими подвесными светильниками.',
+        image: '/halls/letka.webp',
+    },
+    { id: 'fallback-6', name: 'Беседки', capacity: '6–8', description: 'Беседки с первой по четвёртую.', image: '/halls/gazebo.jpg' },
+    {
+        id: 'fallback-7',
+        name: 'Банкетные залы',
+        capacity: 30,
+        description: 'Отдельный банкетный комплекс с несколькими залами и уютным внутренним двором для больших и камерных мероприятий.',
+        image: '/halls/banquet.webp',
+    },
 ];
 
 // CRM-залы (реальные ID) + локальный контент (описания/фото) + фолбэк → единый список.
 export function mergeHalls(crmHalls: any[], localContent: any[]): Hall[] {
     if (crmHalls.length > 0) {
-        const nameMapping: Record<string, string> = { 'Летка': 'Кальянная зона (Кучер)' };
+        const nameMapping: Record<string, string> = {
+            'Барный (Кучер)': 'Барный зал',
+            'Морской (Кучер)': 'Морской зал',
+            'Летка': 'Летняя веранда',
+        };
         return crmHalls.map((crmHall) => {
             const normalizedName = nameMapping[crmHall.name] || crmHall.name;
             const localEntry =

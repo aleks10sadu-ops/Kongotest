@@ -163,7 +163,17 @@ export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) 
                                         >
                                             {post.image_url && isValidImageUrl(post.image_url) ? (
                                                 <div className={`relative w-full flex-shrink-0 overflow-hidden bg-forest-mid ${feature ? 'h-56 md:h-72' : 'h-44 md:h-52'}`}>
-                                                    <Image src={post.image_url} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                                                    <Image
+                                                        src={post.image_url}
+                                                        alt={post.title}
+                                                        fill
+                                                        sizes={
+                                                            feature
+                                                                ? '(max-width: 639px) 100vw, (max-width: 1023px) 100vw, 853px'
+                                                                : '(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 426px'
+                                                        }
+                                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                                    />
                                                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest-ink/45 to-transparent" />
                                                 </div>
                                             ) : (
