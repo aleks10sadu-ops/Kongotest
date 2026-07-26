@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 type Props = { images: string[]; alt: string };
@@ -10,6 +9,16 @@ type Props = { images: string[]; alt: string };
 export default function MenuImageGallery({ images, alt }: Props) {
     const [index, setIndex] = useState(0);
     const [zoomed, setZoomed] = useState(false);
+
+    // Страницы уже оптимизированы в WebP. Загружаем их напрямую и заранее,
+    // чтобы стрелки переключали готовые изображения без ожидания Next Image.
+    useEffect(() => {
+        for (const src of images) {
+            const image = new window.Image();
+            image.decoding = 'async';
+            image.src = src;
+        }
+    }, [images]);
 
     const go = (next: number) => setIndex((next + images.length) % images.length);
 
@@ -22,14 +31,14 @@ export default function MenuImageGallery({ images, alt }: Props) {
                     className="block w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl cursor-zoom-in"
                     aria-label="Увеличить страницу меню"
                 >
-                    <Image
+                    <img
                         src={images[index]}
                         alt={`${alt} — страница ${index + 1}`}
-                        width={1200}
-                        height={1500}
-                        sizes="(max-width: 768px) 100vw, 672px"
-                        className="w-full h-auto"
-                        priority
+                        width={1099}
+                        height={2070}
+                        loading="eager"
+                        decoding="async"
+                        className="block h-auto w-full"
                     />
                 </button>
 
@@ -61,7 +70,10 @@ export default function MenuImageGallery({ images, alt }: Props) {
 
             {/* Зум-оверлей */}
             {zoomed && (
-                <div className="fixed inset-0 z-50 bg-black/90 overflow-auto" onClick={() => setZoomed(false)}>
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2 sm:p-4"
+                    onClick={() => setZoomed(false)}
+                >
                     <button
                         type="button"
                         aria-label="Закрыть"
@@ -70,12 +82,14 @@ export default function MenuImageGallery({ images, alt }: Props) {
                     >
                         <X className="w-6 h-6" />
                     </button>
-                    <Image
+                    <img
                         src={images[index]}
                         alt={`${alt} — страница ${index + 1} (увеличено)`}
-                        width={1200}
-                        height={1500}
-                        className="w-full max-w-4xl mx-auto h-auto my-8"
+                        width={1099}
+                        height={2070}
+                        decoding="sync"
+                        className="h-auto w-auto max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] object-contain sm:max-h-[calc(100dvh-2rem)] sm:max-w-[calc(100vw-2rem)]"
+                        onClick={(event) => event.stopPropagation()}
                     />
                 </div>
             )}

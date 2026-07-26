@@ -377,8 +377,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                     {activeType === 'bar' ? (
                         <section className="mx-auto max-w-[900px]">
                             <div className="mb-6 text-center">
-                                <span className="text-xs uppercase tracking-[0.18em] text-brass">Страницы 14–20</span>
-                                <h2 className="mt-2 font-display text-3xl font-black text-cream md:text-4xl">Барное меню</h2>
+                                <h2 className="font-display text-3xl font-black text-cream md:text-4xl">Барное меню</h2>
                                 <p className="mt-2 text-sm text-cream/55">Листайте страницы стрелками или нажмите на изображение, чтобы увеличить.</p>
                             </div>
                             <MenuImageGallery key="bar-menu" images={BAR_MENU_PAGES} alt="Барное меню" />
@@ -386,8 +385,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                     ) : activeType === 'wine' ? (
                         <section className="mx-auto max-w-[900px]">
                             <div className="mb-6 text-center">
-                                <span className="text-xs uppercase tracking-[0.18em] text-brass">Страницы 21–22</span>
-                                <h2 className="mt-2 font-display text-3xl font-black text-cream md:text-4xl">Винная карта</h2>
+                                <h2 className="font-display text-3xl font-black text-cream md:text-4xl">Винная карта</h2>
                                 <p className="mt-2 text-sm text-cream/55">Листайте страницы стрелками или нажмите на изображение, чтобы увеличить.</p>
                             </div>
                             <MenuImageGallery key="wine-menu" images={WINE_MENU_PAGES} alt="Винная карта" />
