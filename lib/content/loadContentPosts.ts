@@ -1,4 +1,5 @@
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { toSiteImageUrl } from '@/lib/media/siteImageUrl';
 
 // Загрузка постов раздела (вакансии/события/залы) из content_posts.
 // Один ретрай гасит транзиентные сетевые сбои (иначе в dev всплывает пустой «{}»).
@@ -19,5 +20,11 @@ export async function loadContentPosts(category: string): Promise<{ data: any[];
         if (!error) break;
         if (attempt === 0) await new Promise((r) => setTimeout(r, 600));
     }
-    return { data: data || [], error };
+    return {
+        data: (data || []).map((post: any) => ({
+            ...post,
+            image_url: toSiteImageUrl(post.image_url),
+        })),
+        error,
+    };
 }

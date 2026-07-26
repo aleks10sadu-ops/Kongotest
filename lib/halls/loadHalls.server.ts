@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { FALLBACK_HALLS, mergeHalls, type Hall } from './halls-data';
+import { toSiteImageUrl } from '@/lib/media/siteImageUrl';
 
 // Серверная загрузка залов для страницы брони (ISR): CRM (реальные ID) +
 // локальный контент (фото/описания). Браузер пользователя в Supabase не ходит.
@@ -22,7 +23,12 @@ export async function loadHallsServer(): Promise<Hall[]> {
       const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
       const { data, error } = await sb.from('content_posts').select('*').eq('category', 'halls');
       if (error) console.error('loadHallsServer content:', error.message);
-      else localContent = data || [];
+      else {
+        localContent = (data || []).map((post) => ({
+          ...post,
+          image_url: toSiteImageUrl(post.image_url),
+        }));
+      }
     }
 
     return mergeHalls(crmHalls, localContent);

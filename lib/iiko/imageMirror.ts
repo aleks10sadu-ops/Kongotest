@@ -13,6 +13,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MenuCategory } from '../../types/index';
+import { toSiteImageUrl } from '../media/siteImageUrl';
 
 const BUCKET = 'dish-images';
 const FOLDER = 'iiko';
@@ -56,7 +57,9 @@ export function mirroredPublicUrl(url: string | null | undefined): string | null
   if (!name) return null;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return null;
-  return `${base.replace(/\/$/, '')}/storage/v1/object/public/${BUCKET}/${FOLDER}/${name}`;
+  return toSiteImageUrl(
+    `${base.replace(/\/$/, '')}/storage/v1/object/public/${BUCKET}/${FOLDER}/${name}`,
+  );
 }
 
 // ---------- Storage I/O ----------
@@ -133,7 +136,7 @@ export async function rewriteMenuImagesToMirror(
             const mirror = mirroredPublicUrl(it.image);
             if (mirror) return { ...it, image: mirror };
           }
-          return it;
+          return { ...it, image: toSiteImageUrl(it.image) };
         }),
       })),
     };

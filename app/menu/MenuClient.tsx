@@ -15,6 +15,7 @@ import useAdminCheck from '@/lib/hooks/useAdminCheck';
 import ContentManager from '../components/ContentManager';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
+import MenuImageGallery from '../components/MenuImageGallery';
 
 type MenuByType = Record<string, { categories: any[] }>;
 
@@ -29,7 +30,9 @@ type WeeklyLunch = { image: string; title?: string | null } | null;
 function DishThumb({ src, alt }: { src: string; alt: string }) {
     const [broken, setBroken] = useState(false);
     if (broken) return null;
-    const optimize = src.includes('/storage/v1/object/public/');
+    const optimize =
+        src.includes('/storage/v1/object/public/') ||
+        src.startsWith('/media/supabase/');
     if (optimize) {
         return (
             <Image
@@ -164,6 +167,8 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
 }
 
 const TYPE_ORDER = ['main', 'business', 'bar', 'wine', 'kids', 'promotions'];
+const BAR_MENU_PAGES = Array.from({ length: 7 }, (_, index) => `/menu-pages/bar-${index + 1}.webp`);
+const WINE_MENU_PAGES = Array.from({ length: 2 }, (_, index) => `/menu-pages/wine-${index + 1}.webp`);
 
 // Меню приходит пропсом из серверного компонента (ISR): страница отдаётся с CDN
 // уже с блюдами и ценами — ни «Загрузка меню…», ни запроса к iiko на пути пользователя.
@@ -214,7 +219,9 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
         { id: 'kids', name: 'Детское' },
         { id: 'promotions', name: 'Акции' },
     ];
-    const availableTypes = TYPE_DEFS.filter((t) => t.id === 'banquet' || (menuByType[t.id]?.categories?.length ?? 0) > 0);
+    const availableTypes = TYPE_DEFS.filter(
+        (t) => ['bar', 'wine', 'banquet'].includes(t.id) || (menuByType[t.id]?.categories?.length ?? 0) > 0,
+    );
     const categories = menuByType[activeType]?.categories || [];
 
     // Быстрый поиск по названию/описанию/тегам блюда в текущем разделе меню.
@@ -289,7 +296,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                                 </div>
                             )}
 
-                            {activeType !== 'business' && (
+                            {!['business', 'bar', 'wine'].includes(activeType) && (
                                 <div className="relative mb-2 xl:mb-0 xl:min-w-0 xl:flex-1">
                                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream/40" />
                                     <input
@@ -367,7 +374,25 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
 
                 {/* Контент */}
                 <div className="mx-auto max-w-[1280px] px-3 pt-6 sm:px-5 md:px-8 md:pt-7 xl:pt-5">
-                    {activeType === 'business' ? (
+                    {activeType === 'bar' ? (
+                        <section className="mx-auto max-w-[900px]">
+                            <div className="mb-6 text-center">
+                                <span className="text-xs uppercase tracking-[0.18em] text-brass">Страницы 14–20</span>
+                                <h2 className="mt-2 font-display text-3xl font-black text-cream md:text-4xl">Барное меню</h2>
+                                <p className="mt-2 text-sm text-cream/55">Листайте страницы стрелками или нажмите на изображение, чтобы увеличить.</p>
+                            </div>
+                            <MenuImageGallery key="bar-menu" images={BAR_MENU_PAGES} alt="Барное меню" />
+                        </section>
+                    ) : activeType === 'wine' ? (
+                        <section className="mx-auto max-w-[900px]">
+                            <div className="mb-6 text-center">
+                                <span className="text-xs uppercase tracking-[0.18em] text-brass">Страницы 21–22</span>
+                                <h2 className="mt-2 font-display text-3xl font-black text-cream md:text-4xl">Винная карта</h2>
+                                <p className="mt-2 text-sm text-cream/55">Листайте страницы стрелками или нажмите на изображение, чтобы увеличить.</p>
+                            </div>
+                            <MenuImageGallery key="wine-menu" images={WINE_MENU_PAGES} alt="Винная карта" />
+                        </section>
+                    ) : activeType === 'business' ? (
                         <div className="mx-auto max-w-3xl space-y-8">
                             {/* Меню бизнес-ланчей на неделю (афиша от админа) */}
                             {(weeklyLunch?.image || isAdmin) && (

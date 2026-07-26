@@ -50,9 +50,9 @@ describe('mirrorObjectName', () => {
 });
 
 describe('mirroredPublicUrl', () => {
-  it('builds a deterministic supabase public webp url', () => {
+  it('builds a deterministic same-origin proxy URL', () => {
     expect(mirroredPublicUrl(IIKO_URL)).toBe(
-      'https://mmyfglktqvojwpycreko.supabase.co/storage/v1/object/public/dish-images/iiko/2a3ba8f8292a81cfa777acbc1f5e8f93.webp',
+      '/media/supabase/dish-images/iiko/2a3ba8f8292a81cfa777acbc1f5e8f93.webp',
     );
   });
   it('is null for non-derivable input', () => {

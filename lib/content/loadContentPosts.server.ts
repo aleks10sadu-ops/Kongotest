@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { toSiteImageUrl } from '@/lib/media/siteImageUrl';
 
 // Серверная загрузка контента (вакансии/события/залы) для ISR-страниц.
 // Браузеры российских пользователей не могут ходить в *.supabase.co напрямую
@@ -25,7 +26,10 @@ export async function loadContentPostsServer(category: string): Promise<any[]> {
     console.error(`loadContentPostsServer(${category}):`, error.message);
     return [];
   }
-  return data || [];
+  return (data || []).map((post) => ({
+    ...post,
+    image_url: toSiteImageUrl(post.image_url),
+  }));
 }
 
 export async function loadContentPostServer(category: string, slug: string): Promise<any | null> {
@@ -42,5 +46,5 @@ export async function loadContentPostServer(category: string, slug: string): Pro
     console.error(`loadContentPostServer(${category}/${slug}):`, error.message);
     return null;
   }
-  return data;
+  return data ? { ...data, image_url: toSiteImageUrl(data.image_url) } : null;
 }

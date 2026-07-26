@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { toSiteImageUrl } from '@/lib/media/siteImageUrl';
 
 export interface ContentPost {
     slug: string;
@@ -31,7 +32,10 @@ export async function fetchPublishedPosts(category: string): Promise<ContentPost
             .eq('is_published', true)
             .order('published_at', { ascending: false });
         if (error) return [];
-        return (data as ContentPost[]) || [];
+        return ((data as ContentPost[]) || []).map((post) => ({
+            ...post,
+            image_url: toSiteImageUrl(post.image_url),
+        }));
     } catch {
         return [];
     }
@@ -49,7 +53,8 @@ export async function fetchPostBySlug(category: string, slug: string): Promise<C
             .eq('is_published', true)
             .maybeSingle();
         if (error) return null;
-        return (data as ContentPost) || null;
+        const post = (data as ContentPost) || null;
+        return post ? { ...post, image_url: toSiteImageUrl(post.image_url) } : null;
     } catch {
         return null;
     }

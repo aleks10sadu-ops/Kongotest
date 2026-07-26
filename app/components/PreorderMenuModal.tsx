@@ -27,7 +27,7 @@ let menuCache: MenuByType | null = null;
 function Thumb({ src, alt }: { src: string; alt: string }) {
     const [broken, setBroken] = useState(false);
     if (broken) return null;
-    if (src.includes('/storage/v1/object/public/')) {
+    if (src.includes('/storage/v1/object/public/') || src.startsWith('/media/supabase/')) {
         return <Image src={src} alt={alt} fill sizes="56px" className="object-cover" onError={() => setBroken(true)} />;
     }
     return <img src={src} alt={alt} loading="lazy" decoding="async" className="h-full w-full object-cover" onError={() => setBroken(true)} />;
