@@ -7,6 +7,7 @@ describe('mergeHalls', () => {
             [
                 { id: 'bar-id', name: 'Барный (Кучер)', capacity: 36 },
                 { id: 'summer-id', name: 'Летка', capacity: 50 },
+                { id: 'gazebo-id', name: 'Беседки', capacity: 30 },
             ],
             [
                 {
@@ -22,6 +23,13 @@ describe('mergeHalls', () => {
                     content: 'Описание летней веранды',
                     image_url: '/halls/letka.webp',
                     metadata: { gallery: [] },
+                },
+                {
+                    id: 'gazebo-post',
+                    title: 'Беседки (Кучер)',
+                    content: 'Описание беседок',
+                    image_url: '/halls/gazebo.webp',
+                    metadata: { gallery: ['/halls/gazebo-2.webp'] },
                 },
             ],
         );
@@ -40,6 +48,14 @@ describe('mergeHalls', () => {
                 description: 'Описание летней веранды',
                 image: '/halls/letka.webp',
                 dbId: 'summer-post',
+            }),
+            expect.objectContaining({
+                id: 'gazebo-id',
+                name: 'Беседки (Кучер)',
+                description: 'Описание беседок',
+                image: '/halls/gazebo.webp',
+                gallery: ['/halls/gazebo-2.webp'],
+                dbId: 'gazebo-post',
             }),
         ]);
     });

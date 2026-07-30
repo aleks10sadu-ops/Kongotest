@@ -13,7 +13,14 @@ export type Hall = {
 
 // Базовые данные залов (фолбэк для первого рендера / если CRM недоступна).
 export const FALLBACK_HALLS: Hall[] = [
-    { id: 'fallback-1', name: 'Conga', capacity: 140, description: 'Главный зал ресторана Conga — подвешенный лес и лампы-грибы.', image: '/halls/conga.jpg' },
+    {
+        id: 'fallback-1',
+        name: 'Conga',
+        capacity: 140,
+        description: 'Просторный современный зал с панорамными окнами, подвесным лесом и авторскими светильниками. Выразительный интерьер, собственный бар и гибкая рассадка подходят для свадеб, корпоративов, концертов и больших семейных праздников.',
+        image: '/halls/conga.webp',
+        gallery: ['/halls/conga-2.webp', '/halls/conga-3.webp', '/halls/conga-4.webp', '/halls/conga-5.webp'],
+    },
     {
         id: 'fallback-2',
         name: 'Морской зал',
@@ -42,7 +49,14 @@ export const FALLBACK_HALLS: Hall[] = [
         description: 'Просторная веранда среди берёз с мягкими диванами и яркими подвесными светильниками.',
         image: '/halls/letka.webp',
     },
-    { id: 'fallback-6', name: 'Беседки', capacity: '6–8', description: 'Беседки с первой по четвёртую.', image: '/halls/gazebo.jpg' },
+    {
+        id: 'fallback-6',
+        name: 'Беседки (Кучер)',
+        capacity: '6–8',
+        description: 'Отдельные закрытые беседки среди зелени — уютное пространство для семейного обеда, встречи с друзьями или камерного праздника. В каждой беседке есть собственный стол, мягкий естественный свет и атмосфера загородного отдыха.',
+        image: '/halls/gazebo.webp',
+        gallery: ['/halls/gazebo-2.webp', '/halls/gazebo-3.webp', '/halls/gazebo-4.webp', '/halls/gazebo-5.webp'],
+    },
     {
         id: 'fallback-7',
         name: 'Банкетные залы',
@@ -58,6 +72,7 @@ export function mergeHalls(crmHalls: any[], localContent: any[]): Hall[] {
         const nameMapping: Record<string, string> = {
             'Барный (Кучер)': 'Барный зал',
             'Морской (Кучер)': 'Морской зал',
+            'Беседки': 'Беседки (Кучер)',
             'Летка': 'Летняя веранда',
         };
         return crmHalls.map((crmHall) => {

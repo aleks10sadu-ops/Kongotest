@@ -49,16 +49,17 @@ export default function HallViewer({ hall, isOpen, onClose }: HallViewerProps) {
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header Image Gallery */}
-                <div className="relative aspect-video w-full bg-neutral-800 group">
+                <div className="group relative aspect-video w-full overflow-hidden bg-neutral-950">
                     <img
                         src={allImages[currentIndex]}
-                        alt={`${hall.name} - Image ${currentIndex + 1}`}
-                        className="w-full h-full object-cover transition-opacity duration-300"
+                        alt={`${hall.name} — фото ${currentIndex + 1}`}
+                        className="h-full w-full object-contain transition-opacity duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent pointer-events-none" />
 
                     <button
                         onClick={onClose}
+                        aria-label="Закрыть просмотр"
                         className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition backdrop-blur-sm z-20"
                     >
                         <X className="w-5 h-5" />
@@ -69,13 +70,15 @@ export default function HallViewer({ hall, isOpen, onClose }: HallViewerProps) {
                         <>
                             <button
                                 onClick={handlePrev}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-amber-400 hover:text-black transition z-10 opacity-0 group-hover:opacity-100"
+                                aria-label="Предыдущее фото"
+                                className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white opacity-100 transition hover:bg-amber-400 hover:text-black sm:opacity-0 sm:group-hover:opacity-100"
                             >
                                 <ChevronLeft className="w-6 h-6" />
                             </button>
                             <button
                                 onClick={handleNext}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-amber-400 hover:text-black transition z-10 opacity-0 group-hover:opacity-100"
+                                aria-label="Следующее фото"
+                                className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white opacity-100 transition hover:bg-amber-400 hover:text-black sm:opacity-0 sm:group-hover:opacity-100"
                             >
                                 <ChevronRight className="w-6 h-6" />
                             </button>
@@ -86,6 +89,7 @@ export default function HallViewer({ hall, isOpen, onClose }: HallViewerProps) {
                                     <button
                                         key={idx}
                                         onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx); }}
+                                        aria-label={`Открыть фото ${idx + 1}`}
                                         className={`w-2 h-2 rounded-full transition-all ${idx === currentIndex ? 'bg-amber-400 w-4' : 'bg-white/50 hover:bg-white'
                                             }`}
                                     />
