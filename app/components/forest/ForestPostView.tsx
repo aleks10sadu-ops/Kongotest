@@ -66,7 +66,14 @@ export default function ForestPostView({
             <main className="min-h-screen bg-forest-ink font-body text-cream">
                 {hasImage ? (
                     <section className="relative h-[46vh] min-h-[320px] w-full overflow-hidden md:h-[56vh]">
-                        <Image src={post.image_url!} alt={post.title} fill className="object-cover" priority />
+                        <Image
+                            src={post.image_url!}
+                            alt={post.title}
+                            fill
+                            className="object-cover"
+                            priority
+                            unoptimized={post.image_url!.startsWith('/')}
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-forest-ink via-forest-ink/70 to-forest-ink/25" />
                         <div className="absolute inset-0">
                             <div className="mx-auto flex h-full max-w-[880px] flex-col justify-between px-5 pb-9 pt-20 md:px-8 md:pb-12">

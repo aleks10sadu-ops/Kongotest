@@ -167,6 +167,7 @@ export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) 
                                                         src={post.image_url}
                                                         alt={post.title}
                                                         fill
+                                                        unoptimized={post.image_url.startsWith('/')}
                                                         sizes={
                                                             feature
                                                                 ? '(max-width: 639px) 100vw, (max-width: 1023px) 100vw, 853px'

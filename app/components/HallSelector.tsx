@@ -113,6 +113,7 @@ export default function HallSelector({ selectedHallId, onSelect, initialHallsDat
                             src={currentHall.image}
                             alt={currentHall.name}
                             fill
+                            unoptimized={currentHall.image.startsWith('/')}
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                             className="object-cover transition-transform duration-700 group-hover:scale-105"
                         />

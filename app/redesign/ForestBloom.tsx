@@ -26,6 +26,7 @@ const LINKS = {
     booking: '/booking',
     promotions: '/promotions',
     events: '/events',
+    halls: '/halls',
     vacancies: '/vacancies',
 };
 
@@ -82,6 +83,7 @@ const NAV = [
     { href: LINKS.booking, label: 'Забронировать стол' },
     { href: LINKS.promotions, label: 'Акции' },
     { href: LINKS.events, label: 'События' },
+    { href: LINKS.halls, label: 'Залы и банкеты' },
     { href: LINKS.vacancies, label: 'Вакансии' },
     { href: '#atmosphere', label: 'Атмосфера' },
     { href: '#reviews', label: 'Отзывы гостей' },
@@ -235,6 +237,7 @@ export default function RedesignClient() {
                         <Link href={LINKS.menu}>Меню</Link>
                         <Link href={LINKS.booking}>Бронь</Link>
                         <Link href={LINKS.events}>События</Link>
+                        <Link href={LINKS.halls}>Залы</Link>
                         <Link href={LINKS.vacancies}>Команда</Link>
                     </nav>
                     <button type="button" onClick={() => setNavOpen(true)} className="rf-menu-btn" aria-label="Открыть меню разделов" style={{ fontSize: 14, fontWeight: 500, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>
