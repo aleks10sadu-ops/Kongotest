@@ -39,6 +39,7 @@ function DishThumb({ src, alt }: { src: string; alt: string }) {
                 src={src}
                 alt={alt}
                 fill
+                unoptimized={src.startsWith('/media/supabase/')}
                 sizes="(max-width: 640px) 50vw, (max-width: 1279px) 33vw, 25vw"
                 className="object-cover"
                 onError={() => setBroken(true)}
