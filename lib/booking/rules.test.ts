@@ -84,7 +84,7 @@ describe('date rules by booking type', () => {
     expect(allowed(v, 'preorder')).toBe(true);
     expect(v.canSubmit).toBe(true);
     expect(v.info.join(' ')).not.toMatch(/накануне|16:00|срок/i);
-    expect(v.info.join(' ')).toMatch(/предоплату от 10 000 ₽/i);
+    expect(v.info.join(' ')).toMatch(/предоплату 10 000 ₽/i);
   });
   it('banquet stays available for a too-soon date; adds an admin-confirm note', () => {
     const v = evaluateBooking(base({ adults: 8, eventDate: '2026-06-29', type: 'banquet', hallGroup: 'kucher' }));
@@ -95,6 +95,12 @@ describe('date rules by booking type', () => {
 });
 
 describe('preorder minimum gating (per adult)', () => {
+  it('calculates the prepayment from the cart total', () => {
+    const below = evaluateBooking(base({ type: 'preorder', hallGroup: 'other', cartFoodSum: 9999 }));
+    const threshold = evaluateBooking(base({ type: 'preorder', hallGroup: 'other', cartFoodSum: 10000 }));
+    expect(below.info.join(' ')).toMatch(/предоплату 5 000 ₽/i);
+    expect(threshold.info.join(' ')).toMatch(/предоплату 10 000 ₽/i);
+  });
   it('conga: minimum is 4000 ₽ PER ADULT (2 adults -> 8000)', () => {
     // 4000 in cart with 2 adults must be blocked: required = 4000*2 = 8000
     const v = evaluateBooking(base({ adults: 2, type: 'preorder', hallGroup: 'conga', eventDate: '2026-06-30', cartFoodSum: 4000 }));

@@ -36,8 +36,6 @@ const PREORDER_MIN: Record<HallGroup, number | null> = { conga: 4000, kucher: 30
 const PREORDER_HINT =
   'Предзаказ отправляется администраторам на рассмотрение через набор блюд в корзину на сайте — наберите позиции, и заявка с их составом уйдёт на согласование.';
 const ADMIN_CONTACT_PREPAY = 'Для банкета нужна предоплата 10 000 ₽ — свяжется администратор.';
-const PREORDER_PREPAY =
-  'Для подтверждения предзаказа необходимо внести предоплату от 10 000 ₽ — для этого с вами свяжется администратор.';
 const ADMIN_CONTACT_HALL = 'Для этого зала свяжется администратор.';
 
 export function classifyHall(hallName: string | null | undefined): HallGroup | null {
@@ -117,7 +115,9 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
     // правил-доменных блокировок нет
   } else if (type === 'preorder') {
     info.push(PREORDER_HINT);
-    info.push(PREORDER_PREPAY);
+    info.push(
+      `Для подтверждения предзаказа необходимо внести предоплату ${cartFoodSum < 10000 ? '5 000' : '10 000'} ₽ — для этого с вами свяжется администратор.`,
+    );
     if (!hallGroup) {
       blocking.push('Выберите зал.');
       canSubmit = false;
