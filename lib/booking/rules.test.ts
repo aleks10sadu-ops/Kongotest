@@ -86,11 +86,11 @@ describe('date rules by booking type', () => {
     expect(v.info.join(' ')).not.toMatch(/накануне|16:00|срок/i);
     expect(v.info.join(' ')).toMatch(/предоплату 10 000 ₽/i);
   });
-  it('banquet stays available for a too-soon date; adds an admin-confirm note', () => {
-    const v = evaluateBooking(base({ adults: 8, eventDate: '2026-06-29', type: 'banquet', hallGroup: 'kucher' }));
-    expect(allowed(v, 'banquet')).toBe(true);
-    expect(v.canSubmit).toBe(true);
-    expect(v.info.join(' ')).toMatch(/заранее|согласует/i);
+  it('banquet is unavailable for today', () => {
+    const v = evaluateBooking(base({ adults: 8, eventDate: '2026-06-28', type: 'banquet', hallGroup: 'kucher' }));
+    expect(allowed(v, 'banquet')).toBe(false);
+    expect(v.canSubmit).toBe(false);
+    expect(v.blocking.join(' ')).toMatch(/минимум за 2 дня/i);
   });
 });
 
@@ -107,6 +107,7 @@ describe('preorder minimum gating (per adult)', () => {
     expect(v.canSubmit).toBe(false);
     expect(v.blocking.join(' ')).toMatch(/8000/); // требуется 8000
     expect(v.blocking.join(' ')).toMatch(/4000/); // доберите ещё 4000
+    expect(v.info.join(' ')).not.toMatch(/предоплату [\d ]+ ₽/i);
   });
   it('conga: 6 adults need 24000 — 4000 must be blocked (reported bug)', () => {
     const v = evaluateBooking(base({ adults: 6, type: 'preorder', hallGroup: 'conga', eventDate: '2026-06-30', cartFoodSum: 4000 }));
@@ -145,10 +146,9 @@ describe('banquet submit + no-type-available', () => {
     expect(v.canSubmit).toBe(true);
     expect(v.info.join(' ')).toMatch(/предоплат/i);
   });
-  it('12+ adults tomorrow -> banquet stays available and submittable (admin confirms date)', () => {
+  it('12+ adults tomorrow -> banquet stays unavailable until the lead time is met', () => {
     const v = evaluateBooking(base({ adults: 14, eventDate: '2026-06-29', type: 'banquet', hallGroup: 'kucher' }));
-    expect(allowed(v, 'banquet')).toBe(true);
-    expect(v.canSubmit).toBe(true);
-    expect(v.info.join(' ')).toMatch(/заранее|согласует/i);
+    expect(allowed(v, 'banquet')).toBe(false);
+    expect(v.canSubmit).toBe(false);
   });
 });

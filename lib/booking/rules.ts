@@ -75,12 +75,11 @@ function banquetDateEligible(now: Date, eventDate: string): boolean {
 export function evaluateBooking(input: BookingRuleInput): BookingValidation {
   const { adults, eventDate, now, hallGroup, type, cartFoodSum } = input;
 
-  // Доступность ТИПА зависит только от числа гостей — онлайн-заявка доступна для
-  // любого количества, ограничивается лишь тип брони. Срок банкета — мягкая
-  // подсказка, а не блокировка: дату подтверждает администратор.
+  // Доступность предзаказа зависит от числа гостей, банкета — ещё и от даты.
   const onsiteAllowed = adults < ADULTS_NO_ONSITE;
   const preorderAllowed = adults < ADULTS_BANQUET_ONLY;
-  const banquetAllowed = adults >= ADULTS_BANQUET_MIN;
+  const banquetAllowed =
+    adults >= ADULTS_BANQUET_MIN && (!eventDate || banquetDateEligible(now, eventDate));
 
   const onsiteReason = onsiteAllowed
     ? undefined
@@ -88,7 +87,11 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
       ? 'От 12 гостей — только банкет'
       : 'От 9 гостей — предзаказ или банкет';
   const preorderReason = preorderAllowed ? undefined : 'От 12 гостей — только банкет';
-  const banquetReason = banquetAllowed ? undefined : 'Банкет — от 6 гостей';
+  const banquetReason = banquetAllowed
+    ? undefined
+    : adults < ADULTS_BANQUET_MIN
+      ? 'Банкет — от 6 гостей'
+      : `Банкет оформляется минимум за ${BANQUET_LEAD_DAYS} дня`;
 
   const availableTypes: TypeAvailability[] = [
     { type: 'onsite', allowed: onsiteAllowed, reason: onsiteReason },
@@ -115,9 +118,6 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
     // правил-доменных блокировок нет
   } else if (type === 'preorder') {
     info.push(PREORDER_HINT);
-    info.push(
-      `Для подтверждения предзаказа необходимо внести предоплату ${cartFoodSum < 10000 ? '5 000' : '10 000'} ₽ — для этого с вами свяжется администратор.`,
-    );
     if (!hallGroup) {
       blocking.push('Выберите зал.');
       canSubmit = false;
@@ -140,11 +140,13 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
         info.push(ADMIN_CONTACT_HALL);
       }
     }
+    if (canSubmit) {
+      info.push(
+        `Для подтверждения предзаказа необходимо внести предоплату ${cartFoodSum < 10000 ? '5 000' : '10 000'} ₽ — для этого с вами свяжется администратор.`,
+      );
+    }
   } else if (type === 'banquet') {
     info.push(ADMIN_CONTACT_PREPAY);
-    if (eventDate && !banquetDateEligible(now, eventDate)) {
-      info.push('Банкет оформляется заранее — администратор согласует дату.');
-    }
     if (!hallGroup) {
       blocking.push('Выберите зал для банкета.');
       canSubmit = false;
