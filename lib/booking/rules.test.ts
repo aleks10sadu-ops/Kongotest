@@ -78,18 +78,13 @@ describe('type availability by adults', () => {
   });
 });
 
-describe('timing is advisory, not a hard block', () => {
-  it('preorder stays available even same-day; late timing only adds an admin-confirm note', () => {
-    // day-в-день: тип доступен, форма не тупик — добавляется мягкая подсказка про срок.
+describe('date rules by booking type', () => {
+  it('preorder stays available same-day without a date-limit note', () => {
     const v = evaluateBooking(base({ adults: 2, eventDate: '2026-06-28', type: 'preorder', hallGroup: 'conga', cartFoodSum: 20000 }));
     expect(allowed(v, 'preorder')).toBe(true);
     expect(v.canSubmit).toBe(true);
-    expect(v.info.join(' ')).toMatch(/16:00|срок/i);
-  });
-  it('preorder for tomorrow before 16:00 has no timing note', () => {
-    const v = evaluateBooking(base({ adults: 2, eventDate: '2026-06-29', type: 'preorder', hallGroup: 'conga', cartFoodSum: 20000 }));
-    expect(v.canSubmit).toBe(true);
-    expect(v.info.join(' ')).not.toMatch(/подтвердит срок/i);
+    expect(v.info.join(' ')).not.toMatch(/накануне|16:00|срок/i);
+    expect(v.info.join(' ')).toMatch(/предоплату от 10 000 ₽/i);
   });
   it('banquet stays available for a too-soon date; adds an admin-confirm note', () => {
     const v = evaluateBooking(base({ adults: 8, eventDate: '2026-06-29', type: 'banquet', hallGroup: 'kucher' }));
