@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import type { MenuItem, CartItem, ModifierGroup } from '@/types/index';
 import { isBusinessLunchOpen, BUSINESS_LUNCH_WINDOW_TEXT } from '@/lib/menu/businessLunchWindow';
+import {
+  isGarnishGroup,
+  selectedDishHasNoGarnish,
+} from '@/lib/menu/businessLunchModifiers';
 
 type Props = {
   sets: MenuItem[];
@@ -54,6 +58,7 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
     [sets, selectedSetId],
   );
   const groups: ModifierGroup[] = selectedSet?.modifierGroups || [];
+  const garnishDisabled = selectedDishHasNoGarnish(groups, choices);
 
   // Стоп-лист приходит асинхронно после монтирования: если ранее выбранная опция
   // (в т.ч. дефолтный «С хлебом») попала в стоп — снимаем выбор, чтобы гость не
@@ -73,6 +78,24 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopSet, selectedSetId]);
 
+  // При выборе блюда с пометкой «Без гарнира» снимаем ранее выбранный гарнир.
+  // Если затем выбрать обычное блюдо, группа снова разблокируется и потребует
+  // нового осознанного выбора — старый гарнир сам не вернётся.
+  useEffect(() => {
+    if (!garnishDisabled) return;
+    setChoices((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const group of groups) {
+        if (isGarnishGroup(group.name) && next[group.id]) {
+          delete next[group.id];
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [garnishDisabled, groups]);
+
   // Все группы бизнес-ланча обязательны: гость выбирает по одной позиции из каждой.
   // iiko отдаёт min=0 для гарнира/супа/салата/второго/напитка, поэтому опираемся не на min,
   // а на факт выбора в каждой группе (хлеб удовлетворён дефолтом «С хлебом»).
@@ -82,7 +105,9 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
     return !!opt && isOptStopped(opt);
   };
 
-  const missingGroups = groups.filter((g) => !choices[g.id] || chosenOptStopped(g));
+  const missingGroups = groups.filter(
+    (g) => !(garnishDisabled && isGarnishGroup(g.name)) && (!choices[g.id] || chosenOptStopped(g)),
+  );
   const requiredOk = missingGroups.length === 0;
 
   const selectSet = (id: string | number) => {
@@ -98,6 +123,7 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
   const handleAdd = () => {
     if (!selectedSet || !requiredOk || !orderingOpen) return;
     const chosen = groups
+      .filter((g) => !(garnishDisabled && isGarnishGroup(g.name)))
       .map((g) => {
         const optId = choices[g.id];
         const opt = g.options.find((o) => o.id === optId);
@@ -107,7 +133,10 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
       })
       .filter(Boolean) as { group: string; option: string; groupId: string; optionId: string }[];
 
-    const hash = Object.keys(choices).sort().map((g) => `${g}:${choices[g]}`).join('~');
+    const hash = chosen
+      .map((modifier) => `${modifier.groupId}:${modifier.optionId}`)
+      .sort()
+      .join('~');
     const composition = chosen.map((c) => `${c.group}: ${c.option}`).join('; ');
 
     onAddToCart({
@@ -158,40 +187,51 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
       {/* Группы модификаторов выбранного сета */}
       {selectedSet && groups.length > 0 && (
         <div className="space-y-5">
-          {groups.map((g) => (
-            <div key={g.id}>
-              <div className="font-semibold mb-2">
-                {g.name}
-                <span className="text-brass"> *</span>
+          {groups.map((g) => {
+            const disabledByDish = garnishDisabled && isGarnishGroup(g.name);
+            return (
+              <div key={g.id} className={disabledByDish ? 'opacity-55' : undefined}>
+                <div className="font-semibold mb-2">
+                  {g.name}
+                  {disabledByDish
+                    ? <span className="text-cream/55 font-normal"> — не требуется</span>
+                    : <span className="text-brass"> *</span>}
+                </div>
+                {disabledByDish && (
+                  <div className="mb-2 text-xs text-cream/55">
+                    Гарнир отключён для выбранного блюда с пометкой «Без гарнира».
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {g.options.map((o) => {
+                    const active = !disabledByDish && choices[g.id] === o.id;
+                    const stopped = isOptStopped(o);
+                    const disabled = stopped || disabledByDish;
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        disabled={disabled}
+                        aria-disabled={disabled}
+                        onClick={() => { if (!disabled) choose(g.id, o.id); }}
+                        className={`text-left rounded-xl border px-3 py-2 text-sm transition ${
+                          disabled
+                            ? 'border-white/10 bg-white/[0.02] opacity-50 cursor-not-allowed'
+                            : active
+                              ? 'border-brass bg-brass/10'
+                              : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.09]'
+                        }`}
+                      >
+                        <span className={stopped ? 'line-through' : undefined}>{o.name}</span>
+                        {o.price > 0 && !disabled && <span className="text-cream/55"> +{o.price} ₽</span>}
+                        {stopped && <span className="text-cream/55"> — нет в наличии</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {g.options.map((o) => {
-                  const active = choices[g.id] === o.id;
-                  const stopped = isOptStopped(o);
-                  return (
-                    <button
-                      key={o.id}
-                      type="button"
-                      disabled={stopped}
-                      aria-disabled={stopped}
-                      onClick={() => { if (!stopped) choose(g.id, o.id); }}
-                      className={`text-left rounded-xl border px-3 py-2 text-sm transition ${
-                        stopped
-                          ? 'border-white/10 bg-white/[0.02] opacity-50 cursor-not-allowed'
-                          : active
-                            ? 'border-brass bg-brass/10'
-                            : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.09]'
-                      }`}
-                    >
-                      <span className={stopped ? 'line-through' : undefined}>{o.name}</span>
-                      {o.price > 0 && !stopped && <span className="text-cream/55"> +{o.price} ₽</span>}
-                      {stopped && <span className="text-cream/55"> — нет в наличии</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

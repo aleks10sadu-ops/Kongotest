@@ -8,6 +8,7 @@ import { deliveryZones, checkDeliveryZoneForCoords, type DeliveryZone } from '..
 import { composeAddressDetails } from '@/lib/booking/addressDetails';
 import { validateMinOrder } from '@/lib/delivery/minOrder';
 import { isDeliveryOpen, todayDeliveryWindowText } from '@/lib/delivery/schedule';
+import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
 import { SITE } from '../components/forest/site';
 import DeliveryZoneMiniMap from '../components/DeliveryZoneMiniMap';
 
@@ -213,7 +214,15 @@ export default function DeliveryCheckout({
             comment: f.comment,
             ...allergyInfo,
             coordinates: coords,
-            items: items.map((c) => ({ id: c.id, name: c.name, qty: c.qty, price: c.price, productId: (c as any).productId, isBusinessLunch: (c as any).isBusinessLunch, modifiers: (c as any).modifiers })),
+            items: items.map((c) => ({
+                id: c.id,
+                name: c.name,
+                qty: c.qty,
+                price: c.price,
+                productId: c.productId,
+                isBusinessLunch: c.isBusinessLunch,
+                modifiers: withoutGarnishForMarkedLunch(c.modifiers, c.isBusinessLunch === true),
+            })),
             subtotal,
             deliveryPrice,
             total,

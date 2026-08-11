@@ -11,6 +11,7 @@ import { validateMinOrder } from '@/lib/delivery/minOrder';
 import { checkDeliveryZoneForCoords, findZoneByName } from '@/app/data/deliveryZones';
 import { isDeliveryOpen, deliveryClosedMessage } from '@/lib/delivery/schedule';
 import { logOrderAttempt } from '@/lib/delivery/orderLog';
+import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
 
 export const maxDuration = 60; // опрос статуса создания занимает до ~25с
 
@@ -153,10 +154,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Сервер повторяет правило конструктора: если выбранное блюдо бизнес-ланча
+    // отмечено «Без гарнира», старый/подменённый выбор гарнира не должен попасть
+    // ни в проверку стоп-листа, ни в заказ iiko.
+    const orderItems = p.items.map((item) => ({
+      ...item,
+      modifiers: withoutGarnishForMarkedLunch(item.modifiers, item.isBusinessLunch === true),
+    }));
+
     // Стоп-лист: блюда и модификаторы «на стопе» отклоняем ДО создания заказа в iiko.
     // Клиент обязан обработать 409 без TG-фолбэка — иначе стоп-лист обходится.
     const stopped = await getStopListProductIds();
-    const blockedNames = p.items
+    const blockedNames = orderItems
       .filter((it) =>
         (it.productId && stopped.has(String(it.productId))) ||
         (it.modifiers || []).some((m) => m.optionId && stopped.has(String(m.optionId))))
@@ -175,7 +184,7 @@ export async function POST(req: NextRequest) {
     }
 
     const items: SiteOrderItem[] = [];
-    for (const it of p.items) {
+    for (const it of orderItems) {
       // productId кладут в корзину карточка блюда и конструктор ланчей;
       // для старых позиций (корзина собрана до деплоя) его нет — заказ уйдёт по fallback в TG.
       if (!it.productId) {
