@@ -11,7 +11,7 @@ import {
     classifyHall,
     banquetPackagesForHall,
     isBookingDateClosed,
-    bookingTimeSlotsForDate,
+    bookingTimeWindowForDate,
     isBookingTimeAllowed,
     type BookingType,
 } from '@/lib/booking/rules';
@@ -27,6 +27,21 @@ type Mode = 'admin' | 'self';
 
 const inputCls =
     'w-full rounded-lg border border-white/10 bg-forest-ink/60 px-4 py-3 text-cream placeholder-cream/40 outline-none transition focus:border-brass/60';
+
+const formatTimeInput = (value: string) => {
+    const cleaned = value.replace(/[^\d:]/g, '');
+    if (cleaned.includes(':')) {
+        const [hours, minutes = ''] = cleaned.split(':');
+        return `${hours.slice(0, 2)}:${minutes.slice(0, 2)}`;
+    }
+    const digits = cleaned.slice(0, 4);
+    return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+};
+
+const normalizeTimeInput = (value: string) => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+    return match ? `${match[1].padStart(2, '0')}:${match[2]}` : value;
+};
 
 export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
     const [mode, setMode] = useState<Mode>('admin');
@@ -56,7 +71,8 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
 
     const cartFoodSum = cart.items.reduce((s, i) => s + (i.price || 0) * (i.qty || 0), 0);
     const hallGroup = classifyHall(hallName);
-    const availableBookingTimes = bookingTimeSlotsForDate(date);
+    const bookingTimeWindow = bookingTimeWindowForDate(date);
+    const timeInvalid = Boolean(date && time.length === 5 && !isBookingTimeAllowed(date, time));
     const validation = evaluateBooking({
         adults,
         children,
@@ -99,7 +115,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
             return;
         }
         if (!isBookingTimeAllowed(date, time)) {
-            setErrorMsg('Выберите доступное время бронирования.');
+            setErrorMsg(bookingTimeWindow ? `Введите время от ${bookingTimeWindow.start} до ${bookingTimeWindow.end}.` : 'Выберите дату и время.');
             setStatus('error');
             return;
         }
@@ -298,9 +314,9 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 <input value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={100} placeholder="Имя *" className={inputCls} />
                 <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={100} placeholder="Фамилия" className={inputCls} />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" maxLength={30} placeholder="Телефон *" className={inputCls} />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-1.5">
-                        <div className="text-xs font-medium text-cream/65">Дата бронирования</div>
+                        <div className="text-xs font-medium text-cream/65">Дата</div>
                         <DateTimePicker
                             dateOnly
                             showTime={false}
@@ -311,27 +327,31 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                             }}
                             disablePastDates
                             isDateDisabled={isBookingDateClosed}
-                            ariaLabel="Дата бронирования"
+                            ariaLabel="Дата"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label htmlFor="booking-time" className="block text-xs font-medium text-cream/65">Время бронирования</label>
-                        <select
+                        <label htmlFor="booking-time" className="block text-xs font-medium text-cream/65">Время</label>
+                        <input
                             id="booking-time"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            placeholder="ЧЧ:ММ"
+                            maxLength={5}
                             value={time}
-                            onChange={(e) => setTime(e.target.value)}
-                            disabled={!date}
+                            onChange={(e) => setTime(formatTimeInput(e.target.value))}
+                            onBlur={() => setTime(normalizeTimeInput(time))}
                             required
-                            className={`${inputCls} disabled:cursor-not-allowed disabled:opacity-60`}
-                        >
-                            <option value="">{date ? 'Выберите время' : 'Сначала выберите дату'}</option>
-                            {availableBookingTimes.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-                        </select>
-                        <p className="text-[11px] text-cream/45">
-                            {availableBookingTimes.length > 0
-                                ? `Доступно с ${availableBookingTimes[0]} до ${availableBookingTimes[availableBookingTimes.length - 1]}`
-                                : 'Сначала выберите дату'}
-                        </p>
+                            aria-invalid={timeInvalid}
+                            aria-describedby={timeInvalid ? 'booking-time-error' : undefined}
+                            className={`${inputCls} ${timeInvalid ? 'border-red-400/70 focus:border-red-400' : ''}`}
+                        />
+                        {timeInvalid && bookingTimeWindow && (
+                            <p id="booking-time-error" className="text-[11px] leading-tight text-red-400">
+                                Допустимо {bookingTimeWindow.start}–{bookingTimeWindow.end}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -431,7 +451,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
             <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <button
                     type="submit"
-                    disabled={status === 'sending' || selfSubmitBlocked}
+                    disabled={status === 'sending' || selfSubmitBlocked || timeInvalid}
                     className="w-full rounded-lg bg-terracotta px-8 py-3.5 font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark disabled:opacity-50 sm:w-auto"
                 >
                     {status === 'sending' ? 'Отправляем…' : 'Забронировать стол'}

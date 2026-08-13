@@ -44,22 +44,17 @@ export function isBookingDateClosed(eventDate: string): boolean {
   return eventDate >= BOOKING_CLOSED_FROM && eventDate <= BOOKING_CLOSED_TO;
 }
 
-export function bookingTimeSlotsForDate(eventDate: string): string[] {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return [];
+export function bookingTimeWindowForDate(eventDate: string): { start: string; end: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return null;
   const [year, month, day] = eventDate.split('-').map(Number);
   const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return [];
-
-  const startMinutes = (date.getDay() === 0 ? 13 : 12) * 60;
-  const endMinutes = 22 * 60;
-  return Array.from({ length: (endMinutes - startMinutes) / 30 + 1 }, (_, index) => {
-    const minutes = startMinutes + index * 30;
-    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-  });
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return { start: date.getDay() === 0 ? '13:00' : '12:00', end: '22:00' };
 }
 
 export function isBookingTimeAllowed(eventDate: string, eventTime: string): boolean {
-  return bookingTimeSlotsForDate(eventDate).includes(eventTime);
+  const window = bookingTimeWindowForDate(eventDate);
+  return Boolean(window && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(eventTime) && eventTime >= window.start && eventTime <= window.end);
 }
 
 export function classifyHall(hallName: string | null | undefined): HallGroup | null {
