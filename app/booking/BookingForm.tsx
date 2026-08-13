@@ -11,6 +11,8 @@ import {
     classifyHall,
     banquetPackagesForHall,
     isBookingDateClosed,
+    bookingTimeSlotsForDate,
+    isBookingTimeAllowed,
     type BookingType,
 } from '@/lib/booking/rules';
 import { BANQUET_PACKAGES, isBanquetPackageAllowed } from '@/lib/booking/banquetPackages';
@@ -54,6 +56,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
 
     const cartFoodSum = cart.items.reduce((s, i) => s + (i.price || 0) * (i.qty || 0), 0);
     const hallGroup = classifyHall(hallName);
+    const availableBookingTimes = bookingTimeSlotsForDate(date);
     const validation = evaluateBooking({
         adults,
         children,
@@ -92,6 +95,11 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
         }
         if (isBookingDateClosed(date)) {
             setErrorMsg('С 18 декабря по 4 января бронирование недоступно.');
+            setStatus('error');
+            return;
+        }
+        if (!isBookingTimeAllowed(date, time)) {
+            setErrorMsg('Выберите доступное время бронирования.');
             setStatus('error');
             return;
         }
@@ -290,17 +298,41 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 <input value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={100} placeholder="Имя *" className={inputCls} />
                 <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={100} placeholder="Фамилия" className={inputCls} />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" maxLength={30} placeholder="Телефон *" className={inputCls} />
-                <div className="grid grid-cols-2 gap-4">
-                    <DateTimePicker
-                        dateOnly
-                        showTime={false}
-                        value={date}
-                        onChange={setDate}
-                        disablePastDates
-                        isDateDisabled={isBookingDateClosed}
-                        ariaLabel="Дата"
-                    />
-                    <input value={time} onChange={(e) => setTime(e.target.value)} type="time" min="12:00" max="22:00" aria-label="Время" className={`${inputCls} [color-scheme:dark]`} />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                        <div className="text-xs font-medium text-cream/65">Дата бронирования</div>
+                        <DateTimePicker
+                            dateOnly
+                            showTime={false}
+                            value={date}
+                            onChange={(nextDate) => {
+                                setDate(nextDate);
+                                if (!isBookingTimeAllowed(nextDate, time)) setTime('');
+                            }}
+                            disablePastDates
+                            isDateDisabled={isBookingDateClosed}
+                            ariaLabel="Дата бронирования"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label htmlFor="booking-time" className="block text-xs font-medium text-cream/65">Время бронирования</label>
+                        <select
+                            id="booking-time"
+                            value={time}
+                            onChange={(e) => setTime(e.target.value)}
+                            disabled={!date}
+                            required
+                            className={`${inputCls} disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                            <option value="">{date ? 'Выберите время' : 'Сначала выберите дату'}</option>
+                            {availableBookingTimes.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+                        </select>
+                        <p className="text-[11px] text-cream/45">
+                            {availableBookingTimes.length > 0
+                                ? `Доступно с ${availableBookingTimes[0]} до ${availableBookingTimes[availableBookingTimes.length - 1]}`
+                                : 'Сначала выберите дату'}
+                        </p>
+                    </div>
                 </div>
             </div>
 

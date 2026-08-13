@@ -5,6 +5,8 @@ import {
   preorderMinimum,
   banquetPackagesForHall,
   isBookingDateClosed,
+  bookingTimeSlotsForDate,
+  isBookingTimeAllowed,
   type BookingRuleInput,
 } from './rules';
 
@@ -58,6 +60,21 @@ describe('booking closure dates', () => {
     expect(isBookingDateClosed('2026-12-18')).toBe(true);
     expect(isBookingDateClosed('2027-01-04')).toBe(true);
     expect(isBookingDateClosed('2027-01-05')).toBe(false);
+  });
+});
+
+describe('booking time window', () => {
+  it('offers half-hour slots inside restaurant and booking hours', () => {
+    expect(bookingTimeSlotsForDate('2026-08-15')).toEqual(expect.arrayContaining(['12:00', '22:00']));
+    expect(isBookingTimeAllowed('2026-08-15', '11:30')).toBe(false);
+    expect(isBookingTimeAllowed('2026-08-15', '12:15')).toBe(false);
+    expect(isBookingTimeAllowed('2026-08-15', '22:30')).toBe(false);
+  });
+
+  it('starts at 13:00 on Sunday when the restaurant opens', () => {
+    expect(isBookingTimeAllowed('2026-08-16', '12:00')).toBe(false);
+    expect(isBookingTimeAllowed('2026-08-16', '13:00')).toBe(true);
+    expect(bookingTimeSlotsForDate('')).toEqual([]);
   });
 });
 
