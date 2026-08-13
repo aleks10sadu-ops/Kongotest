@@ -30,6 +30,8 @@ const ADULTS_BANQUET_MIN = 6;
 const ADULTS_NO_ONSITE = 9;
 const ADULTS_BANQUET_ONLY = 12;
 const BANQUET_LEAD_DAYS = 2;
+const BOOKING_CLOSED_FROM = '2026-12-18';
+const BOOKING_CLOSED_TO = '2027-01-04';
 // Минимум предзаказа НА КАЖДОГО ВЗРОСЛОГО (₽). Итоговый минимум = значение × число взрослых.
 const PREORDER_MIN: Record<HallGroup, number | null> = { conga: 4000, kucher: 3000, other: null };
 
@@ -37,6 +39,10 @@ const PREORDER_HINT =
   'Предзаказ отправляется администраторам на рассмотрение через набор блюд в корзину на сайте — наберите позиции, и заявка с их составом уйдёт на согласование.';
 const ADMIN_CONTACT_PREPAY = 'Для банкета нужна предоплата 10 000 ₽ — свяжется администратор.';
 const ADMIN_CONTACT_HALL = 'Для этого зала свяжется администратор.';
+
+export function isBookingDateClosed(eventDate: string): boolean {
+  return eventDate >= BOOKING_CLOSED_FROM && eventDate <= BOOKING_CLOSED_TO;
+}
 
 export function classifyHall(hallName: string | null | undefined): HallGroup | null {
   if (!hallName) return null;

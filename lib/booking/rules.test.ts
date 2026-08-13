@@ -4,6 +4,7 @@ import {
   classifyHall,
   preorderMinimum,
   banquetPackagesForHall,
+  isBookingDateClosed,
   type BookingRuleInput,
 } from './rules';
 
@@ -48,6 +49,15 @@ describe('preorderMinimum / banquetPackagesForHall', () => {
     expect(banquetPackagesForHall('kucher')).toBe('all');
     expect(banquetPackagesForHall('other')).toBe('all');
     expect(banquetPackagesForHall(null)).toBeNull();
+  });
+});
+
+describe('booking closure dates', () => {
+  it('blocks 18 December through 4 January inclusively', () => {
+    expect(isBookingDateClosed('2026-12-17')).toBe(false);
+    expect(isBookingDateClosed('2026-12-18')).toBe(true);
+    expect(isBookingDateClosed('2027-01-04')).toBe(true);
+    expect(isBookingDateClosed('2027-01-05')).toBe(false);
   });
 });
 

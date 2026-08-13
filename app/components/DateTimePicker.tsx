@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 type AvailableTimeRange = {
@@ -24,6 +24,8 @@ type DateTimePickerProps = {
     todayOnly?: boolean;
     availableTimeRange?: AvailableTimeRange | null;
     disablePastDates?: boolean;
+    isDateDisabled?: (date: string) => boolean;
+    ariaLabel?: string;
 };
 
 type Restrictions = {
@@ -50,6 +52,8 @@ export default function DateTimePicker({
     todayOnly = false,
     availableTimeRange = null,
     disablePastDates = false,
+    isDateDisabled,
+    ariaLabel,
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
@@ -57,6 +61,7 @@ export default function DateTimePicker({
     const [restrictions, setRestrictions] = useState<Restrictions>({ dates: [], times: {} });
     // Default to 10:00 - 00:00 if not set, but will be overwritten by DB
     const [standardSchedule, setStandardSchedule] = useState<Schedule>({ start: '10:00', end: '00:00' });
+    const pickerAriaLabel = ariaLabel || (timeOnly ? 'Выберите время' : 'Выберите дату');
 
     // Загружаем ограничения при монтировании
     useEffect(() => {
@@ -309,6 +314,7 @@ export default function DateTimePicker({
                     onClick={() => setIsOpen(!isOpen)}
                     readOnly
                     required={required}
+                    aria-label={pickerAriaLabel}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-amber-400 cursor-pointer"
                     placeholder={
                         timeOnly ? "Выберите время" : "Выберите дату"
@@ -317,6 +323,7 @@ export default function DateTimePicker({
                 <button
                     type="button"
                     onClick={() => setIsOpen(!isOpen)}
+                    aria-label={pickerAriaLabel}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
                 >
                     {showTime ? <Clock className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
@@ -330,7 +337,10 @@ export default function DateTimePicker({
                         className="fixed inset-0 z-40"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-neutral-800 border border-neutral-600 rounded-lg shadow-xl max-h-96 overflow-hidden">
+                    <div
+                        className="absolute top-full left-0 right-0 z-50 mt-1 bg-neutral-800 border border-neutral-600 rounded-lg shadow-xl max-h-96 overflow-hidden"
+                        style={timeOnly ? undefined : { minWidth: 'min(320px, calc(100vw - 2rem))' }}
+                    >
                         {/* Календарь (показывается для dateOnly и полного режима) */}
                         {(!timeOnly) && (
                             <>
@@ -390,12 +400,13 @@ export default function DateTimePicker({
                                         const isSelected = selectedDate === dayFormatted;
                                         const isToday = day.toDateString() === new Date().toDateString();
                                         const isRestricted = restrictions.dates.includes(dayFormatted);
-                                        const isDisabled = (min && day < new Date(min)) || (max && day > new Date(max)) || (todayOnly && !isToday) || (disablePastDates && day.getTime() < new Date().setHours(0, 0, 0, 0)) || isRestricted;
+                                        const isDisabled = (min && day < new Date(min)) || (max && day > new Date(max)) || (todayOnly && !isToday) || (disablePastDates && day.getTime() < new Date().setHours(0, 0, 0, 0)) || isRestricted || Boolean(isDateDisabled?.(dayFormatted));
 
                                         return (
                                             <button
                                                 key={index}
                                                 type="button"
+                                                aria-label={day.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
                                                 onClick={() => {
                                                     if (!isDisabled) {
                                                         // Используем локальную дату вместо UTC для корректного отображения

@@ -10,6 +10,7 @@ import {
     evaluateBooking,
     classifyHall,
     banquetPackagesForHall,
+    isBookingDateClosed,
     type BookingType,
 } from '@/lib/booking/rules';
 import { BANQUET_PACKAGES, isBanquetPackageAllowed } from '@/lib/booking/banquetPackages';
@@ -17,19 +18,13 @@ import HallSelector from '../components/HallSelector';
 import BookingTypeSelector from '../components/BookingTypeSelector';
 import BanquetMenuModal from '../components/BanquetMenuModal';
 import PreorderMenuModal from '../components/PreorderMenuModal';
+import DateTimePicker from '../components/DateTimePicker';
 import { SITE } from '../components/forest/site';
 
 type Mode = 'admin' | 'self';
 
 const inputCls =
     'w-full rounded-lg border border-white/10 bg-forest-ink/60 px-4 py-3 text-cream placeholder-cream/40 outline-none transition focus:border-brass/60';
-
-const todayISO = () => {
-    const d = new Date();
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
-};
-
 
 export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
     const [mode, setMode] = useState<Mode>('admin');
@@ -92,6 +87,11 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
         e.preventDefault();
         if (!firstName.trim() || !phone.trim() || !date || !time) {
             setErrorMsg('Заполните имя, телефон, дату и время.');
+            setStatus('error');
+            return;
+        }
+        if (isBookingDateClosed(date)) {
+            setErrorMsg('С 18 декабря по 4 января бронирование недоступно.');
             setStatus('error');
             return;
         }
@@ -291,7 +291,15 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={100} placeholder="Фамилия" className={inputCls} />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" maxLength={30} placeholder="Телефон *" className={inputCls} />
                 <div className="grid grid-cols-2 gap-4">
-                    <input value={date} onChange={(e) => setDate(e.target.value)} type="date" min={todayISO()} aria-label="Дата" className={`${inputCls} [color-scheme:dark]`} />
+                    <DateTimePicker
+                        dateOnly
+                        showTime={false}
+                        value={date}
+                        onChange={setDate}
+                        disablePastDates
+                        isDateDisabled={isBookingDateClosed}
+                        ariaLabel="Дата"
+                    />
                     <input value={time} onChange={(e) => setTime(e.target.value)} type="time" min="12:00" max="22:00" aria-label="Время" className={`${inputCls} [color-scheme:dark]`} />
                 </div>
             </div>
