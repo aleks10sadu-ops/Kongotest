@@ -184,13 +184,13 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
               type="button"
               aria-pressed={active}
               onClick={() => selectSet(s.id)}
-              className={`grid min-h-[112px] grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-2xl border p-2.5 text-left transition sm:min-h-[124px] sm:grid-cols-[132px_minmax(0,1fr)] sm:p-3 ${
+              className={`grid min-h-[112px] grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-2xl border p-2.5 text-left transition sm:min-h-[124px] sm:grid-cols-[100px_minmax(0,1fr)] sm:p-3 ${
                 active ? 'border-brass bg-brass/10' : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.09]'
               }`}
             >
               {image && (
-                <div className="relative h-full min-h-[92px] w-full overflow-hidden rounded-xl bg-black/20">
-                  <Image src={image} alt={s.name} fill sizes="(max-width: 640px) 96px, 132px" className="object-contain" />
+                <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+                  <Image src={image} alt={s.name} fill sizes="(max-width: 640px) 92px, 100px" className="object-cover" />
                 </div>
               )}
               <div className="min-w-0 self-center">
