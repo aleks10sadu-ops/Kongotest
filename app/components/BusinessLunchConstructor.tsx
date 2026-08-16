@@ -27,6 +27,20 @@ function setImage(name: string): string | null {
   return m ? `/business-lunch/set-${m[1]}.webp` : null;
 }
 
+function conciseSetDescription(description?: string | null): string | null {
+  if (!description) return null;
+
+  const composition = description.match(/комплексный бизнес-ланч:\s*([^.]*)/i)?.[1]?.trim();
+  if (!composition) return description.split('. ')[0].trim();
+
+  const compactComposition = composition
+    .replace(/первое блюдо/gi, 'Первое')
+    .replace(/второе блюдо/gi, 'Второе')
+    .replace(/салат/gi, 'Салат');
+
+  return `В сет входит: ${compactComposition}`;
+}
+
 function defaultChoices(set: MenuItem | null): Record<string, string> {
   const out: Record<string, string> = {};
   for (const g of set?.modifierGroups || []) {
@@ -157,28 +171,33 @@ export default function BusinessLunchConstructor({ sets, onAddToCart, stopSet }:
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-5">
       {/* Выбор сета */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
         {sets.map((s) => {
           const active = String(s.id) === String(selectedSetId);
+          const image = setImage(s.name);
+          const description = conciseSetDescription(s.description);
           return (
             <button
               key={s.id}
               type="button"
+              aria-pressed={active}
               onClick={() => selectSet(s.id)}
-              className={`text-left rounded-2xl border px-4 py-3 transition ${
+              className={`grid min-h-[112px] grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-2xl border p-2.5 text-left transition sm:min-h-[124px] sm:grid-cols-[132px_minmax(0,1fr)] sm:p-3 ${
                 active ? 'border-brass bg-brass/10' : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.09]'
               }`}
             >
-              {setImage(s.name) && (
-                <div className="relative w-full h-32 mb-3 rounded-xl overflow-hidden">
-                  <Image src={setImage(s.name)!} alt={s.name} fill sizes="(max-width: 640px) 100vw, 340px" className="object-cover" />
+              {image && (
+                <div className="relative h-full min-h-[92px] w-full overflow-hidden rounded-xl bg-black/20">
+                  <Image src={image} alt={s.name} fill sizes="(max-width: 640px) 96px, 132px" className="object-contain" />
                 </div>
               )}
-              <div className="font-semibold">{s.name}</div>
-              <div className="text-brass font-bold mt-1">{(s.price || 0).toLocaleString('ru-RU')} ₽</div>
-              {s.description && <div className="text-xs text-cream/55 mt-1">{s.description}</div>}
+              <div className="min-w-0 self-center">
+                <div className="text-sm font-semibold leading-tight text-cream sm:text-base">{s.name}</div>
+                <div className="mt-1 text-base font-bold leading-none text-brass">{(s.price || 0).toLocaleString('ru-RU')} ₽</div>
+                {description && <div className="mt-2 text-xs leading-snug text-cream/65">{description}</div>}
+              </div>
             </button>
           );
         })}

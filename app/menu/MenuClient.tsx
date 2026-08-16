@@ -392,11 +392,11 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                             <MenuImageGallery key="wine-menu" images={WINE_MENU_PAGES} alt="Винная карта" />
                         </section>
                     ) : activeType === 'business' ? (
-                        <div className="mx-auto max-w-3xl space-y-8">
+                        <div className="mx-auto max-w-3xl space-y-6">
                             {/* Меню бизнес-ланчей на неделю (афиша от админа) */}
                             {(weeklyLunch?.image || isAdmin) && (
                                 <section>
-                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="mb-2.5 flex items-center justify-between gap-3">
                                         <h2 className="font-display text-xl font-bold text-cream md:text-2xl">Бизнес-ланч на неделю</h2>
                                         {isAdmin && (
                                             <button
@@ -408,8 +408,12 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                                         )}
                                     </div>
                                     {weeklyLunch?.image ? (
-                                        <a href={weeklyLunch.image} target="_blank" rel="noopener noreferrer" title="Открыть в полном размере" className="block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
-                                            <img src={weeklyLunch.image} alt={weeklyLunch.title || 'Бизнес-ланч на неделю'} loading="lazy" className="h-auto w-full" />
+                                        <a href={weeklyLunch.image} target="_blank" rel="noopener noreferrer" title="Открыть в полном размере" className="group relative block h-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] sm:h-56">
+                                            <img src={weeklyLunch.image} alt={weeklyLunch.title || 'Бизнес-ланч на неделю'} loading="lazy" className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.015]" />
+                                            <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-3 pt-10 text-sm font-semibold text-cream sm:px-5 sm:pb-4">
+                                                <span>Открыть полное меню недели</span>
+                                                <span className="shrink-0 text-xs font-medium text-cream/70">В полном размере ↗</span>
+                                            </span>
                                         </a>
                                     ) : (
                                         <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-10 text-center text-sm text-cream/50">
