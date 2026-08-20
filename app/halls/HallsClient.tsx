@@ -152,46 +152,39 @@ export default function HallsClient({ initialPosts }: { initialPosts: PublicHall
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid auto-rows-[1fr] grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
-                                {posts.map((post, index) => {
-                                    const feature = index % 5 === 0;
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
+                                {posts.map((post) => {
                                     return (
                                         <article
                                             key={post.id}
-                                            className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition-all duration-300 hover:-translate-y-1 hover:border-brass/40 hover:bg-white/[0.07] hover:shadow-2xl hover:shadow-black/40 ${
-                                                feature ? 'sm:col-span-2 lg:row-span-2' : ''
-                                            }`}
+                                            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition-all duration-300 hover:-translate-y-1 hover:border-brass/40 hover:bg-white/[0.07] hover:shadow-2xl hover:shadow-black/40"
                                         >
                                             <Link href={`/halls/${post.slug}`} aria-label={`Подробнее: ${post.title}`}>
                                                 {post.image_url && isValidImageUrl(post.image_url) ? (
-                                                    <div className={`relative w-full flex-shrink-0 overflow-hidden bg-forest-mid ${feature ? 'h-56 md:h-72' : 'h-44 md:h-52'}`}>
+                                                    <div className="relative h-44 w-full flex-shrink-0 overflow-hidden bg-forest-mid md:h-52">
                                                         <Image
                                                             src={post.image_url}
                                                             alt={post.title}
                                                             fill
                                                             unoptimized={post.image_url.startsWith('/')}
-                                                            sizes={
-                                                                feature
-                                                                    ? '(max-width: 639px) 100vw, (max-width: 1023px) 100vw, 853px'
-                                                                    : '(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 426px'
-                                                            }
+                                                            sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 426px"
                                                             className="object-cover transition-transform duration-500 group-hover:scale-105"
                                                         />
                                                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest-ink/45 to-transparent" />
                                                     </div>
                                                 ) : (
-                                                    <div className={`relative flex w-full flex-shrink-0 items-end overflow-hidden bg-gradient-to-br from-forest-mid to-forest-deep ${feature ? 'h-40 md:h-52' : 'h-28 md:h-32'}`}>
+                                                    <div className="relative flex h-28 w-full flex-shrink-0 items-end overflow-hidden bg-gradient-to-br from-forest-mid to-forest-deep md:h-32">
                                                         <span className="p-5 font-display text-[15px] uppercase tracking-[0.16em] text-brass/70">Зал</span>
                                                     </div>
                                                 )}
                                             </Link>
 
                                             <div className="flex min-h-0 flex-1 flex-col p-5 md:p-6">
-                                                <h2 className={`mb-2 font-display font-bold leading-snug text-cream transition-colors group-hover:text-brass ${feature ? 'text-2xl md:text-[28px]' : 'text-xl'}`}>
+                                                <h2 className="mb-2 font-display text-xl font-bold leading-snug text-cream transition-colors group-hover:text-brass">
                                                     <Link href={`/halls/${post.slug}`}>{post.title}</Link>
                                                 </h2>
                                                 {post.excerpt && (
-                                                    <p className={`flex-1 leading-relaxed text-cream/70 ${feature ? 'text-[15px] line-clamp-4' : 'text-sm line-clamp-3'}`}>
+                                                    <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-cream/70">
                                                         {post.excerpt}
                                                     </p>
                                                 )}
