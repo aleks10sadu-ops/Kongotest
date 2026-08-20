@@ -30,6 +30,15 @@ const nextConfig = {
   // Оптимизация производительности
   compress: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: '/izumrudnyj-zal', destination: '/halls/izumrudnyj-zal', permanent: true },
+      { source: '/rubinovyj-zal', destination: '/halls/rubinovyj-zal', permanent: true },
+      { source: '/shokoladnyj-zal', destination: '/halls/shokoladnyj-zal', permanent: true },
+      { source: '/halls/banketnye-zaly-rubin', destination: '/halls/rubinovyj-zal', permanent: true },
+      { source: '/halls/banketnye-zaly', destination: '/halls', permanent: true },
+    ];
+  },
   // Оптимизация для внешних ресурсов и кеширования
   async headers() {
     return [

@@ -10,19 +10,13 @@ import ForestHeader from '../components/forest/ForestHeader';
 import SporeField from '../components/forest/SporeField';
 import ForestFooter from '../components/forest/ForestFooter';
 import { SITE } from '../components/forest/site';
-
-interface Post {
-    id: string;
-    slug: string;
-    title: string;
-    excerpt: string | null;
-    content: string | null;
-    image_url: string | null;
-    published_at: string | null;
-    created_at: string;
-    category: string;
-    is_published: boolean;
-}
+import { buildBookingHref } from '@/lib/booking/bookingContext';
+import { bookingHallKeyForName } from '@/lib/booking/hallCatalog';
+import {
+    expandPublicHallPosts,
+    isExactPublicHallSlug,
+    type PublicHallPost,
+} from '@/lib/halls/publicHallPosts';
 
 const isValidImageUrl = (url: string | null | undefined): boolean => {
     if (!url || typeof url !== 'string') return false;
@@ -39,8 +33,16 @@ const isValidImageUrl = (url: string | null | undefined): boolean => {
 
 // Посты приходят пропсом с сервера (ISR): содержимое видно сразу, браузер в Supabase за данными не ходит.
 // Realtime-подписка и админ-проверка остаются клиентскими (для живого редактирования админом).
-export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) {
-    const [posts, setPosts] = useState<Post[]>(initialPosts);
+export function hallCardBookingHref(post: Pick<PublicHallPost, 'slug' | 'title'>): string {
+    return buildBookingHref({
+        source: 'hall',
+        hallKey: bookingHallKeyForName(post.title),
+        bookingType: isExactPublicHallSlug(post.slug) ? 'banquet' : undefined,
+    });
+}
+
+export default function HallsClient({ initialPosts }: { initialPosts: PublicHallPost[] }) {
+    const [posts, setPosts] = useState<PublicHallPost[]>(() => expandPublicHallPosts(initialPosts));
     const [loading, setLoading] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [adminLoading, setAdminLoading] = useState(true);
@@ -93,10 +95,10 @@ export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) 
         try {
             const { data, error } = await loadContentPosts('halls');
             if (error) console.warn('Залы: не удалось загрузить (сеть):', error?.message || error?.code || 'unknown');
-            setPosts(data);
+            setPosts(expandPublicHallPosts(data as PublicHallPost[]));
         } catch (err) {
             console.warn('Залы: ошибка загрузки:', err);
-            setPosts([]);
+            setPosts(expandPublicHallPosts([]));
         } finally {
             setLoading(false);
         }
@@ -154,38 +156,39 @@ export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) 
                                 {posts.map((post, index) => {
                                     const feature = index % 5 === 0;
                                     return (
-                                        <Link
+                                        <article
                                             key={post.id}
-                                            href={`/halls/${post.slug}`}
                                             className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] transition-all duration-300 hover:-translate-y-1 hover:border-brass/40 hover:bg-white/[0.07] hover:shadow-2xl hover:shadow-black/40 ${
                                                 feature ? 'sm:col-span-2 lg:row-span-2' : ''
                                             }`}
                                         >
-                                            {post.image_url && isValidImageUrl(post.image_url) ? (
-                                                <div className={`relative w-full flex-shrink-0 overflow-hidden bg-forest-mid ${feature ? 'h-56 md:h-72' : 'h-44 md:h-52'}`}>
-                                                    <Image
-                                                        src={post.image_url}
-                                                        alt={post.title}
-                                                        fill
-                                                        unoptimized={post.image_url.startsWith('/')}
-                                                        sizes={
-                                                            feature
-                                                                ? '(max-width: 639px) 100vw, (max-width: 1023px) 100vw, 853px'
-                                                                : '(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 426px'
-                                                        }
-                                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                                    />
-                                                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest-ink/45 to-transparent" />
-                                                </div>
-                                            ) : (
-                                                <div className={`relative flex w-full flex-shrink-0 items-end overflow-hidden bg-gradient-to-br from-forest-mid to-forest-deep ${feature ? 'h-40 md:h-52' : 'h-28 md:h-32'}`}>
-                                                    <span className="p-5 font-display text-[15px] uppercase tracking-[0.16em] text-brass/70">Зал</span>
-                                                </div>
-                                            )}
+                                            <Link href={`/halls/${post.slug}`} aria-label={`Подробнее: ${post.title}`}>
+                                                {post.image_url && isValidImageUrl(post.image_url) ? (
+                                                    <div className={`relative w-full flex-shrink-0 overflow-hidden bg-forest-mid ${feature ? 'h-56 md:h-72' : 'h-44 md:h-52'}`}>
+                                                        <Image
+                                                            src={post.image_url}
+                                                            alt={post.title}
+                                                            fill
+                                                            unoptimized={post.image_url.startsWith('/')}
+                                                            sizes={
+                                                                feature
+                                                                    ? '(max-width: 639px) 100vw, (max-width: 1023px) 100vw, 853px'
+                                                                    : '(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 426px'
+                                                            }
+                                                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        />
+                                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest-ink/45 to-transparent" />
+                                                    </div>
+                                                ) : (
+                                                    <div className={`relative flex w-full flex-shrink-0 items-end overflow-hidden bg-gradient-to-br from-forest-mid to-forest-deep ${feature ? 'h-40 md:h-52' : 'h-28 md:h-32'}`}>
+                                                        <span className="p-5 font-display text-[15px] uppercase tracking-[0.16em] text-brass/70">Зал</span>
+                                                    </div>
+                                                )}
+                                            </Link>
 
                                             <div className="flex min-h-0 flex-1 flex-col p-5 md:p-6">
                                                 <h2 className={`mb-2 font-display font-bold leading-snug text-cream transition-colors group-hover:text-brass ${feature ? 'text-2xl md:text-[28px]' : 'text-xl'}`}>
-                                                    {post.title}
+                                                    <Link href={`/halls/${post.slug}`}>{post.title}</Link>
                                                 </h2>
                                                 {post.excerpt && (
                                                     <p className={`flex-1 leading-relaxed text-cream/70 ${feature ? 'text-[15px] line-clamp-4' : 'text-sm line-clamp-3'}`}>
@@ -193,17 +196,23 @@ export default function HallsClient({ initialPosts }: { initialPosts: Post[] }) 
                                                     </p>
                                                 )}
                                                 <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-                                                    <span className="inline-flex items-center gap-1.5 text-[14px] font-medium text-terracotta">
+                                                    <Link href={`/halls/${post.slug}`} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-terracotta">
                                                         Подробнее <span className="transition-transform group-hover:translate-x-1" aria-hidden>→</span>
-                                                    </span>
+                                                    </Link>
                                                     {post.published_at && (
                                                         <span className="text-xs text-cream/45">
                                                             {new Date(post.published_at).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })}
                                                         </span>
                                                     )}
                                                 </div>
+                                                <Link
+                                                    href={hallCardBookingHref(post)}
+                                                    className="mt-4 inline-flex items-center justify-center rounded-lg bg-terracotta px-5 py-3 text-center text-sm font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark"
+                                                >
+                                                    Забронировать этот зал
+                                                </Link>
                                             </div>
-                                        </Link>
+                                        </article>
                                     );
                                 })}
                             </div>

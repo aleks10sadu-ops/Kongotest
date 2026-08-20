@@ -1,6 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from './components/forest/site';
 import { fetchPublishedPosts } from '@/lib/content/serverContentPosts';
+import {
+    EXACT_PUBLIC_HALLS,
+    isExactPublicHallSlug,
+    isLegacyHallSlug,
+} from '@/lib/halls/publicHallPosts';
 
 // Пересобираем sitemap раз в час — новые вакансии/события/залы попадают без деплоя.
 export const revalidate = 3600;
@@ -39,10 +44,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const dynamicPages = [
         ...vacancies.map((v) => dated(`/vacancies/${v.slug}`, v.published_at || v.created_at, 0.5, 'weekly')),
         ...events.map((e) => dated(`/events/${e.slug}`, e.published_at || e.created_at, 0.5, 'weekly')),
-        ...halls.map((h) => dated(`/halls/${h.slug}`, h.published_at || h.created_at, 0.6, 'monthly')),
+        ...halls
+            .filter((hall) => !isLegacyHallSlug(hall.slug) && !isExactPublicHallSlug(hall.slug))
+            .map((h) => dated(`/halls/${h.slug}`, h.published_at || h.created_at, 0.6, 'monthly')),
     ];
 
-    return [...staticPages, ...dynamicPages];
+    const exactHallPages = EXACT_PUBLIC_HALLS.map((hall) => (
+        page(`/halls/${hall.slug}`, 0.6, 'monthly')
+    ));
+
+    return [...staticPages, ...exactHallPages, ...dynamicPages];
 }
 
 type ContentDateKey = string | null;
