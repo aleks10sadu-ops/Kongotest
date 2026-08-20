@@ -23,8 +23,8 @@ vi.mock('@/lib/menu/getFullMenu', () => ({ getFullMenu: getFullMenuMock }));
 
 import DeliveryPage, { metadata as deliveryMetadata } from './delivery/page';
 import BusinessLunchPage, { metadata as businessLunchMetadata } from './business-lunch/page';
-import ShashlykPage, { metadata as shashlykMetadata } from './menu/shashlyk/page';
-import KhinkaliPage, { metadata as khinkaliMetadata } from './menu/khinkali/page';
+import ShashlykPage, { dynamic as shashlykDynamic, metadata as shashlykMetadata } from './menu/shashlyk/page';
+import KhinkaliPage, { dynamic as khinkaliDynamic, metadata as khinkaliMetadata } from './menu/khinkali/page';
 
 describe('local-search landing pages', () => {
     it('renders a canonical delivery page with factual order conditions', () => {
@@ -57,5 +57,10 @@ describe('local-search landing pages', () => {
         expect(html).toContain(dish);
         expect(html).toContain('application/ld+json');
         expect(html).toContain(`href="${orderHref}"`);
+    });
+
+    it('pre-renders dish landings and refreshes them through ISR', () => {
+        expect(shashlykDynamic).toBe('force-static');
+        expect(khinkaliDynamic).toBe('force-static');
     });
 });
