@@ -72,9 +72,10 @@ describe('booking URL context', () => {
     expect(buildBookingHref({ source: 'event', ref: '../../phone' })).toBe('/booking?source=event');
   });
 
-  it('forwards validated refs only for event and promotion source context', () => {
+  it('forwards specific refs but hides the generic promotions route slug', () => {
     expect(bookingSourceRef('event', 'jazz-vecher')).toBe('jazz-vecher');
-    expect(bookingSourceRef('promotion', 'promotions')).toBe('promotions');
+    expect(bookingSourceRef('promotion', 'promotions')).toBeNull();
+    expect(bookingSourceRef('promotion', 'summer-terrace')).toBe('summer-terrace');
     expect(bookingSourceRef('hall', 'unexpected-ref')).toBeNull();
     expect(bookingSourceRef(null, 'unexpected-ref')).toBeNull();
   });

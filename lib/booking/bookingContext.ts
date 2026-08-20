@@ -113,5 +113,5 @@ export function bookingSourceLabel(source: BookingSource | null): string | null 
 }
 
 export function bookingSourceRef(source: BookingSource | null, ref: string | null): string | null {
-  return (source === 'event' || source === 'promotion') ? ref : null;
+  return source === 'event' || (source === 'promotion' && ref !== 'promotions') ? ref : null;
 }
