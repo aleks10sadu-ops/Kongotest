@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
 import { SITE } from '../components/forest/site';
 import SporeField from '../components/forest/SporeField';
-import BookingForm from './BookingForm';
+import BookingContextAdapter from './BookingContextAdapter';
 import { loadHallsServer } from '@/lib/halls/loadHalls.server';
+import { normalizeBookingHalls } from '@/lib/booking/hallCatalog';
 
 // ISR: залы (CRM + контент) запекаются на сервере — карусель в форме брони
 // работает и у посетителей без VPN (браузер не ходит в Supabase/CRM).
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BookingPage() {
-    const halls = await loadHallsServer();
+    const bookingHalls = normalizeBookingHalls(await loadHallsServer());
     return (
         <>
             <ForestHeader />
@@ -53,7 +55,9 @@ export default async function BookingPage() {
                     <div className="absolute inset-0 bg-forest-ink/90" />
                     <SporeField count={16} fern={false} />
                     <div className="relative z-10 mx-auto grid max-w-[1080px] grid-cols-1 gap-8 px-5 md:px-8 lg:grid-cols-[1.6fr_1fr]">
-                        <BookingForm serverHalls={halls} />
+                        <Suspense fallback={<div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-cream/70">Загружаем форму бронирования…</div>}>
+                            <BookingContextAdapter bookingHalls={bookingHalls} />
+                        </Suspense>
 
                         <aside className="flex flex-col gap-6">
                             <InfoCard title="Часы для броней">
@@ -76,7 +80,7 @@ export default async function BookingPage() {
 
                             <InfoCard title="Банкеты">
                                 <p className="text-[15px] leading-relaxed text-cream/75">
-                                    Готовые сеты «Кучер» и «Conga» от 5000 ₽ или меню под ваш повод — выберите режим «Выбрать зал
+                                    Банкетное меню «Кучер» и «Conga» от 5000 ₽ или меню под ваш повод — выберите режим «Выбрать зал
                                     и меню» и отметьте банкет.
                                 </p>
                             </InfoCard>

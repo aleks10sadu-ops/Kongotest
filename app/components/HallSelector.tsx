@@ -10,17 +10,17 @@ import HallEditor from './HallEditor';
 import HallViewer from './HallViewer';
 import { createCrmBrowserClient } from '@/lib/supabase/crm-client';
 
-import { type Hall, FALLBACK_HALLS, mergeHalls } from '@/lib/halls/halls-data';
+import { type Hall, mergeHalls } from '@/lib/halls/halls-data';
+import { normalizeBookingHalls, type BookingHall } from '@/lib/booking/hallCatalog';
 
 type HallSelectorProps = {
-    selectedHallId: string | null;
-    onSelect: (id: string | null, name?: string | null) => void;
-    /** Залы, загруженные на сервере (ISR): браузер не ходит в Supabase/CRM (замедлены в РФ). */
-    initialHallsData?: Hall[];
+    halls: BookingHall[];
+    selectedHallKey: string | null;
+    onSelect: (key: string | null) => void;
 };
 
-export default function HallSelector({ selectedHallId, onSelect, initialHallsData }: HallSelectorProps) {
-    const [halls, setHalls] = useState<Hall[]>(initialHallsData?.length ? initialHallsData : FALLBACK_HALLS);
+export default function HallSelector({ halls: initialHalls, selectedHallKey, onSelect }: HallSelectorProps) {
+    const [halls, setHalls] = useState<BookingHall[]>(initialHalls);
     const [currentIndex, setCurrentIndex] = useState<number>(0);
     const { isAdmin } = useAdminCheck();
     const [editingHall, setEditingHall] = useState<Hall | null>(null);
@@ -56,7 +56,7 @@ export default function HallSelector({ selectedHallId, onSelect, initialHallsDat
             }
 
             if (crmHalls.length > 0 || localContent.length > 0) {
-                setHalls(mergeHalls(crmHalls, localContent));
+                setHalls(normalizeBookingHalls(mergeHalls(crmHalls, localContent)));
             }
         } catch (err) {
             console.error('Error loading halls:', err);
@@ -67,26 +67,36 @@ export default function HallSelector({ selectedHallId, onSelect, initialHallsDat
         // Данные уже пришли с сервера — клиентский поход в Supabase/CRM не нужен
         // (и не сработал бы у посетителей без VPN). Редактор админа по-прежнему
         // вызывает loadHallsFromDB после сохранения.
-        if (!initialHallsData?.length) loadHallsFromDB();
+        if (!initialHalls.length) loadHallsFromDB();
     }, []);
 
     useEffect(() => {
-        if (selectedHallId) {
-            const index = halls.findIndex((h) => h.id === selectedHallId);
+        if (selectedHallKey) {
+            const index = halls.findIndex((h) => h.key === selectedHallKey);
             if (index !== -1) setCurrentIndex(index);
         }
-    }, [selectedHallId, halls]);
+    }, [selectedHallKey, halls]);
 
     const handleNext = () => setCurrentIndex((prev) => (prev + 1) % halls.length);
     const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + halls.length) % halls.length);
 
     const currentHall = halls[currentIndex];
-    const isSelected = selectedHallId === currentHall?.id;
+    const isSelected = selectedHallKey === currentHall?.key;
     const capacityText = typeof currentHall?.capacity === 'number' ? `до ${currentHall.capacity}` : currentHall?.capacity;
 
     const handleCardClick = () => {
-        if (isAdmin) setEditingHall(currentHall);
-        else setViewingHall(currentHall);
+        if (!currentHall) return;
+        const hallForEditor: Hall = {
+            id: currentHall.crmHallId ?? currentHall.sourceHallId,
+            name: currentHall.name,
+            capacity: currentHall.capacity,
+            description: currentHall.description,
+            image: currentHall.image,
+            gallery: currentHall.gallery,
+            dbId: currentHall.dbId,
+        };
+        if (isAdmin) setEditingHall(hallForEditor);
+        else setViewingHall(hallForEditor);
     };
 
     return (
@@ -138,7 +148,7 @@ export default function HallSelector({ selectedHallId, onSelect, initialHallsDat
 
                     <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-forest-ink/95 via-forest-ink/20 to-transparent p-4 sm:p-6">
                         <motion.div
-                            key={currentHall.id}
+                            key={currentHall.key}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="space-y-1"
@@ -174,7 +184,7 @@ export default function HallSelector({ selectedHallId, onSelect, initialHallsDat
 
                 <button
                     type="button"
-                    onClick={() => (isSelected ? onSelect(null, null) : onSelect(currentHall.id, currentHall.name))}
+                    onClick={() => onSelect(isSelected ? null : currentHall.key)}
                     className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold transition-all duration-200 ${
                         isSelected
                             ? 'bg-terracotta text-[#FBF3EA] ring-2 ring-brass ring-offset-2 ring-offset-forest-ink'

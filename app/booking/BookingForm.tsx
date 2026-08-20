@@ -5,17 +5,22 @@ import Link from 'next/link';
 import { createReservation } from '@/lib/reservations';
 import { composeReservationComment } from '@/lib/booking/composeReservation';
 import { useCart } from '@/lib/hooks/useCart';
-import type { Hall } from '@/lib/halls/halls-data';
 import {
     evaluateBooking,
-    classifyHall,
-    banquetPackagesForHall,
     isBookingDateClosed,
     bookingTimeWindowForDate,
     isBookingTimeAllowed,
     type BookingType,
 } from '@/lib/booking/rules';
-import { BANQUET_PACKAGES, isBanquetPackageAllowed } from '@/lib/booking/banquetPackages';
+import {
+    banquetSaladNames,
+    getBanquetPackage,
+    isBanquetSelectionComplete,
+    type BanquetSaladId,
+} from '@/lib/booking/banquetPackages';
+import type { ParsedBookingContext } from '@/lib/booking/bookingContext';
+import { banquetFilterForHall, bookingHallByKey, type BookingHall } from '@/lib/booking/hallCatalog';
+import { changeBookingHall, createInitialBookingSelection } from '@/lib/booking/bookingSelection';
 import HallSelector from '../components/HallSelector';
 import BookingTypeSelector from '../components/BookingTypeSelector';
 import BanquetMenuModal from '../components/BanquetMenuModal';
@@ -23,10 +28,10 @@ import PreorderMenuModal from '../components/PreorderMenuModal';
 import DateTimePicker from '../components/DateTimePicker';
 import { SITE } from '../components/forest/site';
 
-type Mode = 'admin' | 'self';
-
 const inputCls =
     'w-full rounded-lg border border-white/10 bg-forest-ink/60 px-4 py-3 text-cream placeholder-cream/40 outline-none transition focus:border-brass/60';
+
+const formatRubles = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
 
 const formatTimeInput = (value: string) => {
     const cleaned = value.replace(/[^\d:]/g, '');
@@ -43,34 +48,40 @@ const normalizeTimeInput = (value: string) => {
     return match ? `${match[1].padStart(2, '0')}:${match[2]}` : value;
 };
 
-export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
-    const [mode, setMode] = useState<Mode>('admin');
+export default function BookingForm({
+    bookingHalls,
+    initialContext,
+}: {
+    bookingHalls: BookingHall[];
+    initialContext: ParsedBookingContext;
+}) {
+    const [selection, setSelection] = useState(() => createInitialBookingSelection(initialContext, bookingHalls));
+    const { mode, hallKey, bookingType, adults, banquetPackageId, saladIds, notice } = selection;
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
-    const [adults, setAdults] = useState(2);
     const [children, setChildren] = useState(0);
-    const [bookingType, setBookingType] = useState<BookingType>('onsite');
     const [comment, setComment] = useState('');
     const [consent, setConsent] = useState(false);
     const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
 
-    // Выбор зала + банкетного пакета (режим «Выбрать зал и меню»)
-    const [hallId, setHallId] = useState<string | null>(null);
     const [preorderOpen, setPreorderOpen] = useState(false);
-    const [hallName, setHallName] = useState<string | null>(null);
-    const [banquetPackageId, setBanquetPackageId] = useState<string | null>(null);
-    const [banquetSalads, setBanquetSalads] = useState<string[]>([]);
     const [banquetModalOpen, setBanquetModalOpen] = useState(false);
     const cart = useCart();
 
     const step = (setter: (n: number) => void, val: number, delta: number, min: number) => setter(Math.max(min, val + delta));
+    const setMode = (nextMode: 'admin' | 'self') => setSelection((current) => ({ ...current, mode: nextMode }));
+    const setAdults = (nextAdults: number) => setSelection((current) => ({ ...current, adults: nextAdults }));
+    const setBookingType = (nextType: BookingType) => setSelection((current) => ({ ...current, bookingType: nextType }));
 
     const cartFoodSum = cart.items.reduce((s, i) => s + (i.price || 0) * (i.qty || 0), 0);
-    const hallGroup = classifyHall(hallName);
+    const selectedHall = bookingHallByKey(bookingHalls, hallKey);
+    const crmHallId = selectedHall?.crmHallId ?? null;
+    const hallName = selectedHall?.name ?? null;
+    const selectedBanquetMenu = getBanquetPackage(banquetPackageId);
     const bookingTimeWindow = bookingTimeWindowForDate(date);
     const timeInvalid = Boolean(date && time.length === 5 && !isBookingTimeAllowed(date, time));
     const validation = evaluateBooking({
@@ -79,9 +90,11 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
         eventDate: date,
         eventTime: time,
         now: new Date(),
-        hallGroup,
+        hallGroup: selectedHall?.group ?? null,
         type: bookingType,
         cartFoodSum,
+        hall: selectedHall,
+        banquetMenuPrice: selectedBanquetMenu?.pricePerPerson ?? null,
     });
     const allowedSignature = validation.availableTypes.map((t) => (t.allowed ? '1' : '0')).join('');
 
@@ -98,8 +111,11 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
 
     const resetForm = () => {
         setFirstName(''); setLastName(''); setPhone(''); setDate(''); setTime('');
-        setAdults(2); setChildren(0); setBookingType('onsite'); setComment(''); setConsent(false);
-        setHallId(null); setHallName(null); setBanquetPackageId(null); setBanquetSalads([]);
+        setChildren(0); setComment(''); setConsent(false);
+        setSelection(createInitialBookingSelection({
+            source: null, hallKey: null, bookingType: null, banquetPackageId: null,
+            saladIds: [], ref: null, warnings: [],
+        }, bookingHalls));
     };
 
     const onSubmit = async (e: React.FormEvent) => {
@@ -129,7 +145,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
 
         // Доменные правила — только в режиме «Выбрать зал и меню».
         if (mode === 'self') {
-            if (!hallId) {
+            if (!selectedHall) {
                 setErrorMsg('Выберите зал.');
                 setStatus('error');
                 return;
@@ -139,8 +155,8 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 setStatus('error');
                 return;
             }
-            if (effectiveType === 'banquet' && !isBanquetPackageAllowed(banquetPackagesForHall(hallGroup), banquetPackageId)) {
-                setErrorMsg('Выберите банкетный пакет для этого зала.');
+            if (effectiveType === 'banquet' && !isBanquetSelectionComplete(banquetPackageId, saladIds)) {
+                setErrorMsg('Выберите банкетное меню и все необходимые салаты.');
                 setStatus('error');
                 return;
             }
@@ -151,11 +167,11 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
 
         const banquetBaseName =
             mode === 'self' && effectiveType === 'banquet'
-                ? BANQUET_PACKAGES.find((p) => p.id === banquetPackageId)?.name ?? null
+                ? selectedBanquetMenu?.name ?? null
                 : null;
         const banquetPackageName = banquetBaseName
-            ? banquetSalads.length
-                ? `${banquetBaseName} — салаты: ${banquetSalads.join(', ')}`
+            ? saladIds.length
+                ? `${banquetBaseName} — салаты: ${banquetSaladNames(banquetPackageId, saladIds).join(', ')}`
                 : banquetBaseName
             : null;
         const preorderItems =
@@ -207,7 +223,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 bookingType: effectiveType,
                 banquetPackageId: mode === 'self' ? banquetPackageId : null,
                 comment,
-                hallId: mode === 'self' ? hallId : null,
+                hallId: mode === 'self' ? crmHallId : null,
                 composedComment,
             });
             crmOk = !!result.success;
@@ -273,8 +289,8 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
     const selfSubmitBlocked =
         mode === 'self' &&
         (!validation.canSubmit ||
-            !hallId ||
-            (bookingType === 'banquet' && !isBanquetPackageAllowed(banquetPackagesForHall(hallGroup), banquetPackageId)));
+            !selectedHall ||
+            (bookingType === 'banquet' && !isBanquetSelectionComplete(banquetPackageId, saladIds)));
 
     return (
         <form onSubmit={onSubmit} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 md:p-8">
@@ -298,15 +314,15 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
             {mode === 'self' && (
                 <div className="mb-6">
                     <HallSelector
-                        initialHallsData={serverHalls}
-                        selectedHallId={hallId}
-                        onSelect={(id, name) => {
-                            setHallId(id);
-                            setHallName(name ?? null);
-                            setBanquetPackageId(null);
-                            setBanquetSalads([]);
-                        }}
+                        halls={bookingHalls}
+                        selectedHallKey={hallKey}
+                        onSelect={(nextHallKey) => setSelection((current) => changeBookingHall(current, nextHallKey, bookingHalls))}
                     />
+                    {notice === 'incompatible-menu' && (
+                        <p className="mt-3 rounded-lg border border-brass/25 bg-brass/10 px-3 py-2 text-xs text-cream/80">
+                            Для зала Conga доступны банкетные меню 6000 и 7500 ₽. Выберите подходящий вариант.
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -368,6 +384,16 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                     <div className="text-sm text-cream/70">Тип брони</div>
                     <BookingTypeSelector validation={validation} selectedType={bookingType} onSelect={setBookingType} />
 
+                    {validation.minimumOrder && (
+                        <div className="rounded-lg border border-brass/25 bg-brass/10 px-3 py-2 text-xs text-cream/80">
+                            <p>Минимальная сумма для {selectedHall?.name} — {formatRubles(validation.minimumOrder.required)}</p>
+                            <p>Сейчас выбрано на {formatRubles(validation.minimumOrder.current)}</p>
+                            <p>{validation.minimumOrder.satisfied
+                                ? 'Минимальная сумма достигнута'
+                                : `До минимальной суммы не хватает ${formatRubles(validation.minimumOrder.missing)}`}</p>
+                        </div>
+                    )}
+
                     {/* Предзаказ: сводка корзины */}
                     {bookingType === 'preorder' && (
                         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -406,7 +432,7 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                         </div>
                     )}
 
-                    {/* Банкет: выбор пакета */}
+                    {/* Банкет: выбор банкетного меню */}
                     {bookingType === 'banquet' && (
                         <div className="space-y-2">
                             <button
@@ -414,13 +440,13 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                                 onClick={() => setBanquetModalOpen(true)}
                                 className="w-full rounded-xl bg-white/10 py-3 font-semibold text-cream transition hover:bg-white/20"
                             >
-                                {banquetPackageId ? 'Изменить банкетный пакет' : 'Выбрать банкетный пакет'}
+                                {banquetPackageId ? 'Изменить банкетное меню' : 'Выбрать банкетное меню'}
                             </button>
                             {banquetPackageId && (
                                 <div className="text-center text-sm text-brass">
-                                    <p>Выбран пакет: {BANQUET_PACKAGES.find((p) => p.id === banquetPackageId)?.name}</p>
-                                    {banquetSalads.length > 0 && (
-                                        <p className="mt-0.5 text-xs text-cream/60">Салаты: {banquetSalads.join(', ')}</p>
+                                    <p>Выбрано банкетное меню: {selectedBanquetMenu?.name}</p>
+                                    {saladIds.length > 0 && (
+                                        <p className="mt-0.5 text-xs text-cream/60">Салаты: {banquetSaladNames(banquetPackageId, saladIds).join(', ')}</p>
                                     )}
                                 </div>
                             )}
@@ -462,16 +488,26 @@ export default function BookingForm({ serverHalls }: { serverHalls?: Hall[] }) {
                 </span>
             </div>
 
-            {/* Модалка выбора банкетного пакета */}
+            {/* Модалка выбора банкетного меню */}
             <BanquetMenuModal
                 isOpen={banquetModalOpen}
                 onClose={() => setBanquetModalOpen(false)}
                 selectable
-                hallFilter={banquetPackagesForHall(hallGroup)}
+                hallFilter={banquetFilterForHall(selectedHall)}
                 selectedPackageId={banquetPackageId}
                 onSelectPackage={(id, salads) => {
-                    setBanquetPackageId(id);
-                    setBanquetSalads(salads);
+                    const menu = getBanquetPackage(id);
+                    const nextSaladIds = salads
+                        .map((value) => menu?.salads.find((salad) => salad.id === value || salad.name === value)?.id)
+                        .filter((value): value is BanquetSaladId => Boolean(value));
+                    if (menu) {
+                        setSelection((current) => ({
+                            ...current,
+                            banquetPackageId: menu.id,
+                            saladIds: nextSaladIds,
+                            notice: null,
+                        }));
+                    }
                     setBanquetModalOpen(false);
                 }}
             />
