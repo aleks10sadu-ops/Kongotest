@@ -1,6 +1,19 @@
 export type BookingType = 'onsite' | 'preorder' | 'banquet';
 export type HallGroup = 'conga' | 'kucher' | 'other';
 
+export type BookingHallPolicy = {
+  name: string;
+  allowedBookingTypes: readonly BookingType[];
+  minimumOrder: number | null;
+};
+
+export type MinimumOrderStatus = {
+  required: number;
+  current: number;
+  missing: number;
+  satisfied: boolean;
+};
+
 export interface BookingRuleInput {
   adults: number;
   children: number;
@@ -10,6 +23,8 @@ export interface BookingRuleInput {
   hallGroup: HallGroup | null;
   type: BookingType | null;
   cartFoodSum: number; // ₽
+  hall?: BookingHallPolicy | null;
+  banquetMenuPrice?: number | null;
 }
 
 export interface TypeAvailability {
@@ -23,6 +38,7 @@ export interface BookingValidation {
   canSubmit: boolean;
   blocking: string[];
   info: string[];
+  minimumOrder: MinimumOrderStatus | null;
 }
 
 const MSK_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -39,6 +55,11 @@ const PREORDER_HINT =
   'Предзаказ отправляется администраторам на рассмотрение через набор блюд в корзину на сайте — наберите позиции, и заявка с их составом уйдёт на согласование.';
 const ADMIN_CONTACT_PREPAY = 'Для банкета нужна предоплата 10 000 ₽ — свяжется администратор.';
 const ADMIN_CONTACT_HALL = 'Для этого зала свяжется администратор.';
+const BANQUET_HALL_TYPE_REASON = 'Для этого банкетного зала выберите предзаказ или банкетное меню';
+
+function formatRubles(amount: number): string {
+  return String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
 
 export function isBookingDateClosed(eventDate: string): boolean {
   return eventDate >= BOOKING_CLOSED_FROM && eventDate <= BOOKING_CLOSED_TO;
@@ -92,7 +113,7 @@ function banquetDateEligible(now: Date, eventDate: string): boolean {
 }
 
 export function evaluateBooking(input: BookingRuleInput): BookingValidation {
-  const { adults, eventDate, now, hallGroup, type, cartFoodSum } = input;
+  const { adults, eventDate, now, hallGroup, type, cartFoodSum, hall, banquetMenuPrice } = input;
 
   // Доступность предзаказа зависит от числа гостей, банкета — ещё и от даты.
   const onsiteAllowed = adults < ADULTS_NO_ONSITE;
@@ -112,26 +133,60 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
       ? 'Банкет — от 6 гостей'
       : `Банкет оформляется минимум за ${BANQUET_LEAD_DAYS} дня`;
 
+  const typeAvailability = (bookingType: BookingType, allowed: boolean, reason?: string): TypeAvailability => {
+    const hallAllowsType = !hall || hall.allowedBookingTypes.includes(bookingType);
+    if (hallAllowsType) return { type: bookingType, allowed, reason };
+
+    return {
+      type: bookingType,
+      allowed: false,
+      reason: bookingType === 'onsite'
+        ? BANQUET_HALL_TYPE_REASON
+        : 'Этот вариант бронирования недоступен для выбранного зала',
+    };
+  };
+
   const availableTypes: TypeAvailability[] = [
-    { type: 'onsite', allowed: onsiteAllowed, reason: onsiteReason },
-    { type: 'preorder', allowed: preorderAllowed, reason: preorderReason },
-    { type: 'banquet', allowed: banquetAllowed, reason: banquetReason },
+    typeAvailability('onsite', onsiteAllowed, onsiteReason),
+    typeAvailability('preorder', preorderAllowed, preorderReason),
+    typeAvailability('banquet', banquetAllowed, banquetReason),
   ];
 
   const blocking: string[] = [];
   const info: string[] = [];
 
   if (!type) {
-    return { availableTypes, canSubmit: false, blocking, info };
+    return { availableTypes, canSubmit: false, blocking, info, minimumOrder: null };
   }
 
   const selected = availableTypes.find((t) => t.type === type)!;
   if (!selected.allowed) {
     if (selected.reason) blocking.push(selected.reason);
-    return { availableTypes, canSubmit: false, blocking, info };
+    return { availableTypes, canSubmit: false, blocking, info, minimumOrder: null };
   }
 
   let canSubmit = true;
+  const currentAmount = type === 'preorder'
+    ? cartFoodSum
+    : type === 'banquet' && banquetMenuPrice
+      ? banquetMenuPrice * adults
+      : 0;
+  const minimumOrder = hall?.minimumOrder == null ? null : {
+    required: hall.minimumOrder,
+    current: currentAmount,
+    missing: Math.max(0, hall.minimumOrder - currentAmount),
+    satisfied: currentAmount >= hall.minimumOrder,
+  };
+
+  const applyHallMinimum = () => {
+    if (!minimumOrder || minimumOrder.satisfied) return;
+    blocking.push(
+      `Минимальная сумма заказа — ${formatRubles(minimumOrder.required)} ₽. ` +
+      `Сейчас: ${formatRubles(minimumOrder.current)} ₽. ` +
+      `Не хватает: ${formatRubles(minimumOrder.missing)} ₽.`,
+    );
+    canSubmit = false;
+  };
 
   if (type === 'onsite') {
     // правил-доменных блокировок нет
@@ -140,6 +195,8 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
     if (!hallGroup) {
       blocking.push('Выберите зал.');
       canSubmit = false;
+    } else if (minimumOrder) {
+      applyHallMinimum();
     } else if (cartFoodSum <= 0) {
       blocking.push('Наберите блюда в корзину для предзаказа.');
       canSubmit = false;
@@ -170,7 +227,8 @@ export function evaluateBooking(input: BookingRuleInput): BookingValidation {
       blocking.push('Выберите зал для банкета.');
       canSubmit = false;
     }
+    applyHallMinimum();
   }
 
-  return { availableTypes, canSubmit, blocking, info };
+  return { availableTypes, canSubmit, blocking, info, minimumOrder };
 }

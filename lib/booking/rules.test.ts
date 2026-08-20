@@ -29,6 +29,18 @@ function base(over: Partial<BookingRuleInput> = {}): BookingRuleInput {
 const allowed = (v: ReturnType<typeof evaluateBooking>, t: string) =>
   v.availableTypes.find((x) => x.type === t)!.allowed;
 
+const emerald = {
+  name: 'Изумрудный зал',
+  allowedBookingTypes: ['preorder', 'banquet'] as const,
+  minimumOrder: 70000,
+};
+
+const ruby = {
+  name: 'Рубиновый зал',
+  allowedBookingTypes: ['preorder', 'banquet'] as const,
+  minimumOrder: 45000,
+};
+
 describe('classifyHall', () => {
   it('maps names to groups', () => {
     expect(classifyHall('Conga')).toBe('conga');
@@ -179,5 +191,84 @@ describe('banquet submit + no-type-available', () => {
     const v = evaluateBooking(base({ adults: 14, eventDate: '2026-06-29', type: 'banquet', hallGroup: 'kucher' }));
     expect(allowed(v, 'banquet')).toBe(false);
     expect(v.canSubmit).toBe(false);
+  });
+});
+
+describe('exact banquet hall policies', () => {
+  it('disables onsite for exact banquet halls with the configured reason', () => {
+    const result = evaluateBooking(base({ hall: emerald, type: 'onsite' }));
+
+    expect(result.availableTypes.find((item) => item.type === 'onsite')).toEqual({
+      type: 'onsite',
+      allowed: false,
+      reason: 'Для этого банкетного зала выберите предзаказ или банкетное меню',
+    });
+  });
+
+  it.each([
+    [emerald, 69999, false, 1],
+    [emerald, 70000, true, 0],
+    [ruby, 44999, false, 1],
+    [ruby, 45000, true, 0],
+  ])('gates preorder against the flat hall minimum', (hall, cartFoodSum, canSubmit, missing) => {
+    const result = evaluateBooking(base({ hall, hallGroup: 'other', type: 'preorder', cartFoodSum }));
+
+    expect(result.canSubmit).toBe(canSubmit);
+    expect(result.minimumOrder).toEqual({
+      required: hall.minimumOrder,
+      current: cartFoodSum,
+      missing,
+      satisfied: canSubmit,
+    });
+  });
+
+  it('calculates banquet amount from price times adults and ignores children', () => {
+    const below = evaluateBooking(base({
+      hall: emerald,
+      hallGroup: 'other',
+      type: 'banquet',
+      adults: 9,
+      children: 30,
+      banquetMenuPrice: 7500,
+    }));
+    const threshold = evaluateBooking(base({
+      hall: emerald,
+      hallGroup: 'other',
+      type: 'banquet',
+      adults: 14,
+      children: 0,
+      banquetMenuPrice: 5000,
+    }));
+
+    expect(below.minimumOrder).toEqual({ required: 70000, current: 67500, missing: 2500, satisfied: false });
+    expect(threshold.minimumOrder).toEqual({ required: 70000, current: 70000, missing: 0, satisfied: true });
+  });
+
+  it('does not block a request when adults exceed the displayed capacity', () => {
+    const result = evaluateBooking(base({
+      hall: emerald,
+      hallGroup: 'other',
+      type: 'banquet',
+      adults: 45,
+      children: 0,
+      banquetMenuPrice: 5000,
+      eventDate: '2026-07-05',
+    }));
+
+    expect(result.canSubmit).toBe(true);
+    expect(result.blocking.join(' ')).not.toMatch(/вместим|30|45/);
+  });
+
+  it('reports the required, current, and missing amounts below a hall minimum', () => {
+    const result = evaluateBooking(base({
+      hall: emerald,
+      hallGroup: 'other',
+      type: 'preorder',
+      cartFoodSum: 69999,
+    }));
+
+    expect(result.blocking).toEqual([
+      'Минимальная сумма заказа — 70 000 ₽. Сейчас: 69 999 ₽. Не хватает: 1 ₽.',
+    ]);
   });
 });
