@@ -115,11 +115,11 @@ export default function HallsClient({ initialPosts }: { initialPosts: PublicHall
                     <div className="relative z-10 mx-auto max-w-[1280px] px-5 pb-14 pt-20 md:px-8 md:pb-20 md:pt-28">
                         <span className="text-[13px] uppercase tracking-[0.18em] text-brass">Банкеты · {SITE.city}</span>
                         <h1 className="mt-2 max-w-[16ch] font-display text-[clamp(2.4rem,6vw,4.4rem)] font-black leading-[1.04] text-cream">
-                            Залы и банкеты
+                            Банкетные залы в Дмитрове
                         </h1>
                         <p className="mt-4 max-w-[56ch] text-[clamp(15px,2vw,19px)] leading-relaxed text-cream/85">
-                            Зал Conga под подвешенным лесом, веранда у деревьев и банкетное пространство — выберите место для
-                            свадьбы, юбилея или корпоратива.
+                            Зал Conga под подвешенным лесом, веранда у деревьев и отдельные банкетные залы — выберите место для
+                            свадьбы, юбилея или корпоратива в Дмитрове.
                         </p>
                     </div>
                 </section>

@@ -35,6 +35,17 @@ describe('sitemap', () => {
         ]));
     });
 
+    it('publishes dedicated landing pages for high-intent local search clusters', async () => {
+        const paths = (await sitemap()).map((entry) => new URL(entry.url).pathname);
+
+        expect(paths).toEqual(expect.arrayContaining([
+            '/delivery',
+            '/business-lunch',
+            '/menu/shashlyk',
+            '/menu/khinkali',
+        ]));
+    });
+
     it('excludes both legacy hall detail paths without duplicating canonical halls', async () => {
         fetchPublishedPostsMock.mockImplementation(async (category: string) => category === 'halls' ? [
             { slug: 'banketnye-zaly', published_at: null, created_at: '2026-08-20T00:00:00.000Z' },
