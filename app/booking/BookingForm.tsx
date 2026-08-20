@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createReservation } from '@/lib/reservations';
 import { composeReservationComment } from '@/lib/booking/composeReservation';
 import { useCart } from '@/lib/hooks/useCart';
+import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
 import {
     evaluateBooking,
     isBookingDateClosed,
@@ -275,6 +276,11 @@ export default function BookingForm({
         }
 
         if (crmOk || telegramOk) {
+            reachYandexGoal('booking_submit', {
+                booking_type: effectiveType,
+                mode,
+                hall: mode === 'self' ? hallName : undefined,
+            });
             setStatus('ok');
             if (mode === 'self' && effectiveType === 'preorder') cart.clear();
         } else {

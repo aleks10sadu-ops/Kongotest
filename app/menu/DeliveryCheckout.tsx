@@ -9,6 +9,7 @@ import { composeAddressDetails } from '@/lib/booking/addressDetails';
 import { validateMinOrder } from '@/lib/delivery/minOrder';
 import { isDeliveryOpen, todayDeliveryWindowText } from '@/lib/delivery/schedule';
 import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
+import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
 import { SITE } from '../components/forest/site';
 import DeliveryZoneMiniMap from '../components/DeliveryZoneMiniMap';
 
@@ -275,6 +276,11 @@ export default function DeliveryCheckout({
         }
 
         if (ok) {
+            reachYandexGoal('delivery_order', {
+                total,
+                zone: zone?.name,
+                items_count: items.reduce((sum, item) => sum + item.qty, 0),
+            });
             setStatus('ok');
             onSuccess();
         } else {

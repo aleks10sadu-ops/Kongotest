@@ -5,6 +5,8 @@ import { Vollkorn, Golos_Text } from 'next/font/google';
 import React from 'react';
 import { SITE, SITE_URL } from './components/forest/site';
 import { buildRestaurantGraph, serializeJsonLd } from '@/lib/seo/structuredData';
+import YandexGoalTracker from './components/analytics/YandexGoalTracker';
+import { YANDEX_METRIKA_COUNTER_ID } from '@/lib/analytics/yandexMetrika';
 
 // Шрифты дизайн-системы «Перевёрнутый лес» — грузятся один раз в корне и доступны
 // всем страницам как CSS-переменные (--font-display / --font-body).
@@ -22,7 +24,6 @@ const golos = Golos_Text({
     display: 'swap',
 });
 
-const YANDEX_METRIKA_COUNTER_ID = 111802696;
 const YANDEX_METRIKA_SCRIPT = `
     (function(m,e,t,r,i,k,a){
         m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
@@ -256,6 +257,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                     dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildRestaurantGraph()) }}
                 />
                 {children}
+                <YandexGoalTracker />
                 <SpeedInsights />
             </body>
         </html>
