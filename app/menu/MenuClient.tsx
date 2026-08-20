@@ -17,6 +17,7 @@ import ContentManager from '../components/ContentManager';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
 import MenuImageGallery from '../components/MenuImageGallery';
+import { resolveMenuDeepLink } from '@/lib/menu/deepLink';
 import { buildBookingHref } from '@/lib/booking/bookingContext';
 import {
     BANQUET_MENU_BOOKING_CTA,
@@ -192,6 +193,22 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [query, setQuery] = useState('');
 
+    useEffect(() => {
+        const activateDeepLink = () => {
+            const requestedType = resolveMenuDeepLink(window.location.hash, menuByType, firstKey);
+            if (requestedType === 'banquet') {
+                setIsBanquetOpen(true);
+                return;
+            }
+            setActiveType(requestedType);
+            setActiveCategory(menuByType[requestedType]?.categories?.[0]?.id || '');
+        };
+
+        activateDeepLink();
+        window.addEventListener('hashchange', activateDeepLink);
+        return () => window.removeEventListener('hashchange', activateDeepLink);
+    }, [firstKey, menuByType]);
+
     // Заказ: корзина + модалка блюда + оформление доставки
     const cart = useCart();
     const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -242,6 +259,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
         : categories;
 
     const selectType = (id: string) => {
+        window.history.replaceState(null, '', `#${id}`);
         if (id === 'banquet') { setIsBanquetOpen(true); return; }
         setActiveType(id);
         const cats = menuByType[id]?.categories || [];
