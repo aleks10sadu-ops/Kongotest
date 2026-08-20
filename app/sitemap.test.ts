@@ -41,8 +41,8 @@ describe('sitemap', () => {
         expect(paths).toEqual(expect.arrayContaining([
             '/delivery',
             '/business-lunch',
-            '/menu/shashlyk',
-            '/menu/khinkali',
+            '/delivery/shashlyk',
+            '/delivery/khinkali',
         ]));
     });
 

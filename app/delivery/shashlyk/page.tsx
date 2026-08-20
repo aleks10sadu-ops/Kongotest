@@ -10,7 +10,7 @@ const orderHref = '/menu?search=%D1%88%D0%B0%D1%88%D0%BB%D1%8B%D0%BA#delivery';
 export const metadata: Metadata = {
     title: `${title} — доставка | Кучер & Conga`,
     description,
-    alternates: { canonical: '/menu/shashlyk' },
+    alternates: { canonical: '/delivery/shashlyk' },
 };
 
 export const dynamic = 'force-static';
@@ -19,5 +19,5 @@ export const revalidate = 600;
 export default async function ShashlykPage() {
     const menu = await getFullMenu();
     const items = filterMenuItemsByTerms(menu, ['шашлык', 'шашлычный', 'на углях'], 8);
-    return <DishLandingPage eyebrow="Мангал и доставка" title={title} description={description} orderHref={orderHref} items={items} jsonLd={buildMenuLandingJsonLd({ title, path: '/menu/shashlyk', description, items })} />;
+    return <DishLandingPage eyebrow="Мангал и доставка" title={title} description={description} orderHref={orderHref} items={items} jsonLd={buildMenuLandingJsonLd({ title, path: '/delivery/shashlyk', description, items })} />;
 }

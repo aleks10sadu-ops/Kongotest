@@ -37,6 +37,8 @@ const nextConfig = {
       { source: '/contacts', destination: '/#find', permanent: true },
       { source: '/foto', destination: '/#atmosphere', permanent: true },
       { source: '/dostavka', destination: '/delivery', permanent: true },
+      { source: '/menu/shashlyk', destination: '/delivery/shashlyk', permanent: true },
+      { source: '/menu/khinkali', destination: '/delivery/khinkali', permanent: true },
       { source: '/osnovnoe-menyu', destination: '/menu#main', permanent: true },
       { source: '/detskoe-menyu', destination: '/menu#main', permanent: true },
       { source: '/barnoe-menyu', destination: '/menu#bar', permanent: true },

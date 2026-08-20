@@ -23,8 +23,8 @@ vi.mock('@/lib/menu/getFullMenu', () => ({ getFullMenu: getFullMenuMock }));
 
 import DeliveryPage, { metadata as deliveryMetadata } from './delivery/page';
 import BusinessLunchPage, { metadata as businessLunchMetadata } from './business-lunch/page';
-import ShashlykPage, { dynamic as shashlykDynamic, metadata as shashlykMetadata } from './menu/shashlyk/page';
-import KhinkaliPage, { dynamic as khinkaliDynamic, metadata as khinkaliMetadata } from './menu/khinkali/page';
+import ShashlykPage, { dynamic as shashlykDynamic, metadata as shashlykMetadata } from './delivery/shashlyk/page';
+import KhinkaliPage, { dynamic as khinkaliDynamic, metadata as khinkaliMetadata } from './delivery/khinkali/page';
 
 describe('local-search landing pages', () => {
     it('renders a canonical delivery page with factual order conditions', () => {
@@ -47,8 +47,8 @@ describe('local-search landing pages', () => {
     });
 
     it.each([
-        ['шашлык', ShashlykPage, shashlykMetadata, '/menu/shashlyk', 'Шашлык в Дмитрове', 'Шашлык из свинины', '/menu?search=%D1%88%D0%B0%D1%88%D0%BB%D1%8B%D0%BA#delivery'],
-        ['хинкали', KhinkaliPage, khinkaliMetadata, '/menu/khinkali', 'Хинкали в Дмитрове', 'Хинкали', '/menu?search=%D1%85%D0%B8%D0%BD%D0%BA%D0%B0%D0%BB%D0%B8#delivery'],
+        ['шашлык', ShashlykPage, shashlykMetadata, '/delivery/shashlyk', 'Шашлык в Дмитрове', 'Шашлык из свинины', '/menu?search=%D1%88%D0%B0%D1%88%D0%BB%D1%8B%D0%BA#delivery'],
+        ['хинкали', KhinkaliPage, khinkaliMetadata, '/delivery/khinkali', 'Хинкали в Дмитрове', 'Хинкали', '/menu?search=%D1%85%D0%B8%D0%BD%D0%BA%D0%B0%D0%BB%D0%B8#delivery'],
     ])('renders live menu items on the %s landing page', async (_name, Page, metadata, canonical, heading, dish, orderHref) => {
         const html = renderToStaticMarkup(await Page());
 

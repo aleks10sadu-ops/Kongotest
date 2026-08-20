@@ -10,7 +10,7 @@ const orderHref = '/menu?search=%D1%85%D0%B8%D0%BD%D0%BA%D0%B0%D0%BB%D0%B8#deliv
 export const metadata: Metadata = {
     title: `${title} — доставка | Кучер & Conga`,
     description,
-    alternates: { canonical: '/menu/khinkali' },
+    alternates: { canonical: '/delivery/khinkali' },
 };
 
 export const dynamic = 'force-static';
@@ -19,5 +19,5 @@ export const revalidate = 600;
 export default async function KhinkaliPage() {
     const menu = await getFullMenu();
     const items = filterMenuItemsByTerms(menu, ['хинкали'], 8);
-    return <DishLandingPage eyebrow="Грузинская кухня и доставка" title={title} description={description} orderHref={orderHref} items={items} jsonLd={buildMenuLandingJsonLd({ title, path: '/menu/khinkali', description, items })} />;
+    return <DishLandingPage eyebrow="Грузинская кухня и доставка" title={title} description={description} orderHref={orderHref} items={items} jsonLd={buildMenuLandingJsonLd({ title, path: '/delivery/khinkali', description, items })} />;
 }
