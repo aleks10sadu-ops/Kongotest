@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Plus, Minus, Search, X } from 'lucide-react';
 import BanquetMenuModal from '../components/BanquetMenuModal';
@@ -16,6 +17,12 @@ import ContentManager from '../components/ContentManager';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
 import MenuImageGallery from '../components/MenuImageGallery';
+import { buildBookingHref } from '@/lib/booking/bookingContext';
+import {
+    BANQUET_MENU_BOOKING_CTA,
+    type BanquetPackageId,
+    type BanquetSaladId,
+} from '@/lib/booking/banquetPackages';
 
 type MenuByType = Record<string, { categories: any[] }>;
 
@@ -174,6 +181,7 @@ const WINE_MENU_PAGES = Array.from({ length: 2 }, (_, index) => `/menu-pages/win
 // Меню приходит пропсом из серверного компонента (ISR): страница отдаётся с CDN
 // уже с блюдами и ценами — ни «Загрузка меню…», ни запроса к iiko на пути пользователя.
 export default function MenuClient({ initialMenu, weeklyLunch = null }: { initialMenu: MenuByType; weeklyLunch?: WeeklyLunch }) {
+    const router = useRouter();
     const menuByType = initialMenu || {};
     const { isAdmin } = useAdminCheck();
     const [weekManagerOpen, setWeekManagerOpen] = useState(false);
@@ -517,7 +525,21 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                     <DeliveryCheckout items={cart.items} subtotal={cart.total} onClose={() => setDeliveryOpen(false)} onSuccess={() => cart.clear()} />
                 )}
 
-                <BanquetMenuModal isOpen={isBanquetOpen} onClose={() => setIsBanquetOpen(false)} />
+                <BanquetMenuModal
+                    isOpen={isBanquetOpen}
+                    onClose={() => setIsBanquetOpen(false)}
+                    selectable
+                    hallFilter="all"
+                    confirmLabel={BANQUET_MENU_BOOKING_CTA}
+                    onSelectPackage={(packageId: BanquetPackageId, saladIds: BanquetSaladId[]) => {
+                        router.push(buildBookingHref({
+                            source: 'banquet-menu',
+                            bookingType: 'banquet',
+                            banquetPackageId: packageId,
+                            saladIds,
+                        }));
+                    }}
+                />
                 {isAdmin && (
                     <ContentManager category="business_lunch_week" isOpen={weekManagerOpen} onClose={() => setWeekManagerOpen(false)} />
                 )}

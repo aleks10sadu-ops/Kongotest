@@ -4,21 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    BanquetPackageId,
-    BanquetSaladId,
-    banquetSaladNames,
     getBanquetPackage,
     isBanquetSelectionComplete,
+    normalizeBanquetSelection,
     packagesForFilter,
+    type BanquetPackageId,
+    type BanquetSaladId,
 } from '@/lib/booking/banquetPackages';
 
 type BanquetMenuModalProps = {
     isOpen: boolean;
     onClose: () => void;
     selectable?: boolean;
-    selectedPackageId?: string | null;
-    onSelectPackage?: (id: string, salads: string[]) => void;
+    selectedPackageId?: BanquetPackageId | null;
+    selectedSaladIds?: readonly BanquetSaladId[];
+    onSelectPackage?: (id: BanquetPackageId, saladIds: BanquetSaladId[]) => void;
     hallFilter?: 'conga' | 'all' | null;
+    confirmLabel?: string;
 };
 
 type SaladCtl = { selected: BanquetSaladId[]; onToggle: (id: BanquetSaladId) => void };
@@ -28,8 +30,10 @@ export default function BanquetMenuModal({
     onClose,
     selectable,
     selectedPackageId,
+    selectedSaladIds,
     onSelectPackage,
     hallFilter,
+    confirmLabel = 'Выбрать это банкетное меню',
 }: BanquetMenuModalProps) {
     const [activeTab, setActiveTab] = useState<'conga' | 'kucher'>('conga');
     const [activeCongaMenu, setActiveCongaMenu] = useState<'7500' | '6000'>('7500');
@@ -40,6 +44,20 @@ export default function BanquetMenuModal({
         else document.body.style.overflow = '';
         return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const normalized = normalizeBanquetSelection(selectedPackageId, selectedSaladIds ?? []);
+        setSaladSel(normalized.packageId ? { [normalized.packageId]: normalized.saladIds } : {});
+
+        if (normalized.packageId === 'kucher-5000') {
+            setActiveTab('kucher');
+        } else if (normalized.packageId) {
+            setActiveTab('conga');
+            setActiveCongaMenu(normalized.packageId === 'conga-7500' ? '7500' : '6000');
+        }
+    }, [isOpen, selectedPackageId, selectedSaladIds]);
 
     if (!isOpen) return null;
 
@@ -145,7 +163,8 @@ export default function BanquetMenuModal({
                                             complete={saladsComplete(currentCongaId)}
                                             max={getBanquetPackage(currentCongaId)!.requiredSalads}
                                             accent="emerald"
-                                            onSelect={() => onSelectPackage?.(currentCongaId, banquetSaladNames(currentCongaId, saladSel[currentCongaId] || []))}
+                                            confirmLabel={confirmLabel}
+                                            onSelect={() => onSelectPackage?.(currentCongaId, saladSel[currentCongaId] || [])}
                                         />
                                     )}
                                 </div>
@@ -163,7 +182,8 @@ export default function BanquetMenuModal({
                                             complete={saladsComplete('kucher-5000')}
                                             max={getBanquetPackage('kucher-5000')!.requiredSalads}
                                             accent="amber"
-                                            onSelect={() => onSelectPackage?.('kucher-5000', banquetSaladNames('kucher-5000', saladSel['kucher-5000'] || []))}
+                                            confirmLabel={confirmLabel}
+                                            onSelect={() => onSelectPackage?.('kucher-5000', saladSel['kucher-5000'] || [])}
                                         />
                                     )}
                                 </div>
@@ -178,26 +198,27 @@ export default function BanquetMenuModal({
     );
 }
 
-function SelectPackageButton({ selected, complete, max, accent, onSelect }: {
+function SelectPackageButton({ selected, complete, max, accent, confirmLabel, onSelect }: {
     selected: boolean;
     complete: boolean;
     max: number;
     accent: 'emerald' | 'amber';
+    confirmLabel: string;
     onSelect: () => void;
 }) {
     const base = accent === 'emerald' ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-amber-600 hover:bg-amber-500';
     return (
         <div className="mb-2 mt-5 flex flex-col items-center gap-2">
-            {!selected && !complete && (
+            {!complete && (
                 <p className="text-sm font-semibold text-stone-600">Выберите {max} салата, чтобы выбрать это банкетное меню</p>
             )}
             <button
                 type="button"
-                onClick={() => (complete || selected) && onSelect()}
-                disabled={!selected && !complete}
+                onClick={() => complete && onSelect()}
+                disabled={!complete}
                 className={`rounded-lg px-6 py-3 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 ${selected ? 'cursor-default bg-amber-400 text-stone-900' : base}`}
             >
-                {selected ? 'Выбрано ✓' : 'Выбрать это банкетное меню'}
+                {confirmLabel}
             </button>
         </div>
     );

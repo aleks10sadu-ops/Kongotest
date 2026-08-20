@@ -16,7 +16,6 @@ import {
     banquetSaladNames,
     getBanquetPackage,
     isBanquetSelectionComplete,
-    type BanquetSaladId,
 } from '@/lib/booking/banquetPackages';
 import type { ParsedBookingContext } from '@/lib/booking/bookingContext';
 import { banquetFilterForHall, bookingHallByKey, type BookingHall } from '@/lib/booking/hallCatalog';
@@ -495,16 +494,15 @@ export default function BookingForm({
                 selectable
                 hallFilter={banquetFilterForHall(selectedHall)}
                 selectedPackageId={banquetPackageId}
+                selectedSaladIds={saladIds}
+                confirmLabel="Выбрать банкетное меню"
                 onSelectPackage={(id, salads) => {
                     const menu = getBanquetPackage(id);
-                    const nextSaladIds = salads
-                        .map((value) => menu?.salads.find((salad) => salad.id === value || salad.name === value)?.id)
-                        .filter((value): value is BanquetSaladId => Boolean(value));
                     if (menu) {
                         setSelection((current) => ({
                             ...current,
                             banquetPackageId: menu.id,
-                            saladIds: nextSaladIds,
+                            saladIds: salads,
                             notice: null,
                         }));
                     }

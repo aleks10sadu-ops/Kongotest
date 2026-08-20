@@ -20,6 +20,15 @@ const halls = normalizeBookingHalls([
 ]);
 
 describe('booking URL context', () => {
+  it('builds a deterministic URL for a selected banquet menu and salads', () => {
+    expect(buildBookingHref({
+      source: 'banquet-menu',
+      bookingType: 'banquet',
+      banquetPackageId: 'kucher-5000',
+      saladIds: ['caesar-shrimp', 'kucher', 'olivier-beef'],
+    })).toContain('source=banquet-menu&bookingType=banquet&banquetMenu=kucher-5000');
+  });
+
   it('builds and parses a deterministic banquet-menu URL', () => {
     const href = buildBookingHref({
       source: 'banquet-menu',

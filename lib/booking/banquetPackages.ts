@@ -8,6 +8,8 @@ export type BanquetSaladId =
   | 'olivier-beef'
   | 'duck-fruit-chutney';
 
+export const BANQUET_MENU_BOOKING_CTA = 'Выбрать банкетное меню и перейти к бронированию';
+
 export type BanquetSalad = {
   id: BanquetSaladId;
   name: string;

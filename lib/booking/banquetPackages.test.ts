@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
+  BANQUET_MENU_BOOKING_CTA,
   banquetSaladNames,
   getBanquetPackage,
   isBanquetPackageAllowed,
   isBanquetSelectionComplete,
   normalizeBanquetSelection,
 } from './banquetPackages';
+
+it('uses the exact banquet-menu booking call to action', () => {
+  expect(BANQUET_MENU_BOOKING_CTA)
+    .toBe('Выбрать банкетное меню и перейти к бронированию');
+});
 
 describe('isBanquetPackageAllowed', () => {
   it('conga filter allows conga-7500', () => {
