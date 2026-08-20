@@ -39,6 +39,7 @@ next-env.d.ts
 /.repowise/
 /.superpowers/
 /.vscode/
+/.worktrees/
 
 # Generated review and transfer artifacts
 /output/
