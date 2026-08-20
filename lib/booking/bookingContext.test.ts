@@ -65,6 +65,15 @@ describe('booking URL context', () => {
     }));
   });
 
+  it('preserves the disabled-onsite warning when a compatible menu also forces banquet', () => {
+    expect(parseBookingContext(new URLSearchParams(
+      'hall=emerald&bookingType=onsite&banquetMenu=conga-6000&salad=caesar-shrimp',
+    ), halls)).toEqual(expect.objectContaining({
+      bookingType: 'banquet',
+      warnings: ['onsite-disabled'],
+    }));
+  });
+
   it('clears banquet menus incompatible with the selected hall', () => {
     expect(parseBookingContext(new URLSearchParams(
       'source=banquet-menu&hall=conga&bookingType=banquet&banquetMenu=kucher-5000&salad=caesar-shrimp',

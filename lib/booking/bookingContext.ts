@@ -74,16 +74,17 @@ export function parseBookingContext(
   const hall = bookingHallByKey(halls, params.get('hall'));
   const normalizedMenu = normalizeBanquetSelection(params.get('banquetMenu'), params.getAll('salad'));
   const warnings: BookingContextWarning[] = [];
-  let selectedBookingType = bookingType(params.get('bookingType'));
+  const requestedBookingType = bookingType(params.get('bookingType'));
+  let selectedBookingType = requestedBookingType;
   let banquetPackageId = normalizedMenu.packageId;
   let saladIds = normalizedMenu.saladIds;
 
-  if (banquetPackageId) selectedBookingType = 'banquet';
-
-  if (hall && isExactBanquetHall(hall) && selectedBookingType === 'onsite') {
+  if (hall && isExactBanquetHall(hall) && requestedBookingType === 'onsite') {
     selectedBookingType = 'banquet';
     warnings.push('onsite-disabled');
   }
+
+  if (banquetPackageId) selectedBookingType = 'banquet';
 
   if (hall && banquetPackageId && !hall.banquetMenus.includes(banquetPackageId)) {
     banquetPackageId = null;
