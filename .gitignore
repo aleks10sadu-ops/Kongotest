@@ -32,3 +32,22 @@ typescript
 *.tsbuildinfo
 next-env.d.ts
 .env*
+
+# Local agent and IDE state
+/.claude/CLAUDE.md
+/.mcp.json
+/.repowise/
+/.superpowers/
+/.vscode/
+
+# Generated review and transfer artifacts
+/output/
+/design-qa*.png
+/design-qa.md
+/KONGOTEST_TRANSFER_README_RU.txt
+/site-dev.*.log
+/free-delivery-zone-yandex.geojson
+
+# Accidental package-manager artifacts (the project uses npm/package-lock.json)
+/pnpm-lock.yaml
+/pnpm-workspace.yaml

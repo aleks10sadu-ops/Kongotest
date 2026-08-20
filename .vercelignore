@@ -1,0 +1,16 @@
+output/
+design-qa*.png
+design-qa.md
+KONGOTEST_TRANSFER_README_RU.txt
+.claude/
+.cursor/
+.impeccable/
+.mcp.json
+.repowise/
+.superpowers/
+.vscode/
+tools/
+site-dev.*.log
+free-delivery-zone-yandex.geojson
+pnpm-lock.yaml
+pnpm-workspace.yaml
