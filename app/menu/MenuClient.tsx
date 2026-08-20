@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,9 @@ import ContentManager from '../components/ContentManager';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
 import MenuImageGallery from '../components/MenuImageGallery';
-import { resolveMenuDeepLink } from '@/lib/menu/deepLink';
+import { readMenuSearch, resolveMenuDeepLink } from '@/lib/menu/deepLink';
+import { BAR_MENU_PAGES, MAIN_MENU_PAGES, WINE_MENU_PAGES } from '@/lib/menu/paperMenu';
+import { MENU_TYPE_DEFS } from '@/lib/menu/menuSections';
 import { buildBookingHref } from '@/lib/booking/bookingContext';
 import {
     BANQUET_MENU_BOOKING_CTA,
@@ -175,18 +177,17 @@ function DishCard({ item, stopped, quantity, onOpen, onSetQuantity }: DishCardPr
     );
 }
 
-const TYPE_ORDER = ['main', 'business', 'bar', 'wine', 'kids', 'promotions'];
-const BAR_MENU_PAGES = Array.from({ length: 7 }, (_, index) => `/menu-pages/bar-${index + 1}.webp`);
-const WINE_MENU_PAGES = Array.from({ length: 2 }, (_, index) => `/menu-pages/wine-${index + 1}.webp`);
-
 // Меню приходит пропсом из серверного компонента (ISR): страница отдаётся с CDN
 // уже с блюдами и ценами — ни «Загрузка меню…», ни запроса к iiko на пути пользователя.
 export default function MenuClient({ initialMenu, weeklyLunch = null }: { initialMenu: MenuByType; weeklyLunch?: WeeklyLunch }) {
     const router = useRouter();
-    const menuByType = initialMenu || {};
+    const menuByType = useMemo<MenuByType>(
+        () => ({ ...(initialMenu || {}), delivery: initialMenu?.main || { categories: [] } } as MenuByType),
+        [initialMenu],
+    );
     const { isAdmin } = useAdminCheck();
     const [weekManagerOpen, setWeekManagerOpen] = useState(false);
-    const firstKey = TYPE_ORDER.find((k) => menuByType[k]?.categories?.length) || 'main';
+    const firstKey = 'delivery';
     const [activeType, setActiveType] = useState<string>(firstKey);
     const [isBanquetOpen, setIsBanquetOpen] = useState(false);
     const [activeCategory, setActiveCategory] = useState<string>(menuByType[firstKey]?.categories?.[0]?.id || '');
@@ -202,6 +203,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
             }
             setActiveType(requestedType);
             setActiveCategory(menuByType[requestedType]?.categories?.[0]?.id || '');
+            setQuery(readMenuSearch(window.location.search, requestedType));
         };
 
         activateDeepLink();
@@ -236,19 +238,10 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
     }, []);
     const isStopped = (it: any) => stopSet.has(String(it.id));
 
-    const TYPE_DEFS: { id: string; name: string }[] = [
-        { id: 'main', name: 'Кухня' },
-        { id: 'business', name: 'Бизнес-ланч' },
-        { id: 'bar', name: 'Бар' },
-        { id: 'wine', name: 'Винная карта' },
-        { id: 'banquet', name: 'Банкетное меню' },
-        { id: 'kids', name: 'Детское' },
-        { id: 'promotions', name: 'Акции' },
-    ];
-    const availableTypes = TYPE_DEFS.filter(
-        (t) => ['bar', 'wine', 'banquet'].includes(t.id) || (menuByType[t.id]?.categories?.length ?? 0) > 0,
+    const availableTypes = MENU_TYPE_DEFS.filter(
+        (t) => ['delivery', 'main', 'bar', 'wine', 'banquet'].includes(t.id) || (menuByType[t.id]?.categories?.length ?? 0) > 0,
     );
-    const categories = menuByType[activeType]?.categories || [];
+    const categories = activeType === 'main' ? [] : (menuByType[activeType]?.categories || []);
 
     // Быстрый поиск по названию/описанию/тегам блюда в текущем разделе меню.
     const q = query.trim().toLowerCase();
@@ -260,6 +253,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
 
     const selectType = (id: string) => {
         window.history.replaceState(null, '', `#${id}`);
+        setQuery('');
         if (id === 'banquet') { setIsBanquetOpen(true); return; }
         setActiveType(id);
         const cats = menuByType[id]?.categories || [];
@@ -299,7 +293,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
 
                 {/* Вне графика доставки — баннер с расписанием на сегодня.
                     В рабочее время гость ничего не видит. */}
-                {mounted && !scheduleOpen && (
+                {mounted && !scheduleOpen && ['delivery', 'business'].includes(activeType) && (
                     <div className="border-b border-brass/25 bg-brass/10 px-5 py-3 md:px-8">
                         <div className="mx-auto max-w-[1000px] text-sm text-cream">
                             <span className="font-semibold text-brass">Сейчас доставка не принимается.</span>{' '}
@@ -323,7 +317,7 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                                 </div>
                             )}
 
-                            {!['business', 'bar', 'wine'].includes(activeType) && (
+                            {!['main', 'business', 'bar', 'wine'].includes(activeType) && (
                                 <div className="relative mb-2 xl:mb-0 xl:min-w-0 xl:flex-1">
                                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream/40" />
                                     <input
@@ -401,7 +395,15 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
 
                 {/* Контент */}
                 <div className="mx-auto max-w-[1280px] px-3 pt-6 sm:px-5 md:px-8 md:pt-7 xl:pt-5">
-                    {activeType === 'bar' ? (
+                    {activeType === 'main' ? (
+                        <section className="mx-auto max-w-[900px]">
+                            <div className="mb-6 text-center">
+                                <h2 className="font-display text-3xl font-black text-cream md:text-4xl">Основное меню</h2>
+                                <p className="mt-2 text-sm text-cream/55">Бумажное меню ресторана. Листайте 13 страниц стрелками или нажмите на изображение, чтобы увеличить.</p>
+                            </div>
+                            <MenuImageGallery key="main-menu" images={MAIN_MENU_PAGES} alt="Основное меню ресторана" />
+                        </section>
+                    ) : activeType === 'bar' ? (
                         <section className="mx-auto max-w-[900px]">
                             <div className="mb-6 text-center">
                                 <h2 className="font-display text-3xl font-black text-cream md:text-4xl">Барное меню</h2>
@@ -463,6 +465,12 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
                         </div>
                     ) : (
                         <div className="mx-auto max-w-[1240px] space-y-12 md:space-y-16">
+                            {activeType === 'delivery' && categories.length === 0 && (
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-12 text-center">
+                                    <h2 className="font-display text-2xl font-bold text-cream">Меню доставки обновляется</h2>
+                                    <p className="mx-auto mt-3 max-w-[48ch] text-sm leading-relaxed text-cream/65">Попробуйте обновить страницу через минуту или позвоните нам — подскажем актуальные позиции.</p>
+                                </div>
+                            )}
                             {q && shownCategories.length === 0 && (
                                 <p className="py-16 text-center text-cream/55">По запросу «{query}» ничего не нашлось.</p>
                             )}

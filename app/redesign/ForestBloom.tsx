@@ -22,7 +22,8 @@ const C = {
 
 // Одна точка входа в каждый раздел — блоки ведут на отдельные страницы (для SEO/GEO).
 const LINKS = {
-    menu: '/menu',
+    menu: '/menu#main',
+    delivery: '/menu#delivery',
     booking: '/booking',
     promotions: '/promotions',
     events: '/events',
@@ -80,7 +81,8 @@ const YANDEX_ORG = 'https://yandex.ru/maps/org/kucher_conga/10214255530/';
 
 // Полная навигация для выдвижного меню.
 const NAV = [
-    { href: LINKS.menu, label: 'Меню и доставка' },
+    { href: LINKS.menu, label: 'Меню' },
+    { href: LINKS.delivery, label: 'Доставка' },
     { href: LINKS.booking, label: 'Забронировать стол' },
     { href: LINKS.promotions, label: 'Акции' },
     { href: LINKS.events, label: 'События' },
@@ -281,7 +283,7 @@ export default function RedesignClient() {
                         </div>
 
                         <h1 className="rf-serif rf-h1 rf-hero-in" style={{ fontWeight: 900, margin: 0, lineHeight: 1.04, color: '#F8FAF6', textWrap: 'balance' as any, textShadow: '0 4px 30px rgba(0,0,0,0.55)', animationDelay: '.08s' }}>
-                            Здесь лес растёт с&nbsp;потолка
+                            Ресторан в Дмитрове,<br />где лес растёт с&nbsp;потолка
                         </h1>
 
                         <p className="rf-lede rf-hero-in" style={{ margin: 0, lineHeight: 1.58, color: 'rgba(248,250,246,0.9)', maxWidth: 565, textWrap: 'pretty' as any, textShadow: '0 2px 18px rgba(0,0,0,0.6)', animationDelay: '.16s' }}>
@@ -290,7 +292,7 @@ export default function RedesignClient() {
 
                         <div className="rf-btns rf-hero-in" style={{ display: 'flex', gap: 12, marginTop: 4, animationDelay: '.24s' }}>
                             <Link href={LINKS.booking} className="rf-btn rf-btn-primary rf-hero-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontWeight: 600, fontSize: 16, letterSpacing: '0.01em', padding: '0 36px', background: C.terracotta, color: '#FBF3EA', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 8px 24px rgba(172,72,35,0.32)' }}>Забронировать стол</Link>
-                            <Link href={LINKS.menu} className="rf-btn rf-btn-ghost rf-hero-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontWeight: 500, fontSize: 16, padding: '0 36px', border: '1px solid rgba(244,247,242,0.45)', color: '#FFFFFF', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(6px)' }}>Заказать доставку</Link>
+                            <Link href={LINKS.delivery} className="rf-btn rf-btn-ghost rf-hero-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontWeight: 500, fontSize: 16, padding: '0 36px', border: '1px solid rgba(244,247,242,0.45)', color: '#FFFFFF', background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(6px)' }}>Заказать доставку</Link>
                         </div>
                     </div>
 
@@ -316,15 +318,15 @@ export default function RedesignClient() {
                     <div className="rf-wrap rf-bentopad" style={{ position: 'relative', zIndex: 2, maxWidth: 1280, margin: '0 auto', width: '100%' }}>
                         {/* Desktop grid */}
                         <div className="rf-desk" style={{ gridTemplateColumns: '50% 27% 23%', gridTemplateRows: '346px 282px' }}>
-                            {/* A. Меню и доставка */}
+                            {/* A. Основное бумажное меню */}
                             <Link href={LINKS.menu} className="rf-bb" style={{ position: 'relative', overflow: 'hidden', gridColumn: 1, gridRow: '1 / 3', ...glass, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.18)' }}>
                                 <div style={{ position: 'absolute', left: 20, right: 20, top: 20, bottom: 132, borderRadius: '180px 180px 20px 20px', overflow: 'hidden' }}>
                                     <img className="rf-photo" src="/atmosphere_1.webp" alt="Авторское блюдо и вино" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 60%', display: 'block' }} />
                                     <div style={{ position: 'absolute', left: '36%', top: '16%', width: 52, height: 96, background: 'radial-gradient(closest-side,rgba(255,255,255,0.55),transparent)', filter: 'blur(9px)', animation: 'rfSteam 6s ease-in-out 1s infinite' }} />
                                 </div>
                                 <Parallax style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '24px 30px 26px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                                    <h3 className="rf-serif" style={{ margin: 0, fontWeight: 700, fontSize: 35, color: C.onForest }}>Меню и доставка</h3>
-                                    <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: C.onForestSoft, maxWidth: 480 }}>Авторская кухня и мангал. <span style={{ color: C.brass }}>Привезём горячим по Дмитрову — бесплатно.</span></p>
+                                    <h3 className="rf-serif" style={{ margin: 0, fontWeight: 700, fontSize: 35, color: C.onForest }}>Основное меню</h3>
+                                    <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: C.onForestSoft, maxWidth: 480 }}>Бумажное меню ресторана: закуски, горячие блюда, мангал и десерты.</p>
                                 </Parallax>
                                 <Arrow r={26} b={26} size={24} />
                                 <Sweep w="38%" />
@@ -388,8 +390,8 @@ export default function RedesignClient() {
                                     <img src="/atmosphere_1.webp" alt="Авторское блюдо и вино" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 60%' }} />
                                 </div>
                                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                                    <h3 className="rf-serif" style={{ margin: 0, fontWeight: 700, fontSize: 23, color: C.onForest }}>Меню и доставка</h3>
-                                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45, color: C.onForestSoft, maxWidth: 280 }}>Авторская кухня и мангал. <span style={{ color: C.brass }}>Доставка бесплатная.</span></p>
+                                    <h3 className="rf-serif" style={{ margin: 0, fontWeight: 700, fontSize: 23, color: C.onForest }}>Основное меню</h3>
+                                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.45, color: C.onForestSoft, maxWidth: 280 }}>Бумажное меню ресторана: кухня, мангал и десерты.</p>
                                 </div>
                                 <Arrow r={18} b={18} size={19} />
                             </Link>

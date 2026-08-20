@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { SectionsMenuLinks } from './ForestBloom';
+import ForestScene, { SectionsMenuLinks } from './ForestBloom';
 
 describe('ForestBloom sections menu', () => {
     it('renders a link to the FAQ page', () => {
@@ -11,5 +11,20 @@ describe('ForestBloom sections menu', () => {
 
         expect(html).toContain('href="/faq"');
         expect(html).toContain('Вопросы и ответы');
+    });
+
+    it('separates the paper menu from the delivery order section', () => {
+        const html = renderToStaticMarkup(
+            React.createElement(SectionsMenuLinks, { onNavigate: () => undefined }),
+        );
+
+        expect(html).toContain('href="/menu#main"');
+        expect(html).toContain('href="/menu#delivery"');
+    });
+
+    it('names the local restaurant intent in the visible page heading', () => {
+        const html = renderToStaticMarkup(React.createElement(ForestScene));
+
+        expect(html).toMatch(/<h1[^>]*>Ресторан в Дмитрове,[\s\S]*где лес растёт с[^<]*потолка<\/h1>/);
     });
 });

@@ -3,13 +3,13 @@ import React from 'react';
 import { SITE, SITE_URL } from '../components/forest/site';
 
 export const metadata: Metadata = {
-    title: 'Меню и доставка — Кучер & Conga, Дмитров',
+    title: 'Основное меню и доставка — Кучер & Conga, Дмитров',
     description:
-        'Меню ресторана «Кучер & Conga» в Дмитрове: авторская кухня, мангал, шашлычные сеты, бар и винная карта. Доставка по Дмитрову ежедневно с 12:00 до 22:00.',
+        'Основное бумажное меню ресторана «Кучер & Conga» и отдельное меню доставки по Дмитрову: актуальные блюда, цены, бар и винная карта.',
     alternates: { canonical: '/menu' },
     openGraph: {
-        title: 'Меню и доставка — Кучер & Conga',
-        description: 'Авторская кухня и мангал. Доставка по Дмитрову.',
+        title: 'Основное меню и доставка — Кучер & Conga',
+        description: 'Бумажное меню ресторана и отдельный раздел заказа доставки по Дмитрову.',
         url: '/menu',
         type: 'website',
         images: ['/hero-image.webp'],

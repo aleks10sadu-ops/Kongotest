@@ -33,7 +33,7 @@ const FAQ_ITEMS: readonly FaqItem[] = [
     {
         question: 'Есть ли доставка по Дмитрову?',
         answer:
-            'Да. Доставка работает по Дмитрову с 12:00 до 22:00. Стоимость зависит от адреса и зоны доставки; точный расчёт показывается при оформлении заказа.',
+            'Да. Заказы принимаем: Пн–Чт с 12:00 до 21:45, Пт–Сб с 12:00 до 23:00, Вс с 13:00 до 21:45. Стоимость зависит от адреса и зоны доставки; точный расчёт показывается при оформлении.',
     },
     {
         question: 'Можно ли провести свадьбу, юбилей или корпоратив?',
@@ -78,6 +78,9 @@ export default function FaqPage() {
                             ))}
                         </div>
                         <div className="mt-10 flex flex-wrap gap-3">
+                            <Link href="/menu#delivery" className="rounded-lg bg-terracotta px-6 py-3 font-semibold text-[#FBF3EA] hover:bg-terracotta-dark">
+                                Заказать доставку
+                            </Link>
                             <Link href="/booking" className="rounded-lg bg-terracotta px-6 py-3 font-semibold text-[#FBF3EA] hover:bg-terracotta-dark">
                                 Забронировать стол
                             </Link>

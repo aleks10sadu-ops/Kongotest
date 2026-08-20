@@ -25,7 +25,9 @@ export const SITE = {
 
 // Разделы для выдвижного меню шапки.
 export const NAV = [
-    { href: '/menu', label: 'Меню и доставка' },
+    { href: '/menu#main', label: 'Меню' },
+    { href: '/delivery', label: 'Доставка еды' },
+    { href: '/business-lunch', label: 'Бизнес-ланч' },
     { href: '/booking', label: 'Забронировать стол' },
     { href: '/promotions', label: 'Акции' },
     { href: '/events', label: 'События' },
@@ -39,7 +41,7 @@ export const NAV = [
 
 // Короткая навигация в строке шапки (десктоп).
 export const NAV_TOP = [
-    { href: '/menu', label: 'Меню' },
+    { href: '/menu#main', label: 'Меню' },
     { href: '/booking', label: 'Бронь' },
     { href: '/events', label: 'События' },
     { href: '/halls', label: 'Залы' },
