@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeBookingHalls } from './hallCatalog';
-import { bookingSourceRef, buildBookingHref, parseBookingContext } from './bookingContext';
+import {
+  bookingSourceLabel,
+  bookingSourceRef,
+  buildBookingHref,
+  parseBookingContext,
+} from './bookingContext';
 
 const halls = normalizeBookingHalls([
   {
@@ -72,6 +77,10 @@ describe('booking URL context', () => {
     expect(bookingSourceRef('promotion', 'promotions')).toBe('promotions');
     expect(bookingSourceRef('hall', 'unexpected-ref')).toBeNull();
     expect(bookingSourceRef(null, 'unexpected-ref')).toBeNull();
+  });
+
+  it('describes a promotion booking as coming from the promotions section', () => {
+    expect(bookingSourceLabel('promotion')).toBe('раздел «Акции»');
   });
 
   it('normalizes disabled onsite booking in exact banquet halls', () => {

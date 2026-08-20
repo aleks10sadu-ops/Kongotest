@@ -107,7 +107,7 @@ export function bookingSourceLabel(source: BookingSource | null): string | null 
   return source === 'hall' ? 'страница зала'
     : source === 'banquet-menu' ? 'банкетное меню'
     : source === 'event' ? 'страница события'
-    : source === 'promotion' ? 'страница акции'
+    : source === 'promotion' ? 'раздел «Акции»'
     : source === 'home' ? 'главная страница'
     : null;
 }

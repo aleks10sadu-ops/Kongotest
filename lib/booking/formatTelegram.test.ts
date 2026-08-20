@@ -80,11 +80,11 @@ describe('formatBookingTelegram', () => {
       date: '2026-08-01', time: '19:00',
       adults: 2, children: 0, bookingType: 'onsite', hallName: null,
       cartItems: [], cartFoodSum: 0,
-      source: 'страница акции',
+      source: 'раздел «Акции»',
       sourceRef: '<promotions&summer>',
     });
 
-    expect(msg).toContain('Источник: страница акции — &lt;promotions&amp;summer&gt;');
+    expect(msg).toContain('Источник: раздел «Акции» — &lt;promotions&amp;summer&gt;');
     expect(msg.match(/^Источник:/gm)).toHaveLength(1);
     expect(msg).not.toContain('<promotions&summer>');
   });
