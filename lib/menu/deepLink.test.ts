@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readMenuSearch, resolveMenuDeepLink } from './deepLink';
+import { readMenuSearch, resolveMenuCategoryDeepLink, resolveMenuDeepLink } from './deepLink';
 
 const menu = {
     main: { categories: [{ id: 'soups' }] },
@@ -31,5 +31,18 @@ describe('menu deep links', () => {
     it('reads a targeted dish search only for the delivery section', () => {
         expect(readMenuSearch('?search=%D1%88%D0%B0%D1%88%D0%BB%D1%8B%D0%BA', 'delivery')).toBe('шашлык');
         expect(readMenuSearch('?search=%D1%85%D0%B8%D0%BD%D0%BA%D0%B0%D0%BB%D0%B8', 'main')).toBe('');
+    });
+
+    it.each([
+        ['?category=shashlyk', 'grill'],
+        ['?category=khinkali', 'hot-meat'],
+    ])('resolves a delivery category deep link by its visible name', (search, expectedId) => {
+        const categories = [
+            { id: 'grill', name: 'ШАШЛЫК ИЗ МЯСА И СЕТЫ' },
+            { id: 'hot-meat', name: 'ГОРЯЧИЕ МЯСНЫЕ БЛЮДА' },
+        ];
+
+        expect(resolveMenuCategoryDeepLink(search, 'delivery', categories)).toBe(expectedId);
+        expect(resolveMenuCategoryDeepLink(search, 'main', categories)).toBe('');
     });
 });

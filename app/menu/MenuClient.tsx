@@ -17,7 +17,7 @@ import ContentManager from '../components/ContentManager';
 import ForestHeader from '../components/forest/ForestHeader';
 import ForestFooter from '../components/forest/ForestFooter';
 import MenuImageGallery from '../components/MenuImageGallery';
-import { readMenuSearch, resolveMenuDeepLink } from '@/lib/menu/deepLink';
+import { readMenuSearch, resolveMenuCategoryDeepLink, resolveMenuDeepLink } from '@/lib/menu/deepLink';
 import { BAR_MENU_PAGES, MAIN_MENU_PAGES, WINE_MENU_PAGES } from '@/lib/menu/paperMenu';
 import { MENU_TYPE_DEFS } from '@/lib/menu/menuSections';
 import { buildBookingHref } from '@/lib/booking/bookingContext';
@@ -195,20 +195,41 @@ export default function MenuClient({ initialMenu, weeklyLunch = null }: { initia
     const [query, setQuery] = useState('');
 
     useEffect(() => {
+        let frameId: number | null = null;
+
         const activateDeepLink = () => {
             const requestedType = resolveMenuDeepLink(window.location.hash, menuByType, firstKey);
             if (requestedType === 'banquet') {
                 setIsBanquetOpen(true);
                 return;
             }
+            const requestedCategories = menuByType[requestedType]?.categories || [];
+            const requestedCategory = resolveMenuCategoryDeepLink(
+                window.location.search,
+                requestedType,
+                requestedCategories,
+            );
             setActiveType(requestedType);
-            setActiveCategory(menuByType[requestedType]?.categories?.[0]?.id || '');
+            setActiveCategory(requestedCategory || requestedCategories[0]?.id || '');
             setQuery(readMenuSearch(window.location.search, requestedType));
+
+            if (requestedCategory) {
+                frameId = window.requestAnimationFrame(() => {
+                    const element = document.getElementById(requestedCategory);
+                    if (!element) return;
+                    const offset = window.innerWidth >= 1280 ? 132 : 172;
+                    const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+                    window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+                });
+            }
         };
 
         activateDeepLink();
         window.addEventListener('hashchange', activateDeepLink);
-        return () => window.removeEventListener('hashchange', activateDeepLink);
+        return () => {
+            window.removeEventListener('hashchange', activateDeepLink);
+            if (frameId !== null) window.cancelAnimationFrame(frameId);
+        };
     }, [firstKey, menuByType]);
 
     // Заказ: корзина + модалка блюда + оформление доставки

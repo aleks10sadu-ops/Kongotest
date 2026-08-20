@@ -28,8 +28,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         page('/menu', 0.9, 'daily'),
         page('/delivery', 0.9, 'daily'),
         page('/business-lunch', 0.8, 'weekly'),
-        page('/delivery/shashlyk', 0.75, 'daily'),
-        page('/delivery/khinkali', 0.75, 'daily'),
         page('/booking', 0.9, 'monthly'),
         page('/halls', 0.8, 'monthly'),
         page('/faq', 0.7, 'monthly'),

@@ -1,30 +1,9 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
-
-const { getFullMenuMock } = vi.hoisted(() => ({
-    getFullMenuMock: vi.fn(async () => ({
-        main: {
-            categories: [
-                {
-                    id: 'grill',
-                    name: 'Мангал',
-                    items: [
-                        { id: 'shashlik', name: 'Шашлык из свинины', description: 'На углях', price: 690 },
-                        { id: 'khinkali', name: 'Хинкали', description: 'Три штуки', price: 480 },
-                    ],
-                },
-            ],
-        },
-    })),
-}));
-
-vi.mock('@/lib/menu/getFullMenu', () => ({ getFullMenu: getFullMenuMock }));
+import { describe, expect, it } from 'vitest';
 
 import DeliveryPage, { metadata as deliveryMetadata } from './delivery/page';
 import BusinessLunchPage, { metadata as businessLunchMetadata } from './business-lunch/page';
-import ShashlykPage, { dynamic as shashlykDynamic, metadata as shashlykMetadata } from './delivery/shashlyk/page';
-import KhinkaliPage, { dynamic as khinkaliDynamic, metadata as khinkaliMetadata } from './delivery/khinkali/page';
 
 describe('local-search landing pages', () => {
     it('renders a canonical delivery page with factual order conditions', () => {
@@ -46,21 +25,4 @@ describe('local-search landing pages', () => {
         expect(html).toContain('href="/menu#business"');
     });
 
-    it.each([
-        ['шашлык', ShashlykPage, shashlykMetadata, '/delivery/shashlyk', 'Шашлык в Дмитрове', 'Шашлык из свинины', '/menu?search=%D1%88%D0%B0%D1%88%D0%BB%D1%8B%D0%BA#delivery'],
-        ['хинкали', KhinkaliPage, khinkaliMetadata, '/delivery/khinkali', 'Хинкали в Дмитрове', 'Хинкали', '/menu?search=%D1%85%D0%B8%D0%BD%D0%BA%D0%B0%D0%BB%D0%B8#delivery'],
-    ])('renders live menu items on the %s landing page', async (_name, Page, metadata, canonical, heading, dish, orderHref) => {
-        const html = renderToStaticMarkup(await Page());
-
-        expect(metadata.alternates).toMatchObject({ canonical });
-        expect(html).toContain(`<h1 class="font-display text-[clamp(2.4rem,6vw,4.4rem)] font-black leading-[1.04]">${heading}</h1>`);
-        expect(html).toContain(dish);
-        expect(html).toContain('application/ld+json');
-        expect(html).toContain(`href="${orderHref}"`);
-    });
-
-    it('pre-renders dish landings and refreshes them through ISR', () => {
-        expect(shashlykDynamic).toBe('force-static');
-        expect(khinkaliDynamic).toBe('force-static');
-    });
 });

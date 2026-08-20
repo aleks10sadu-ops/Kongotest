@@ -35,15 +35,15 @@ describe('sitemap', () => {
         ]));
     });
 
-    it('publishes dedicated landing pages for high-intent local search clusters', async () => {
+    it('publishes canonical local-search pages without redirect-only dish URLs', async () => {
         const paths = (await sitemap()).map((entry) => new URL(entry.url).pathname);
 
         expect(paths).toEqual(expect.arrayContaining([
             '/delivery',
             '/business-lunch',
-            '/delivery/shashlyk',
-            '/delivery/khinkali',
         ]));
+        expect(paths).not.toContain('/delivery/shashlyk');
+        expect(paths).not.toContain('/delivery/khinkali');
     });
 
     it('excludes both legacy hall detail paths without duplicating canonical halls', async () => {
