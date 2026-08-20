@@ -1,0 +1,34 @@
+{
+  "result": {
+    "zones": [
+      {
+        "name": "Vendor — ближняя зона",
+        "coordinates": [
+          {"lt": 55.759, "lg": 37.605},
+          {"lt": 55.768, "lg": 37.625},
+          {"lt": 55.751, "lg": 37.637},
+          {"lt": 55.759, "lg": 37.605}
+        ],
+        "meta": {
+          "zoneId": "vendor-near",
+          "thresholds": [
+            {
+              "orderCost": {"currency": "RUB", "value": 1200},
+              "deliveryCost": {"currency": "RUB", "value": 149}
+            }
+          ]
+        }
+      },
+      {
+        "name": "Vendor — дальняя зона",
+        "coordinates": [
+          {"lt": 55.746, "lg": 37.575},
+          {"lt": 55.779, "lg": 37.584},
+          {"lt": 55.785, "lg": 37.651},
+          {"lt": 55.746, "lg": 37.575}
+        ],
+        "meta": {"zoneId": "vendor-far"}
+      }
+    ]
+  }
+}
