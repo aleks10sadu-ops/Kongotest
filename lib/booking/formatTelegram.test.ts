@@ -73,6 +73,21 @@ describe('formatBookingTelegram', () => {
     expect(msg).toContain('Источник: страница зала');
     expect(msg).not.toMatch(/банкетный пакет/i);
   });
+
+  it('renders and escapes a contextual promotion ref on one source line', () => {
+    const msg = formatBookingTelegram({
+      firstName: 'Анна', lastName: 'Иванова', phone: '+7 999 111-22-33',
+      date: '2026-08-01', time: '19:00',
+      adults: 2, children: 0, bookingType: 'onsite', hallName: null,
+      cartItems: [], cartFoodSum: 0,
+      source: 'страница акции',
+      sourceRef: '<promotions&summer>',
+    });
+
+    expect(msg).toContain('Источник: страница акции — &lt;promotions&amp;summer&gt;');
+    expect(msg.match(/^Источник:/gm)).toHaveLength(1);
+    expect(msg).not.toContain('<promotions&summer>');
+  });
 });
 
 describe('formatBookingTelegram modifiers & mode', () => {

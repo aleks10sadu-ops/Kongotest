@@ -17,7 +17,7 @@ import {
     getBanquetPackage,
     isBanquetSelectionComplete,
 } from '@/lib/booking/banquetPackages';
-import { bookingSourceLabel, type ParsedBookingContext } from '@/lib/booking/bookingContext';
+import { bookingSourceLabel, bookingSourceRef, type ParsedBookingContext } from '@/lib/booking/bookingContext';
 import { banquetFilterForHall, bookingHallByKey, type BookingHall } from '@/lib/booking/hallCatalog';
 import { changeBookingHall, createInitialBookingSelection } from '@/lib/booking/bookingSelection';
 import HallSelector from '../components/HallSelector';
@@ -183,6 +183,7 @@ export default function BookingForm({
                 : null;
         const minimumOrder = mode === 'self' ? selectedHall?.minimumOrder ?? null : null;
         const source = bookingSourceLabel(initialContext.source);
+        const sourceRef = bookingSourceRef(initialContext.source, initialContext.ref);
 
         // Стоп-лист: проверяем предзаказ ДО создания брони в CRM и отправки в TG
         // (сервер /api/telegram проверит ещё раз — это бэкстоп для устаревших клиентов).
@@ -213,6 +214,7 @@ export default function BookingForm({
             calculatedAmount,
             minimumOrder,
             source,
+            sourceRef,
             comment,
         });
 
@@ -262,6 +264,7 @@ export default function BookingForm({
                     calculatedAmount,
                     minimumOrder,
                     source,
+                    sourceRef,
                     mode,
                     comment,
                 }),

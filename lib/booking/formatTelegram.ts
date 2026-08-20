@@ -18,6 +18,7 @@ export interface TelegramBookingInput {
   calculatedAmount?: number | null;
   minimumOrder?: number | null;
   source?: string | null;
+  sourceRef?: string | null;
   comment?: string;
   mode?: 'admin' | 'self';
 }
@@ -75,7 +76,10 @@ export function formatBookingTelegram(i: TelegramBookingInput): string {
   if (i.mode !== 'admin' && i.minimumOrder != null) {
     lines.push(`Минимальная сумма зала: ${formatAmount(i.minimumOrder)} ₽`);
   }
-  if (i.source) lines.push(`Источник: ${escapeHtml(i.source)}`);
+  if (i.source) {
+    const ref = i.sourceRef ? ` — ${escapeHtml(i.sourceRef)}` : '';
+    lines.push(`Источник: ${escapeHtml(i.source)}${ref}`);
+  }
   if (i.comment && i.comment.trim()) lines.push(`Комментарий: ${escapeHtml(i.comment.trim())}`);
   return lines.join('\n');
 }

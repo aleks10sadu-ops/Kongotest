@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeBookingHalls } from './hallCatalog';
-import { buildBookingHref, parseBookingContext } from './bookingContext';
+import { bookingSourceRef, buildBookingHref, parseBookingContext } from './bookingContext';
 
 const halls = normalizeBookingHalls([
   {
@@ -65,6 +65,13 @@ describe('booking URL context', () => {
 
   it('drops an unsafe ref while preserving its valid source', () => {
     expect(buildBookingHref({ source: 'event', ref: '../../phone' })).toBe('/booking?source=event');
+  });
+
+  it('forwards validated refs only for event and promotion source context', () => {
+    expect(bookingSourceRef('event', 'jazz-vecher')).toBe('jazz-vecher');
+    expect(bookingSourceRef('promotion', 'promotions')).toBe('promotions');
+    expect(bookingSourceRef('hall', 'unexpected-ref')).toBeNull();
+    expect(bookingSourceRef(null, 'unexpected-ref')).toBeNull();
   });
 
   it('normalizes disabled onsite booking in exact banquet halls', () => {

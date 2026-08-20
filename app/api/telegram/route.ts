@@ -64,6 +64,7 @@ interface BookingPayload extends BasePayload {
   calculatedAmount?: number | null;
   minimumOrder?: number | null;
   source?: string | null;
+  sourceRef?: string | null;
   mode?: 'admin' | 'self';
 }
 
@@ -83,7 +84,7 @@ interface DeliveryPayload extends BasePayload {
 
 type TelegramPayload = BookingPayload | DeliveryPayload;
 
-function buildMessage(payload: TelegramPayload): string {
+export function buildMessage(payload: TelegramPayload): string {
   const { type } = payload; // "booking" | "delivery"
 
   if (type === 'booking') {
@@ -91,13 +92,13 @@ function buildMessage(payload: TelegramPayload): string {
       firstName, lastName, phone, date, time,
       adults, children, bookingType, hallName,
       cartItems, cartFoodSum, banquetMenuName, banquetSaladNames,
-      calculatedAmount, minimumOrder, source, comment, mode,
+      calculatedAmount, minimumOrder, source, sourceRef, comment, mode,
     } = payload;
     return formatBookingTelegram({
       firstName, lastName, phone, date, time,
       adults, children, bookingType, hallName,
       cartItems, cartFoodSum, banquetMenuName, banquetSaladNames,
-      calculatedAmount, minimumOrder, source, comment,
+      calculatedAmount, minimumOrder, source, sourceRef, comment,
       mode,
     });
   }

@@ -12,6 +12,7 @@ export interface ComposeInput {
   calculatedAmount?: number | null;
   minimumOrder?: number | null;
   source?: string | null;
+  sourceRef?: string | null;
   comment?: string;
 }
 
@@ -48,7 +49,9 @@ export function composeReservationComment(input: ComposeInput): string {
   }
   if (input.calculatedAmount != null) lines.push(`Расчётная сумма: ${formatAmount(input.calculatedAmount)} ₽`);
   if (input.minimumOrder != null) lines.push(`Минимальная сумма зала: ${formatAmount(input.minimumOrder)} ₽`);
-  if (input.source) lines.push(`Источник: ${input.source}`);
+  if (input.source) {
+    lines.push(`Источник: ${input.source}${input.sourceRef ? ` — ${input.sourceRef}` : ''}`);
+  }
   if (input.comment && input.comment.trim()) {
     lines.push(`Комментарий: ${input.comment.trim()}`);
   }

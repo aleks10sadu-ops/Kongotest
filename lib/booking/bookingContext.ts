@@ -111,3 +111,7 @@ export function bookingSourceLabel(source: BookingSource | null): string | null 
     : source === 'home' ? 'главная страница'
     : null;
 }
+
+export function bookingSourceRef(source: BookingSource | null, ref: string | null): string | null {
+  return (source === 'event' || source === 'promotion') ? ref : null;
+}

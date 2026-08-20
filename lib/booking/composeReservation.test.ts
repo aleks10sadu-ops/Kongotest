@@ -47,4 +47,31 @@ describe('composeReservationComment', () => {
     expect(s).toContain('Источник: страница зала');
     expect(s).not.toMatch(/банкетный пакет/i);
   });
+
+  it('keeps an event ref on the single CRM source line and preserves no-ref labels', () => {
+    const event = composeReservationComment({
+      adults: 2,
+      children: 0,
+      bookingType: 'onsite',
+      hallName: null,
+      cartItems: [],
+      cartFoodSum: 0,
+      source: 'страница события',
+      sourceRef: 'jazz-vecher',
+    });
+    const generic = composeReservationComment({
+      adults: 2,
+      children: 0,
+      bookingType: 'onsite',
+      hallName: null,
+      cartItems: [],
+      cartFoodSum: 0,
+      source: 'главная страница',
+    });
+
+    expect(event).toContain('Источник: страница события — jazz-vecher');
+    expect(event.match(/^Источник:/gm)).toHaveLength(1);
+    expect(generic).toContain('Источник: главная страница');
+    expect(generic).not.toContain(' — ');
+  });
 });

@@ -11,7 +11,12 @@ import HallViewer from './HallViewer';
 import { createCrmBrowserClient } from '@/lib/supabase/crm-client';
 
 import { type Hall, mergeHalls } from '@/lib/halls/halls-data';
-import { normalizeBookingHalls, type BookingHall } from '@/lib/booking/hallCatalog';
+import {
+    bookingHallForLegacyEditor,
+    isBookingHallEditable,
+    normalizeBookingHalls,
+    type BookingHall,
+} from '@/lib/booking/hallCatalog';
 
 type HallSelectorProps = {
     halls: BookingHall[];
@@ -86,7 +91,7 @@ export default function HallSelector({ halls: initialHalls, selectedHallKey, onS
 
     const handleCardClick = () => {
         if (!currentHall) return;
-        const hallForEditor: Hall = {
+        const hallForViewer: Hall = {
             id: currentHall.crmHallId ?? currentHall.sourceHallId,
             name: currentHall.name,
             capacity: currentHall.capacity,
@@ -95,8 +100,9 @@ export default function HallSelector({ halls: initialHalls, selectedHallKey, onS
             gallery: currentHall.gallery,
             dbId: currentHall.dbId,
         };
-        if (isAdmin) setEditingHall(hallForEditor);
-        else setViewingHall(hallForEditor);
+        const hallForEditor = bookingHallForLegacyEditor(currentHall);
+        if (isAdmin && hallForEditor) setEditingHall(hallForEditor);
+        else setViewingHall(hallForViewer);
     };
 
     return (
@@ -112,7 +118,7 @@ export default function HallSelector({ halls: initialHalls, selectedHallKey, onS
                 <div
                     className="group relative aspect-[16/9] cursor-pointer overflow-hidden rounded-xl border border-white/10 bg-white/5 sm:aspect-[2/1]"
                     onClick={handleCardClick}
-                    title={isAdmin ? 'Редактировать зал' : 'Посмотреть фото'}
+                    title={isAdmin && isBookingHallEditable(currentHall) ? 'Редактировать зал' : 'Посмотреть фото'}
                 >
                     {!currentHall.image || currentHall.image.endsWith('placeholder.jpg') ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-forest-mid text-cream/30">
@@ -157,7 +163,7 @@ export default function HallSelector({ halls: initialHalls, selectedHallKey, onS
                                 <h3 className="font-display text-xl font-bold text-cream transition-colors group-hover:text-brass sm:text-2xl">
                                     {currentHall.name}
                                 </h3>
-                                {isAdmin && (
+                                {isAdmin && isBookingHallEditable(currentHall) && (
                                     <div className="rounded-full border border-brass/50 bg-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">
                                         Редактировать
                                     </div>

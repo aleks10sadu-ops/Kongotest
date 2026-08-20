@@ -6,6 +6,7 @@ export type BookingHall = Omit<Hall, 'id'> & {
   key: string;
   crmHallId: string | null;
   sourceHallId: string;
+  editorAccess: 'editable' | 'view-only';
   group: HallGroup;
   defaultBookingType?: 'banquet';
   allowedBookingTypes: readonly BookingType[];
@@ -47,6 +48,23 @@ export function isExactBanquetHall(hall: BookingHall | null | undefined): boolea
   return hall?.key === 'emerald' || hall?.key === 'ruby' || hall?.key === 'chocolate';
 }
 
+export function isBookingHallEditable(hall: BookingHall | null | undefined): boolean {
+  return hall?.editorAccess === 'editable';
+}
+
+export function bookingHallForLegacyEditor(hall: BookingHall | null | undefined): Hall | null {
+  if (!hall || !isBookingHallEditable(hall)) return null;
+  return {
+    id: hall.crmHallId ?? hall.sourceHallId,
+    name: hall.name,
+    capacity: hall.capacity,
+    description: hall.description,
+    image: hall.image,
+    gallery: hall.gallery,
+    dbId: hall.dbId,
+  };
+}
+
 export function bookingHallByKey(halls: readonly BookingHall[], key: string | null): BookingHall | null {
   return halls.find((hall) => hall.key === key) ?? null;
 }
@@ -73,6 +91,7 @@ function standardBookingHall(hall: Hall, key: string): BookingHall {
     key,
     sourceHallId,
     crmHallId: crmHallIdFor(sourceHallId),
+    editorAccess: 'editable',
     group: hallGroupForKey(key),
     allowedBookingTypes: STANDARD_BOOKING_TYPES,
     minimumOrder: null,
@@ -82,23 +101,46 @@ function standardBookingHall(hall: Hall, key: string): BookingHall {
 }
 
 export function normalizeBookingHalls(halls: readonly Hall[]): BookingHall[] {
-  return halls.flatMap((hall) => {
-    if (hall.name.trim().toLowerCase() === 'банкетные залы') {
-      const { id: sourceHallId, ...hallDetails } = hall;
-      const crmHallId = crmHallIdFor(sourceHallId);
-      return EXACT_BANQUET_HALLS.map((exactHall) => ({
-        ...hallDetails,
-        ...exactHall,
-        sourceHallId,
-        crmHallId,
-        group: 'other' as const,
-        defaultBookingType: 'banquet' as const,
-        allowedBookingTypes: BANQUET_BOOKING_TYPES,
-        banquetMenus: ALL_MENUS,
-      }));
-    }
+  const genericBanquetHall = halls.find((hall) => hall.name.trim().toLowerCase() === 'банкетные залы');
+  const exactRows = new Map<string, Hall>();
 
-    const key = bookingHallKeyForName(hall.name);
-    return key ? [standardBookingHall(hall, key)] : [];
+  for (const hall of halls) {
+    const key = bookingHallKeyForName(hall.name.trim());
+    if (key && EXACT_BANQUET_HALLS.some((definition) => definition.key === key) && !exactRows.has(key)) {
+      exactRows.set(key, hall);
+    }
+  }
+
+  const seenStandardKeys = new Set<string>();
+  const standardHalls = halls.flatMap((hall) => {
+    if (hall === genericBanquetHall) return [];
+    const key = bookingHallKeyForName(hall.name.trim());
+    if (!key || EXACT_BANQUET_HALLS.some((definition) => definition.key === key) || seenStandardKeys.has(key)) {
+      return [];
+    }
+    seenStandardKeys.add(key);
+    return [standardBookingHall(hall, key)];
   });
+
+  const exactHalls = EXACT_BANQUET_HALLS.flatMap((exactHall) => {
+    const legacyExactHall = exactRows.get(exactHall.key);
+    const contentSource = legacyExactHall ?? genericBanquetHall;
+    const identitySource = genericBanquetHall ?? legacyExactHall;
+    if (!contentSource || !identitySource) return [];
+
+    const { id: _contentSourceId, ...hallDetails } = contentSource;
+    return [{
+      ...hallDetails,
+      ...exactHall,
+      sourceHallId: identitySource.id,
+      crmHallId: crmHallIdFor(identitySource.id),
+      editorAccess: 'view-only' as const,
+      group: 'other' as const,
+      defaultBookingType: 'banquet' as const,
+      allowedBookingTypes: BANQUET_BOOKING_TYPES,
+      banquetMenus: ALL_MENUS,
+    }];
+  });
+
+  return [...standardHalls, ...exactHalls];
 }
