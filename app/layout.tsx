@@ -22,6 +22,39 @@ const golos = Golos_Text({
     display: 'swap',
 });
 
+const YANDEX_METRIKA_COUNTER_ID = 111802696;
+const YANDEX_METRIKA_SCRIPT = `
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=${YANDEX_METRIKA_COUNTER_ID}', 'ym');
+
+    ym(${YANDEX_METRIKA_COUNTER_ID}, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+
+    (function(m, counterId) {
+        var previousUrl = m.location.href;
+        var trackPageView = function() {
+            var currentUrl = m.location.href;
+            if (currentUrl === previousUrl) return;
+            m.ym(counterId, 'hit', currentUrl, {referer: previousUrl, title: m.document.title});
+            previousUrl = currentUrl;
+        };
+        var wrapHistoryMethod = function(method) {
+            var original = m.history[method];
+            m.history[method] = function() {
+                var result = original.apply(this, arguments);
+                trackPageView();
+                return result;
+            };
+        };
+        wrapHistoryMethod('pushState');
+        wrapHistoryMethod('replaceState');
+        m.addEventListener('popstate', trackPageView);
+    })(window, ${YANDEX_METRIKA_COUNTER_ID});
+`;
+
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_URL),
     applicationName: SITE.name,
@@ -66,6 +99,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     return (
         <html lang="ru" className={`${vollkorn.variable} ${golos.variable}`}>
             <head>
+                <link rel="preconnect" href="https://mc.yandex.ru" />
+                <link rel="dns-prefetch" href="https://mc.yandex.ru" />
+                <script type="text/javascript" dangerouslySetInnerHTML={{ __html: YANDEX_METRIKA_SCRIPT }} />
                 {/* Preconnect для Supabase (основной источник изображений) */}
                 <link rel="preconnect" href="https://mmyfglktqvojwpycreko.supabase.co" crossOrigin="anonymous" />
                 <link rel="dns-prefetch" href="https://mmyfglktqvojwpycreko.supabase.co" />
@@ -205,6 +241,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 />
             </head>
             <body className="antialiased bg-slate-50">
+                <noscript>
+                    <div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={`https://mc.yandex.ru/watch/${YANDEX_METRIKA_COUNTER_ID}`}
+                            style={{ position: 'absolute', left: '-9999px' }}
+                            alt=""
+                        />
+                    </div>
+                </noscript>
                 <script
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildRestaurantGraph()) }}

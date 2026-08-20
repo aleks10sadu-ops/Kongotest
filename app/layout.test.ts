@@ -1,4 +1,6 @@
 import React from 'react';
+import vm from 'node:vm';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/font/google', () => ({
@@ -22,6 +24,21 @@ function findJsonLd(node: React.ReactNode): string[] {
             : [];
 
     return own.concat(React.Children.toArray(element.props.children).flatMap(findJsonLd));
+}
+
+function findInlineScript(node: React.ReactNode, needle: string): string | undefined {
+    if (!React.isValidElement(node)) return undefined;
+
+    const element = node as React.ReactElement<{
+        children?: React.ReactNode;
+        dangerouslySetInnerHTML?: { __html: string };
+    }>;
+    const own = element.type === 'script' ? element.props.dangerouslySetInnerHTML?.__html : undefined;
+    if (own?.includes(needle)) return own;
+
+    return React.Children.toArray(element.props.children)
+        .map((child) => findInlineScript(child, needle))
+        .find(Boolean);
 }
 
 describe('root SEO metadata', () => {
@@ -50,5 +67,80 @@ describe('root SEO metadata', () => {
     it('sets complete social preview metadata', () => {
         expect(metadata.openGraph).toEqual(expect.objectContaining({ locale: 'ru_RU', type: 'website' }));
         expect(metadata.twitter).toEqual(expect.objectContaining({ card: 'summary_large_image' }));
+    });
+});
+
+describe('Yandex Metrika', () => {
+    it('renders counter 111802696 and its no-JavaScript tracking pixel on every page', () => {
+        const tree = RootLayout({ children: React.createElement('main') });
+        const html = renderToStaticMarkup(tree);
+        const counterScript = findInlineScript(tree, 'mc.yandex.ru/metrika/tag.js?id=111802696');
+
+        expect(counterScript).toContain("ym(111802696, 'init'");
+        expect(html).toContain('https://mc.yandex.ru/watch/111802696');
+    });
+
+    it('sends a virtual page view when Next.js changes the browser URL', () => {
+        const tree = RootLayout({ children: React.createElement('main') });
+        const counterScript = findInlineScript(tree, 'mc.yandex.ru/metrika/tag.js?id=111802696');
+        if (!counterScript) throw new Error('Yandex Metrika script is missing from the root layout');
+
+        const insertedScripts: Array<{ async?: number; src?: string }> = [];
+        const listeners = new Map<string, () => void>();
+        const location = { href: 'https://kucherandconga.ru/' };
+        const documentObject = {
+            scripts: [] as Array<{ src?: string }>,
+            referrer: 'https://yandex.ru/search/',
+            title: 'Главная',
+            createElement: () => ({}),
+            getElementsByTagName: () => [
+                {
+                    parentNode: {
+                        insertBefore: (script: { async?: number; src?: string }) => insertedScripts.push(script),
+                    },
+                },
+            ],
+        };
+        const history = {
+            pushState: (_state: unknown, _title: string, url?: string | URL | null) => {
+                if (url) location.href = new URL(String(url), location.href).href;
+            },
+            replaceState: (_state: unknown, _title: string, url?: string | URL | null) => {
+                if (url) location.href = new URL(String(url), location.href).href;
+            },
+        };
+        const windowObject: Record<string, unknown> = {
+            document: documentObject,
+            history,
+            location,
+            addEventListener: (event: string, listener: () => void) => listeners.set(event, listener),
+        };
+
+        const browserContext = {
+            window: windowObject,
+            document: documentObject,
+            history,
+            location,
+            URL,
+            Date,
+        };
+        Object.defineProperty(browserContext, 'ym', {
+            get: () => windowObject.ym,
+        });
+        vm.runInNewContext(counterScript, browserContext);
+
+        documentObject.title = 'Меню и доставка';
+        history.pushState(null, '', '/menu');
+
+        const queuedCalls = (windowObject.ym as { a?: IArguments[] }).a?.map((args) => Array.from(args)) || [];
+        expect(insertedScripts).toEqual([
+            expect.objectContaining({ async: 1, src: 'https://mc.yandex.ru/metrika/tag.js?id=111802696' }),
+        ]);
+        expect(queuedCalls).toContainEqual([
+            111802696,
+            'hit',
+            'https://kucherandconga.ru/menu',
+            { referer: 'https://kucherandconga.ru/', title: 'Меню и доставка' },
+        ]);
     });
 });
