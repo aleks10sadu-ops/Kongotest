@@ -223,7 +223,7 @@ export default function HallsClient({ initialPosts }: { initialPosts: PublicHall
                             <div>
                                 <h2 className="font-display text-[24px] font-bold text-cream">Планируете банкет?</h2>
                                 <p className="mt-2 max-w-[54ch] text-[15px] leading-relaxed text-cream/80">
-                                    Готовые сеты «Кучер» и «Conga» от 5000 ₽ или меню под ваш повод. Подберём зал и рассадку —
+                                    Банкетное меню «Кучер» и «Conga» от 5000 ₽ или индивидуальное меню под ваш повод. Подберём зал и рассадку —
                                     напишите или позвоните.
                                 </p>
                             </div>

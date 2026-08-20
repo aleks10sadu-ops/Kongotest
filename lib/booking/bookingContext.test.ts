@@ -63,6 +63,10 @@ describe('booking URL context', () => {
     });
   });
 
+  it('drops an unsafe ref while preserving its valid source', () => {
+    expect(buildBookingHref({ source: 'event', ref: '../../phone' })).toBe('/booking?source=event');
+  });
+
   it('normalizes disabled onsite booking in exact banquet halls', () => {
     expect(parseBookingContext(
       new URLSearchParams('source=hall&hall=emerald&bookingType=onsite'),

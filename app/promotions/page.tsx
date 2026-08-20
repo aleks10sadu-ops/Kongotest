@@ -4,15 +4,18 @@ import ForestHeader from '../components/forest/ForestHeader';
 import SporeField from '../components/forest/SporeField';
 import ForestFooter from '../components/forest/ForestFooter';
 import { SITE } from '../components/forest/site';
+import { buildBookingHref } from '@/lib/booking/bookingContext';
+
+export const promotionBookingHref = (): string => buildBookingHref({ source: 'promotion', ref: 'promotions' });
 
 export const metadata: Metadata = {
     title: 'Акции и особые вечера — Кучер & Conga, Дмитров',
     description:
-        'Постоянные предложения ресторана «Кучер & Conga» в Дмитрове: бизнес-ланч по будням, банкетные сеты в зале Conga, бесплатная доставка по городу. Сезонные акции появляются здесь.',
+        'Постоянные предложения ресторана «Кучер & Conga» в Дмитрове: бизнес-ланч по будням, банкетное меню в зале Conga, бесплатная доставка по городу. Сезонные акции появляются здесь.',
     alternates: { canonical: '/promotions' },
     openGraph: {
         title: 'Акции и особые вечера — Кучер & Conga',
-        description: 'Бизнес-ланч, банкетные сеты и бесплатная доставка по Дмитрову.',
+        description: 'Бизнес-ланч, банкетное меню и бесплатная доставка по Дмитрову.',
         url: '/promotions',
         type: 'website',
         images: ['/hero-image.webp'],
@@ -30,10 +33,10 @@ const OFFERS = [
     },
     {
         tag: 'Для компаний',
-        title: 'Банкетные сеты',
-        text: 'Готовые сеты «Кучер» и «Conga» на большой стол — от 5000 ₽. Проведём свадьбу, юбилей или корпоратив под подвешенным лесом.',
+        title: 'Банкетное меню',
+        text: 'Банкетное меню «Кучер» и «Conga» на большой стол — от 5000 ₽. Проведём свадьбу, юбилей или корпоратив под подвешенным лесом.',
         href: '/halls',
-        cta: 'Залы и сеты',
+        cta: 'Залы и банкетное меню',
     },
     {
         tag: 'По Дмитрову',
@@ -97,7 +100,7 @@ export default function PromotionsPage() {
                                 </p>
                             </div>
                             <Link
-                                href="/booking"
+                                href={promotionBookingHref()}
                                 className="inline-flex shrink-0 items-center rounded-lg border border-white/15 bg-terracotta px-7 py-3.5 font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark"
                             >
                                 Забронировать стол
@@ -116,7 +119,7 @@ export default function PromotionsPage() {
                         '@type': 'WebPage',
                         name: 'Акции и особые вечера — Кучер & Conga',
                         description:
-                            'Постоянные предложения ресторана «Кучер & Conga» в Дмитрове: бизнес-ланч, банкетные сеты, бесплатная доставка.',
+                            'Постоянные предложения ресторана «Кучер & Conga» в Дмитрове: бизнес-ланч, банкетное меню, бесплатная доставка.',
                         url: 'https://kucherandconga.ru/promotions',
                         isPartOf: { '@type': 'Restaurant', name: SITE.name, address: SITE.address },
                     }),
