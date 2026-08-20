@@ -189,7 +189,7 @@ function SelectPackageButton({ selected, complete, max, accent, onSelect }: {
     return (
         <div className="mb-2 mt-5 flex flex-col items-center gap-2">
             {!selected && !complete && (
-                <p className="text-sm font-semibold text-stone-600">Выберите {max} салата, чтобы выбрать этот пакет</p>
+                <p className="text-sm font-semibold text-stone-600">Выберите {max} салата, чтобы выбрать это банкетное меню</p>
             )}
             <button
                 type="button"
@@ -197,7 +197,7 @@ function SelectPackageButton({ selected, complete, max, accent, onSelect }: {
                 disabled={!selected && !complete}
                 className={`rounded-lg px-6 py-3 text-sm font-bold text-white transition-all disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 ${selected ? 'cursor-default bg-amber-400 text-stone-900' : base}`}
             >
-                {selected ? 'Выбрано ✓' : 'Выбрать этот пакет'}
+                {selected ? 'Выбрано ✓' : 'Выбрать это банкетное меню'}
             </button>
         </div>
     );
