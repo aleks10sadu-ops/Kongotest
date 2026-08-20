@@ -3,7 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { packagesForFilter } from '@/lib/booking/banquetPackages';
+import {
+    BanquetPackageId,
+    BanquetSaladId,
+    banquetSaladNames,
+    getBanquetPackage,
+    isBanquetSelectionComplete,
+    packagesForFilter,
+} from '@/lib/booking/banquetPackages';
 
 type BanquetMenuModalProps = {
     isOpen: boolean;
@@ -14,48 +21,7 @@ type BanquetMenuModalProps = {
     hallFilter?: 'conga' | 'all' | null;
 };
 
-type SaladOption = { name: string; desc?: string; w: string };
-type SaladCtl = { selected: string[]; onToggle: (name: string) => void };
-
-// Салаты «на выбор» по каждому банкетному пакету: сколько видов нужно выбрать (max)
-// и варианты. Без выбора нужного числа салатов пакет выбрать нельзя.
-const SALADS: Record<string, { max: number; weight: string; options: SaladOption[] }> = {
-    'conga-7500': {
-        max: 4,
-        weight: '240 гр.',
-        options: [
-            { name: 'Цезарь с креветками', desc: 'Микс-салат, креветки, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Цезарь с курицей', desc: 'Микс-салат, курица, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Кучер', desc: 'Свинина, говядина, шампиньоны, сладкий перец, черри, Романо, Пармезан', w: '60' },
-            { name: 'Оливье с говядиной', desc: 'Говядина, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-            { name: 'Оливье с красной рыбой', desc: 'Красная рыба, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-            { name: 'С уткой и фруктовым чатни', desc: 'Утиное филе, яблочно-грушевый чатни, клюквенный соус, Пармезан, микс-салат, черри, гранатовый лук', w: '60' },
-        ],
-    },
-    'conga-6000': {
-        max: 3,
-        weight: '180 гр.',
-        options: [
-            { name: 'Цезарь с креветками', desc: 'Микс-салат, креветки, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Цезарь с курицей', desc: 'Микс-салат, курица, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Кучер', desc: 'Свинина, говядина, шампиньоны, сладкий перец, черри, Романо, Пармезан', w: '60' },
-            { name: 'Оливье с красной рыбой', desc: 'Красная рыба, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-            { name: 'Оливье с говядиной', desc: 'Говядина, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-            { name: 'С уткой и фруктовым чатни', desc: 'Утиное филе, яблочно-грушевый чатни, клюквенный соус, Пармезан, микс-салат, черри, гранатовый лук', w: '60' },
-        ],
-    },
-    'kucher-5000': {
-        max: 3,
-        weight: '180 гр.',
-        options: [
-            { name: 'Цезарь с креветками', desc: 'Микс-салат, креветки, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Цезарь с курицей', desc: 'Микс-салат, курица, Пармезан, домашние чипсы, соус «Цезарь»', w: '60' },
-            { name: 'Кучер', desc: 'Свинина, говядина, шампиньоны, сладкий перец, черри, Романо, Пармезан', w: '60' },
-            { name: 'Оливье с красной рыбой', desc: 'Красная рыба, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-            { name: 'Оливье с говядиной', desc: 'Говядина, горошек, картофель, морковь, яйцо, огурцы', w: '60' },
-        ],
-    },
-};
+type SaladCtl = { selected: BanquetSaladId[]; onToggle: (id: BanquetSaladId) => void };
 
 export default function BanquetMenuModal({
     isOpen,
@@ -67,7 +33,7 @@ export default function BanquetMenuModal({
 }: BanquetMenuModalProps) {
     const [activeTab, setActiveTab] = useState<'conga' | 'kucher'>('conga');
     const [activeCongaMenu, setActiveCongaMenu] = useState<'7500' | '6000'>('7500');
-    const [saladSel, setSaladSel] = useState<Record<string, string[]>>({});
+    const [saladSel, setSaladSel] = useState<Record<string, BanquetSaladId[]>>({});
 
     useEffect(() => {
         if (isOpen) document.body.style.overflow = 'hidden';
@@ -77,24 +43,24 @@ export default function BanquetMenuModal({
 
     if (!isOpen) return null;
 
-    const toggleSalad = (pkgId: string, name: string) => {
+    const toggleSalad = (pkgId: BanquetPackageId, id: BanquetSaladId) => {
         setSaladSel((prev) => {
             const cur = prev[pkgId] || [];
-            const max = SALADS[pkgId].max;
-            const has = cur.includes(name);
-            const next = has ? cur.filter((x) => x !== name) : cur.length < max ? [...cur, name] : cur;
+            const max = getBanquetPackage(pkgId)?.requiredSalads ?? 0;
+            const has = cur.includes(id);
+            const next = has ? cur.filter((x) => x !== id) : cur.length < max ? [...cur, id] : cur;
             return { ...prev, [pkgId]: next };
         });
     };
-    const ctlFor = (pkgId: string): SaladCtl | undefined =>
+    const ctlFor = (pkgId: BanquetPackageId): SaladCtl | undefined =>
         selectable ? { selected: saladSel[pkgId] || [], onToggle: (n) => toggleSalad(pkgId, n) } : undefined;
-    const saladsComplete = (pkgId: string) => (saladSel[pkgId]?.length || 0) === SALADS[pkgId].max;
+    const saladsComplete = (pkgId: BanquetPackageId) => isBanquetSelectionComplete(pkgId, saladSel[pkgId] || []);
 
     const visiblePackages = selectable ? packagesForFilter(hallFilter ?? null) : null;
     const showConga = !selectable || (visiblePackages?.some((p) => p.venue === 'conga') ?? false);
     const showKucher = !selectable || (visiblePackages?.some((p) => p.venue === 'kucher') ?? false);
 
-    const currentCongaId = activeCongaMenu === '7500' ? 'conga-7500' : 'conga-6000';
+    const currentCongaId: BanquetPackageId = activeCongaMenu === '7500' ? 'conga-7500' : 'conga-6000';
     const currentCongaSelected = selectedPackageId === currentCongaId;
     const kucherSelected = selectedPackageId === 'kucher-5000';
     const showTabs = showConga || showKucher;
@@ -177,9 +143,9 @@ export default function BanquetMenuModal({
                                         <SelectPackageButton
                                             selected={currentCongaSelected}
                                             complete={saladsComplete(currentCongaId)}
-                                            max={SALADS[currentCongaId].max}
+                                            max={getBanquetPackage(currentCongaId)!.requiredSalads}
                                             accent="emerald"
-                                            onSelect={() => onSelectPackage?.(currentCongaId, saladSel[currentCongaId] || [])}
+                                            onSelect={() => onSelectPackage?.(currentCongaId, banquetSaladNames(currentCongaId, saladSel[currentCongaId] || []))}
                                         />
                                     )}
                                 </div>
@@ -195,9 +161,9 @@ export default function BanquetMenuModal({
                                         <SelectPackageButton
                                             selected={kucherSelected}
                                             complete={saladsComplete('kucher-5000')}
-                                            max={SALADS['kucher-5000'].max}
+                                            max={getBanquetPackage('kucher-5000')!.requiredSalads}
                                             accent="amber"
-                                            onSelect={() => onSelectPackage?.('kucher-5000', saladSel['kucher-5000'] || [])}
+                                            onSelect={() => onSelectPackage?.('kucher-5000', banquetSaladNames('kucher-5000', saladSel['kucher-5000'] || []))}
                                         />
                                     )}
                                 </div>
@@ -378,27 +344,27 @@ function KucherMenu({ saladCtl }: { saladCtl?: SaladCtl }) {
 }
 
 // ===== SALAD CARD (interactive when ctl provided) =====
-function SaladCard({ id, color, ctl }: { id: string; color: 'emerald' | 'amber'; ctl?: SaladCtl }) {
-    const cfg = SALADS[id];
+function SaladCard({ id, color, ctl }: { id: BanquetPackageId; color: 'emerald' | 'amber'; ctl?: SaladCtl }) {
+    const cfg = getBanquetPackage(id)!;
     const selectable = !!ctl;
     const selected = ctl?.selected ?? [];
-    const atMax = selected.length >= cfg.max;
+    const atMax = selected.length >= cfg.requiredSalads;
     return (
         <MenuCard
             title="САЛАТЫ"
-            subtitle={selectable ? `Выберите ${cfg.max} · выбрано ${selected.length}/${cfg.max}` : `На выбор ${cfg.max} вида`}
-            weight={cfg.weight}
+            subtitle={selectable ? `Выберите ${cfg.requiredSalads} · выбрано ${selected.length}/${cfg.requiredSalads}` : `На выбор ${cfg.requiredSalads} вида`}
+            weight={`${cfg.requiredSalads * 60} гр.`}
             color={color}
         >
-            {cfg.options.map((o) => {
-                if (!selectable) return <Item key={o.name} name={o.name} desc={o.desc} w={o.w} />;
-                const isOn = selected.includes(o.name);
+            {cfg.salads.map((salad) => {
+                if (!selectable) return <Item key={salad.id} name={salad.name} desc={salad.description} w={`${salad.grams}`} />;
+                const isOn = selected.includes(salad.id);
                 const disabled = !isOn && atMax;
                 return (
                     <button
-                        key={o.name}
+                        key={salad.id}
                         type="button"
-                        onClick={() => ctl!.onToggle(o.name)}
+                        onClick={() => ctl!.onToggle(salad.id)}
                         disabled={disabled}
                         className={`flex w-full items-start gap-2 border-b border-stone-100 py-1.5 text-left transition last:border-0 ${disabled ? 'opacity-40' : 'hover:bg-stone-50'}`}
                     >
@@ -406,10 +372,10 @@ function SaladCard({ id, color, ctl }: { id: string; color: 'emerald' | 'amber';
                             {isOn && <Check className="h-3 w-3 text-white" />}
                         </span>
                         <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-stone-800">{o.name}</span>
-                            {o.desc && <span className="block text-xs leading-tight text-stone-500">{o.desc}</span>}
+                            <span className="block text-sm font-medium text-stone-800">{salad.name}</span>
+                            {salad.description && <span className="block text-xs leading-tight text-stone-500">{salad.description}</span>}
                         </span>
-                        <span className="whitespace-nowrap text-xs font-semibold text-stone-600">{o.w} гр.</span>
+                        <span className="whitespace-nowrap text-xs font-semibold text-stone-600">{salad.grams} гр.</span>
                     </button>
                 );
             })}

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { isBanquetPackageAllowed } from './banquetPackages';
+import {
+  banquetSaladNames,
+  getBanquetPackage,
+  isBanquetPackageAllowed,
+  isBanquetSelectionComplete,
+  normalizeBanquetSelection,
+} from './banquetPackages';
 
 describe('isBanquetPackageAllowed', () => {
   it('conga filter allows conga-7500', () => {
@@ -33,4 +39,37 @@ describe('isBanquetPackageAllowed', () => {
   it('unknown packageId returns false', () => {
     expect(isBanquetPackageAllowed('all', 'nonexistent-pkg')).toBe(false);
   });
+});
+
+it('normalizes salad ids, removes duplicates, and limits the required count', () => {
+  expect(normalizeBanquetSelection('conga-6000', [
+    'caesar-shrimp',
+    'caesar-shrimp',
+    'kucher',
+    'olivier-beef',
+    'duck-fruit-chutney',
+  ])).toEqual({
+    packageId: 'conga-6000',
+    saladIds: ['caesar-shrimp', 'kucher', 'olivier-beef'],
+  });
+});
+
+it('rejects unknown salads and salads unavailable in the selected menu', () => {
+  expect(normalizeBanquetSelection('kucher-5000', [
+    'duck-fruit-chutney',
+    'unknown',
+    'olivier-beef',
+  ])).toEqual({ packageId: 'kucher-5000', saladIds: ['olivier-beef'] });
+});
+
+it('requires the exact salad count and resolves ids to public names', () => {
+  expect(isBanquetSelectionComplete('conga-7500', [
+    'caesar-shrimp', 'kucher', 'olivier-beef', 'duck-fruit-chutney',
+  ])).toBe(true);
+  expect(isBanquetSelectionComplete('conga-7500', ['caesar-shrimp'])).toBe(false);
+  expect(banquetSaladNames('conga-6000', ['caesar-shrimp', 'kucher'])).toEqual([
+    'Цезарь с креветками',
+    'Кучер',
+  ]);
+  expect(getBanquetPackage('conga-6000')?.pricePerPerson).toBe(6000);
 });
