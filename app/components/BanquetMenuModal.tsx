@@ -49,6 +49,7 @@ export default function BanquetMenuModal({
         if (!isOpen) return;
 
         const normalized = normalizeBanquetSelection(selectedPackageId, selectedSaladIds ?? []);
+        const firstPermittedTab = packagesForFilter(hallFilter ?? null)[0]?.venue ?? 'conga';
         setSaladSel(normalized.packageId ? { [normalized.packageId]: normalized.saladIds } : {});
 
         if (normalized.packageId === 'kucher-5000') {
@@ -56,8 +57,10 @@ export default function BanquetMenuModal({
         } else if (normalized.packageId) {
             setActiveTab('conga');
             setActiveCongaMenu(normalized.packageId === 'conga-7500' ? '7500' : '6000');
+        } else {
+            setActiveTab(firstPermittedTab);
         }
-    }, [isOpen, selectedPackageId, selectedSaladIds]);
+    }, [hallFilter, isOpen, selectedPackageId, selectedSaladIds]);
 
     if (!isOpen) return null;
 
