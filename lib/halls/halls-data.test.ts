@@ -69,4 +69,15 @@ describe('mergeHalls', () => {
             image: '/halls/morskoy.webp',
         }));
     });
+
+    it('keeps the generic banquet hall raw CRM id intact for booking normalization', () => {
+        const [hall] = mergeHalls([
+            { id: 'c3d4e5f6-a7b8-9012-cdef-123456789012', name: 'Банкетные залы', capacity: 30 },
+        ], []);
+
+        expect(hall).toEqual(expect.objectContaining({
+            id: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
+            name: 'Банкетные залы',
+        }));
+    });
 });
