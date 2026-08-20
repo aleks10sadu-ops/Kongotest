@@ -3,7 +3,8 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Vollkorn, Golos_Text } from 'next/font/google';
 import React from 'react';
-import { SITE_URL } from './components/forest/site';
+import { SITE, SITE_URL } from './components/forest/site';
+import { buildRestaurantGraph, serializeJsonLd } from '@/lib/seo/structuredData';
 
 // Шрифты дизайн-системы «Перевёрнутый лес» — грузятся один раз в корне и доступны
 // всем страницам как CSS-переменные (--font-display / --font-body).
@@ -23,11 +24,35 @@ const golos = Golos_Text({
 
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_URL),
+    applicationName: SITE.name,
     title: {
         default: 'Кучер & Conga — ресторан в Дмитрове',
         template: '%s',
     },
     description: 'Авторская кухня, зал Conga с подвешенным лесом, банкеты и доставка в Дмитрове.',
+    alternates: {
+        languages: { 'ru-RU': '/' },
+    },
+    openGraph: {
+        type: 'website',
+        locale: 'ru_RU',
+        url: '/',
+        siteName: SITE.name,
+        title: 'Кучер & Conga — ресторан в Дмитрове',
+        description: 'Авторская кухня, зал Conga с подвешенным лесом, банкеты и доставка в Дмитрове.',
+        images: [{ url: '/hero-image.webp', alt: 'Зал ресторана Кучер & Conga в Дмитрове' }],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'Кучер & Conga — ресторан в Дмитрове',
+        description: 'Авторская кухня, банкеты и доставка в Дмитрове.',
+        images: ['/hero-image.webp'],
+    },
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+    },
     icons: {
         icon: '/icon.svg',
     },
@@ -180,6 +205,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 />
             </head>
             <body className="antialiased bg-slate-50">
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildRestaurantGraph()) }}
+                />
                 {children}
                 <SpeedInsights />
             </body>

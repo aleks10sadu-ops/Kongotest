@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 import { loadContentPostServer } from '@/lib/content/loadContentPosts.server';
 import ForestPostView, { ForestPostNotFound } from '../../components/forest/ForestPostView';
+import { buildBreadcrumbJsonLd, buildHallJsonLd, serializeJsonLd } from '@/lib/seo/structuredData';
 import { buildBookingHref } from '@/lib/booking/bookingContext';
 import { bookingHallKeyForName } from '@/lib/booking/hallCatalog';
 import {
@@ -81,18 +82,36 @@ export default async function HallPostPage({ params }: { params: Promise<{ slug:
     }
 
     return (
-        <ForestPostView
-            post={post}
-            backHref="/halls"
-            backLabel="Ко всем залам"
-            kicker={{ label: 'Зал', icon: <MapPin className="h-4 w-4" /> }}
-        >
-            <Link
-                href={hallBookingHref(post.title, slug)}
-                className="inline-flex rounded-lg bg-terracotta px-6 py-3 font-semibold text-[#FBF3EA]"
+        <>
+            <ForestPostView
+                post={post}
+                backHref="/halls"
+                backLabel="Ко всем залам"
+                kicker={{ label: 'Зал', icon: <MapPin className="h-4 w-4" /> }}
             >
-                Забронировать этот зал
-            </Link>
-        </ForestPostView>
+                <Link
+                    href={hallBookingHref(post.title, slug)}
+                    className="inline-flex rounded-lg bg-terracotta px-6 py-3 font-semibold text-[#FBF3EA]"
+                >
+                    Забронировать этот зал
+                </Link>
+            </ForestPostView>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildHallJsonLd(post, slug)) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: serializeJsonLd(
+                        buildBreadcrumbJsonLd([
+                            { name: 'Главная', path: '/' },
+                            { name: 'Залы и банкеты', path: '/halls' },
+                            { name: post.title, path: `/halls/${slug}` },
+                        ]),
+                    ),
+                }}
+            />
+        </>
     );
 }

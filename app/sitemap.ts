@@ -11,19 +11,24 @@ import {
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const now = new Date();
     const page = (
         path: string,
         priority: number,
         changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'],
-        lastModified: Date = now,
-    ) => ({ url: `${SITE_URL}${path}`, lastModified, changeFrequency, priority });
+        lastModified?: Date,
+    ) => ({
+        url: `${SITE_URL}${path}`,
+        ...(lastModified ? { lastModified } : {}),
+        changeFrequency,
+        priority,
+    });
 
     const staticPages = [
         page('/', 1.0, 'weekly'),
         page('/menu', 0.9, 'daily'),
         page('/booking', 0.9, 'monthly'),
         page('/halls', 0.8, 'monthly'),
+        page('/faq', 0.7, 'monthly'),
         page('/events', 0.7, 'weekly'),
         page('/promotions', 0.7, 'weekly'),
         page('/vacancies', 0.6, 'weekly'),
@@ -39,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         fetchPublishedPosts('halls'),
     ]);
     const dated = (path: string, p: ContentDateKey, priority: number, cf: MetadataRoute.Sitemap[number]['changeFrequency']) =>
-        page(path, priority, cf, p ? new Date(p) : now);
+        page(path, priority, cf, p ? new Date(p) : undefined);
 
     const dynamicPages = [
         ...vacancies.map((v) => dated(`/vacancies/${v.slug}`, v.published_at || v.created_at, 0.5, 'weekly')),

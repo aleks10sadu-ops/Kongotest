@@ -27,6 +27,7 @@ const LINKS = {
     promotions: '/promotions',
     events: '/events',
     halls: '/halls',
+    faq: '/faq',
     vacancies: '/vacancies',
 };
 
@@ -84,6 +85,7 @@ const NAV = [
     { href: LINKS.promotions, label: 'Акции' },
     { href: LINKS.events, label: 'События' },
     { href: LINKS.halls, label: 'Залы и банкеты' },
+    { href: LINKS.faq, label: 'Вопросы и ответы' },
     { href: LINKS.vacancies, label: 'Вакансии' },
     { href: '#atmosphere', label: 'Атмосфера' },
     { href: '#reviews', label: 'Отзывы гостей' },
@@ -888,6 +890,14 @@ function SectionHead({ kicker, title }: { kicker: string; title: string }) {
     );
 }
 
+export function SectionsMenuLinks({ onNavigate }: { onNavigate: () => void }) {
+    return NAV.map((item) => item.href.startsWith('#') ? (
+        <a key={item.href} href={item.href} onClick={onNavigate} className="rf-drawer-link">{item.label}</a>
+    ) : (
+        <Link key={item.href} href={item.href} onClick={onNavigate} className="rf-drawer-link">{item.label}</Link>
+    ));
+}
+
 function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     useEffect(() => {
         if (open) {
@@ -915,11 +925,7 @@ function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                             <button type="button" onClick={onClose} aria-label="Закрыть меню" className="rf-menu-btn" style={{ padding: 9 }}><X style={{ width: 18, height: 18 }} aria-hidden /></button>
                         </div>
                         <nav style={{ display: 'flex', flexDirection: 'column' }}>
-                            {NAV.map((item) => item.href.startsWith('#') ? (
-                                <a key={item.href} href={item.href} onClick={onClose} className="rf-drawer-link">{item.label}</a>
-                            ) : (
-                                <Link key={item.href} href={item.href} onClick={onClose} className="rf-drawer-link">{item.label}</Link>
-                            ))}
+                            <SectionsMenuLinks onNavigate={onClose} />
                         </nav>
                         <div style={{ marginTop: 'auto', paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 6 }}>
                             <a href="tel:+79163177887" style={{ fontSize: 16, color: '#EDF2EA' }}>+7 (916) 317-78-87</a>

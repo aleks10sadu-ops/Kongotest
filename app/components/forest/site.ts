@@ -30,6 +30,7 @@ export const NAV = [
     { href: '/promotions', label: 'Акции' },
     { href: '/events', label: 'События' },
     { href: '/halls', label: 'Залы и банкеты' },
+    { href: '/faq', label: 'Вопросы и ответы' },
     { href: '/vacancies', label: 'Вакансии' },
     { href: '/#atmosphere', label: 'Атмосфера' },
     { href: '/#reviews', label: 'Отзывы гостей' },

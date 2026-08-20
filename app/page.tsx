@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import ForestScene from './redesign/ForestBloom';
-import { SITE } from './components/forest/site';
 
 export const metadata: Metadata = {
     title: 'Кучер & Conga — ресторан в Дмитрове. Здесь лес растёт с потолка',
@@ -17,26 +16,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-    return (
-        <>
-            <ForestScene />
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{
-                    __html: JSON.stringify({
-                        '@context': 'https://schema.org',
-                        '@type': 'Restaurant',
-                        name: SITE.name,
-                        description: 'Авторская кухня, зал Conga с подвешенным лесом, банкеты и доставка в Дмитрове.',
-                        servesCuisine: ['Авторская', 'Европейская', 'Русская', 'Мангал'],
-                        address: { '@type': 'PostalAddress', streetAddress: 'Промышленная улица, 20Б', addressLocality: 'Дмитров', addressCountry: 'RU' },
-                        telephone: SITE.phones[0].label,
-                        acceptsReservations: 'True',
-                        url: 'https://kucherandconga.ru/',
-                        priceRange: '₽₽',
-                    }),
-                }}
-            />
-        </>
-    );
+    return <ForestScene />;
 }

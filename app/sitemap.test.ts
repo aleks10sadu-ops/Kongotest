@@ -10,14 +10,24 @@ vi.mock('@/lib/content/serverContentPosts', () => ({
 
 import sitemap from './sitemap';
 
-describe('exact hall sitemap entries', () => {
+describe('sitemap', () => {
     beforeEach(() => {
         fetchPublishedPostsMock.mockReset();
         fetchPublishedPostsMock.mockResolvedValue([]);
     });
 
+    it('does not claim that static pages changed whenever the sitemap is generated', async () => {
+        const entries = await sitemap();
+        const home = entries.find((entry) => entry.url.endsWith('/'));
+        const menu = entries.find((entry) => entry.url.endsWith('/menu'));
+
+        expect(home).not.toHaveProperty('lastModified');
+        expect(menu).not.toHaveProperty('lastModified');
+    });
+
     it('always includes canonical exact halls when content storage is unavailable', async () => {
         const paths = (await sitemap()).map((entry) => new URL(entry.url).pathname);
+
         expect(paths).toEqual(expect.arrayContaining([
             '/halls/izumrudnyj-zal',
             '/halls/rubinovyj-zal',

@@ -9,6 +9,20 @@ export default function robots(): MetadataRoute.Robots {
                 allow: '/',
                 disallow: ['/admin', '/account', '/api/'],
             },
+            {
+                userAgent: 'OAI-SearchBot',
+                allow: '/',
+                disallow: ['/admin', '/account', '/api/'],
+            },
+            {
+                userAgent: 'PerplexityBot',
+                allow: '/',
+                disallow: ['/admin', '/account', '/api/'],
+            },
+            {
+                userAgent: 'GPTBot',
+                disallow: '/',
+            },
         ],
         sitemap: `${SITE_URL}/sitemap.xml`,
         host: SITE_URL,
