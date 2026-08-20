@@ -17,7 +17,7 @@ import {
     getBanquetPackage,
     isBanquetSelectionComplete,
 } from '@/lib/booking/banquetPackages';
-import type { ParsedBookingContext } from '@/lib/booking/bookingContext';
+import { bookingSourceLabel, type ParsedBookingContext } from '@/lib/booking/bookingContext';
 import { banquetFilterForHall, bookingHallByKey, type BookingHall } from '@/lib/booking/hallCatalog';
 import { changeBookingHall, createInitialBookingSelection } from '@/lib/booking/bookingSelection';
 import HallSelector from '../components/HallSelector';
@@ -164,20 +164,25 @@ export default function BookingForm({
         setStatus('sending');
         setErrorMsg('');
 
-        const banquetBaseName =
+        const banquetMenuName =
             mode === 'self' && effectiveType === 'banquet'
                 ? selectedBanquetMenu?.name ?? null
                 : null;
-        const banquetPackageName = banquetBaseName
-            ? saladIds.length
-                ? `${banquetBaseName} — салаты: ${banquetSaladNames(banquetPackageId, saladIds).join(', ')}`
-                : banquetBaseName
-            : null;
+        const selectedBanquetSaladNames = banquetMenuName
+            ? banquetSaladNames(banquetPackageId, saladIds)
+            : [];
         const preorderItems =
             mode === 'self' && effectiveType === 'preorder'
                 ? cart.items.map((c) => ({ name: c.name, qty: c.qty, price: c.price, productId: (c as any).productId || String(c.id) }))
                 : [];
         const preorderSum = mode === 'self' && effectiveType === 'preorder' ? cartFoodSum : 0;
+        const calculatedAmount = effectiveType === 'preorder'
+            ? preorderSum
+            : effectiveType === 'banquet' && selectedBanquetMenu
+                ? selectedBanquetMenu.pricePerPerson * adults
+                : null;
+        const minimumOrder = mode === 'self' ? selectedHall?.minimumOrder ?? null : null;
+        const source = bookingSourceLabel(initialContext.source);
 
         // Стоп-лист: проверяем предзаказ ДО создания брони в CRM и отправки в TG
         // (сервер /api/telegram проверит ещё раз — это бэкстоп для устаревших клиентов).
@@ -203,7 +208,11 @@ export default function BookingForm({
             hallName: mode === 'self' ? hallName : null,
             cartItems: preorderItems,
             cartFoodSum: preorderSum,
-            banquetPackageName,
+            banquetMenuName,
+            banquetSaladNames: selectedBanquetSaladNames,
+            calculatedAmount,
+            minimumOrder,
+            source,
             comment,
         });
 
@@ -248,7 +257,11 @@ export default function BookingForm({
                     hallName: mode === 'self' ? hallName : null,
                     cartItems: preorderItems,
                     cartFoodSum: preorderSum,
-                    banquetPackageName,
+                    banquetMenuName,
+                    banquetSaladNames: selectedBanquetSaladNames,
+                    calculatedAmount,
+                    minimumOrder,
+                    source,
                     mode,
                     comment,
                 }),

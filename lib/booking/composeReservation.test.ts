@@ -24,18 +24,27 @@ describe('composeReservationComment', () => {
     expect(s).toMatch(/У окна/);
   });
 
-  it('includes banquet package when banquet', () => {
+  it('renders structured banquet context without package wording', () => {
     const s = composeReservationComment({
-      adults: 20,
-      children: 0,
+      adults: 12,
+      children: 4,
       bookingType: 'banquet',
-      hallName: 'Морской (Кучер)',
+      hallName: 'Изумрудный зал',
       cartItems: [],
       cartFoodSum: 0,
-      banquetPackageName: 'Кучер — банкет 5000 ₽/чел',
+      banquetMenuName: 'Conga — банкетное меню 6000 ₽/чел',
+      banquetSaladNames: ['Цезарь с креветками', 'Кучер', 'Оливье с говядиной'],
+      calculatedAmount: 72000,
+      minimumOrder: 70000,
+      source: 'страница зала',
     });
-    expect(s).toMatch(/банкет/i);
-    expect(s).toMatch(/5000/);
-    expect(s).not.toMatch(/Цезарь/);
+    expect(s).toContain('Тип: Банкетное меню');
+    expect(s).toContain('Зал: Изумрудный зал');
+    expect(s).toContain('Банкетное меню: Conga — банкетное меню 6000 ₽/чел');
+    expect(s).toContain('Салаты: Цезарь с креветками, Кучер, Оливье с говядиной');
+    expect(s).toContain('Расчётная сумма: 72 000 ₽');
+    expect(s).toContain('Минимальная сумма зала: 70 000 ₽');
+    expect(s).toContain('Источник: страница зала');
+    expect(s).not.toMatch(/банкетный пакет/i);
   });
 });

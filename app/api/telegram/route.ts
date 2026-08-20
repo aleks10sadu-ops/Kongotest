@@ -59,7 +59,11 @@ interface BookingPayload extends BasePayload {
   hallName: string | null;
   cartItems: OrderItem[];
   cartFoodSum: number;
-  banquetPackageName?: string | null;
+  banquetMenuName?: string | null;
+  banquetSaladNames?: string[];
+  calculatedAmount?: number | null;
+  minimumOrder?: number | null;
+  source?: string | null;
   mode?: 'admin' | 'self';
 }
 
@@ -86,12 +90,14 @@ function buildMessage(payload: TelegramPayload): string {
     const {
       firstName, lastName, phone, date, time,
       adults, children, bookingType, hallName,
-      cartItems, cartFoodSum, banquetPackageName, comment, mode,
+      cartItems, cartFoodSum, banquetMenuName, banquetSaladNames,
+      calculatedAmount, minimumOrder, source, comment, mode,
     } = payload;
     return formatBookingTelegram({
       firstName, lastName, phone, date, time,
       adults, children, bookingType, hallName,
-      cartItems, cartFoodSum, banquetPackageName, comment,
+      cartItems, cartFoodSum, banquetMenuName, banquetSaladNames,
+      calculatedAmount, minimumOrder, source, comment,
       mode,
     });
   }

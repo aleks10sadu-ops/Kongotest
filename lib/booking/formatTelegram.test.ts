@@ -28,19 +28,50 @@ describe('formatBookingTelegram', () => {
       hallName: 'Conga & Кучер',
       cartItems: [],
       cartFoodSum: 0,
-      banquetPackageName: 'Пакет < Люкс >',
+      banquetMenuName: 'Меню < Люкс >',
+      banquetSaladNames: ['Кучер & Ко', 'Салат <Особый>'],
+      source: 'страница <зала> & меню',
       comment: 'стол < 5 & окно',
     });
     // Escaped sequences must appear
     expect(msg).toContain('&lt;script&gt;');
     expect(msg).toContain('Иванов&amp;сын');
     expect(msg).toContain('Conga &amp; Кучер');
-    expect(msg).toContain('Пакет &lt; Люкс &gt;');
+    expect(msg).toContain('Меню &lt; Люкс &gt;');
+    expect(msg).toContain('Кучер &amp; Ко, Салат &lt;Особый&gt;');
+    expect(msg).toContain('страница &lt;зала&gt; &amp; меню');
     expect(msg).toContain('стол &lt; 5 &amp; окно');
     // Raw user-supplied < and & must NOT appear in user-value positions
     // (static labels like "🍽 Новая заявка" are fine — just check the dynamic parts)
     expect(msg).not.toContain('<script>');
     expect(msg).not.toContain('стол < 5');
+  });
+
+  it('renders structured banquet context without package wording', () => {
+    const msg = formatBookingTelegram({
+      firstName: 'Анна', lastName: 'Иванова', phone: '+7 999 111-22-33',
+      date: '2026-08-01', time: '19:00',
+      adults: 12,
+      children: 4,
+      bookingType: 'banquet',
+      hallName: 'Изумрудный зал',
+      cartItems: [],
+      cartFoodSum: 0,
+      banquetMenuName: 'Conga — банкетное меню 6000 ₽/чел',
+      banquetSaladNames: ['Цезарь с креветками', 'Кучер', 'Оливье с говядиной'],
+      calculatedAmount: 72000,
+      minimumOrder: 70000,
+      source: 'страница зала',
+    });
+
+    expect(msg).toContain('Тип: Банкетное меню');
+    expect(msg).toContain('Зал: Изумрудный зал');
+    expect(msg).toContain('Банкетное меню: Conga — банкетное меню 6000 ₽/чел');
+    expect(msg).toContain('Салаты: Цезарь с креветками, Кучер, Оливье с говядиной');
+    expect(msg).toContain('Расчётная сумма: 72 000 ₽');
+    expect(msg).toContain('Минимальная сумма зала: 70 000 ₽');
+    expect(msg).toContain('Источник: страница зала');
+    expect(msg).not.toMatch(/банкетный пакет/i);
   });
 });
 

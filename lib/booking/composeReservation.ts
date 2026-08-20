@@ -7,7 +7,11 @@ export interface ComposeInput {
   hallName: string | null;
   cartItems: { name: string; qty: number; price: number }[];
   cartFoodSum: number;
-  banquetPackageName?: string | null;
+  banquetMenuName?: string | null;
+  banquetSaladNames?: readonly string[];
+  calculatedAmount?: number | null;
+  minimumOrder?: number | null;
+  source?: string | null;
   comment?: string;
 }
 
@@ -16,6 +20,12 @@ const TYPE_LABEL: Record<BookingType, string> = {
   preorder: 'Предзаказ',
   banquet: 'Банкетное меню',
 };
+
+const amountFormatter = new Intl.NumberFormat('ru-RU');
+
+function formatAmount(amount: number): string {
+  return amountFormatter.format(amount).replace(/\u00a0/g, ' ');
+}
 
 export function composeReservationComment(input: ComposeInput): string {
   const lines: string[] = [];
@@ -30,9 +40,15 @@ export function composeReservationComment(input: ComposeInput): string {
     }
     lines.push(`Сумма предзаказа: ${input.cartFoodSum} ₽`);
   }
-  if (input.bookingType === 'banquet' && input.banquetPackageName) {
-    lines.push(`Банкетный пакет: ${input.banquetPackageName}`);
+  if (input.bookingType === 'banquet' && input.banquetMenuName) {
+    lines.push(`Банкетное меню: ${input.banquetMenuName}`);
   }
+  if (input.bookingType === 'banquet' && input.banquetSaladNames?.length) {
+    lines.push(`Салаты: ${input.banquetSaladNames.join(', ')}`);
+  }
+  if (input.calculatedAmount != null) lines.push(`Расчётная сумма: ${formatAmount(input.calculatedAmount)} ₽`);
+  if (input.minimumOrder != null) lines.push(`Минимальная сумма зала: ${formatAmount(input.minimumOrder)} ₽`);
+  if (input.source) lines.push(`Источник: ${input.source}`);
   if (input.comment && input.comment.trim()) {
     lines.push(`Комментарий: ${input.comment.trim()}`);
   }
