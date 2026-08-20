@@ -51,12 +51,12 @@ describe('normalizeBookingHalls', () => {
       image: '/halls/banquet.webp',
     }]);
 
-    expect(halls.map(({ key, name, capacity, minimumOrder, crmHallId }) => ({
-      key, name, capacity, minimumOrder, crmHallId,
+    expect(halls.map(({ key, name, capacity, minimumOrder, crmHallId, image }) => ({
+      key, name, capacity, minimumOrder, crmHallId, image,
     }))).toEqual([
-      { key: 'emerald', name: 'Изумрудный зал', capacity: 30, minimumOrder: 70000, crmHallId: sharedCrmId },
-      { key: 'ruby', name: 'Рубиновый зал', capacity: 18, minimumOrder: 45000, crmHallId: sharedCrmId },
-      { key: 'chocolate', name: 'Шоколадный зал', capacity: 30, minimumOrder: 70000, crmHallId: sharedCrmId },
+      { key: 'emerald', name: 'Изумрудный зал', capacity: 30, minimumOrder: 70000, crmHallId: sharedCrmId, image: '/halls/izumrudnyj-zal.webp' },
+      { key: 'ruby', name: 'Рубиновый зал', capacity: 18, minimumOrder: 45000, crmHallId: sharedCrmId, image: '/halls/rubin.webp' },
+      { key: 'chocolate', name: 'Шоколадный зал', capacity: 30, minimumOrder: 70000, crmHallId: sharedCrmId, image: '/halls/shokoladnyj-zal.webp' },
     ]);
   });
 

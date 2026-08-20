@@ -16,9 +16,9 @@ export type BookingHall = Omit<Hall, 'id'> & {
 };
 
 const EXACT_BANQUET_HALLS = [
-  { key: 'emerald', name: 'Изумрудный зал', capacity: 30, minimumOrder: 70000, detailSlug: 'izumrudnyj-zal' },
-  { key: 'ruby', name: 'Рубиновый зал', capacity: 18, minimumOrder: 45000, detailSlug: 'rubinovyj-zal' },
-  { key: 'chocolate', name: 'Шоколадный зал', capacity: 30, minimumOrder: 70000, detailSlug: 'shokoladnyj-zal' },
+  { key: 'emerald', name: 'Изумрудный зал', capacity: 30, minimumOrder: 70000, detailSlug: 'izumrudnyj-zal', image: '/halls/izumrudnyj-zal.webp' },
+  { key: 'ruby', name: 'Рубиновый зал', capacity: 18, minimumOrder: 45000, detailSlug: 'rubinovyj-zal', image: '/halls/rubin.webp' },
+  { key: 'chocolate', name: 'Шоколадный зал', capacity: 30, minimumOrder: 70000, detailSlug: 'shokoladnyj-zal', image: '/halls/shokoladnyj-zal.webp' },
 ] as const;
 
 const ALL_MENUS = ['conga-7500', 'conga-6000', 'kucher-5000'] as const satisfies readonly BanquetPackageId[];

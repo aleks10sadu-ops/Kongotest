@@ -35,7 +35,7 @@ describe('public hall posts', () => {
     ]);
     expect(posts.find((item) => item.slug === 'rubinovyj-zal')).toEqual(expect.objectContaining({
       title: 'Рубиновый зал',
-      image_url: expect.any(String),
+      image_url: '/halls/rubin.webp',
     }));
   });
 
@@ -43,7 +43,7 @@ describe('public hall posts', () => {
     expect(materializePublicHallPost('izumrudnyj-zal', null)).toEqual(expect.objectContaining({
       title: 'Изумрудный зал',
       excerpt: expect.stringContaining('30'),
-      image_url: '/halls/banquet.webp',
+      image_url: '/halls/izumrudnyj-zal.webp',
     }));
   });
 

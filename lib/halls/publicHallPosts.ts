@@ -12,14 +12,13 @@ export type PublicHallPost = {
 };
 
 export const EXACT_PUBLIC_HALLS = [
-  { key: 'emerald', slug: 'izumrudnyj-zal', title: 'Изумрудный зал', capacity: 30, sourceSlugs: ['banketnye-zaly'] },
-  { key: 'ruby', slug: 'rubinovyj-zal', title: 'Рубиновый зал', capacity: 18, sourceSlugs: ['banketnye-zaly-rubin', 'banketnye-zaly'] },
-  { key: 'chocolate', slug: 'shokoladnyj-zal', title: 'Шоколадный зал', capacity: 30, sourceSlugs: ['banketnye-zaly'] },
+  { key: 'emerald', slug: 'izumrudnyj-zal', title: 'Изумрудный зал', capacity: 30, image: '/halls/izumrudnyj-zal.webp', sourceSlugs: ['banketnye-zaly'] },
+  { key: 'ruby', slug: 'rubinovyj-zal', title: 'Рубиновый зал', capacity: 18, image: '/halls/rubin.webp', sourceSlugs: ['banketnye-zaly-rubin', 'banketnye-zaly'] },
+  { key: 'chocolate', slug: 'shokoladnyj-zal', title: 'Шоколадный зал', capacity: 30, image: '/halls/shokoladnyj-zal.webp', sourceSlugs: ['banketnye-zaly'] },
 ] as const;
 
 const LEGACY_HALL_SLUGS = new Set(['banketnye-zaly', 'banketnye-zaly-rubin']);
 const FALLBACK_CREATED_AT = '2026-08-20T00:00:00.000Z';
-const FALLBACK_IMAGE = '/halls/banquet.webp';
 
 export function isLegacyHallSlug(slug: string): boolean {
   return LEGACY_HALL_SLUGS.has(slug);
@@ -42,7 +41,7 @@ export function materializePublicHallPost(
     title: hall.title,
     excerpt: `${hall.title} для банкетов. Ориентировочная вместимость — ${hall.capacity} гостей; нестандартную рассадку подтвердит администратор.`,
     content: source?.content ?? null,
-    image_url: source?.image_url || FALLBACK_IMAGE,
+    image_url: hall.image,
     published_at: source?.published_at ?? null,
     created_at: source?.created_at ?? FALLBACK_CREATED_AT,
     category: 'halls',
