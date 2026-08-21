@@ -48,6 +48,22 @@ export default function DeliveryPage() {
                         <p className="mt-4 leading-relaxed text-cream/80">В центральной зоне доставка бесплатна при заказе от 1000 ₽ или от двух бизнес-ланчей. Для остальных адресов стоимость и минимальная сумма показываются при оформлении.</p>
                     </article>
                 </section>
+                <section className="mx-auto max-w-[1120px] px-5 pb-14 md:px-8 md:pb-20">
+                    <h2 className="font-display text-3xl font-bold">Популярные блюда с доставкой</h2>
+                    <p className="mt-3 max-w-[68ch] leading-relaxed text-cream/75">
+                        Посмотрите актуальные позиции и цены, затем откройте нужную категорию в меню доставки.
+                    </p>
+                    <div className="mt-7 grid gap-5 md:grid-cols-2">
+                        <Link href="/khinkali-dmitrov" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
+                            <h3 className="font-display text-2xl font-bold">Хинкали в Дмитрове</h3>
+                            <p className="mt-3 text-cream/70">Виды хинкали, актуальные цены и быстрый переход к заказу.</p>
+                        </Link>
+                        <Link href="/shashlyk-dmitrov" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
+                            <h3 className="font-display text-2xl font-bold">Шашлык в Дмитрове</h3>
+                            <p className="mt-3 text-cream/70">Блюда с мангала и сеты из актуального меню доставки.</p>
+                        </Link>
+                    </div>
+                </section>
             </main>
             <ForestFooter />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(deliveryJsonLd) }} />

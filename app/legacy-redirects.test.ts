@@ -19,6 +19,7 @@ describe('legacy search-result redirects', () => {
             { source: '/about', destination: '/', permanent: true },
             { source: '/contacts', destination: '/#find', permanent: true },
             { source: '/foto', destination: '/#atmosphere', permanent: true },
+            { source: '/akcii-restorana', destination: '/promotions', permanent: true },
             { source: '/dostavka', destination: '/delivery', permanent: true },
             { source: '/delivery/shashlyk', destination: '/menu?category=shashlyk#delivery', permanent: true },
             { source: '/delivery/khinkali', destination: '/menu?category=khinkali#delivery', permanent: true },
