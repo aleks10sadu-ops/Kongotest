@@ -21,6 +21,17 @@ function toNutrition(n?: IikoNutrition | null): Nutrition | null {
 // Потолок: если iiko переименует «Хлеб б/л» — перестанет матчиться.
 // Апгрейд-путь: явный список id/sku хлебных опций в конфиге.
 const BREAD_RE = /хлеб/i;
+const NO_GARNISH_MODIFIER_IDS = new Set([
+  '233bcd77-41ed-4360-a105-5dd4cfe7d42f',
+]);
+const NO_GARNISH_RE = /(?:^|[^а-яё])без\s+гарнира(?:$|[^а-яё])/i;
+
+function modifierName(item: { itemId?: string; name: string }): string {
+  const name = item.name.trim();
+  return item.itemId && NO_GARNISH_MODIFIER_IDS.has(item.itemId) && !NO_GARNISH_RE.test(name)
+    ? `${name} (БЕЗ ГАРНИРА)`
+    : item.name;
+}
 
 function mapModifierGroups(size: IikoItemSize | undefined): ModifierGroup[] {
   const groups = size?.itemModifierGroups || [];
@@ -29,7 +40,7 @@ function mapModifierGroups(size: IikoItemSize | undefined): ModifierGroup[] {
   for (const g of groups) {
     const options: ModifierOption[] = (g.items || []).map((mi) => ({
       id: mi.itemId || mi.sku || mi.name,
-      name: mi.name,
+      name: modifierName(mi),
       price: (mi.prices || []).map((p) => p.price ?? 0).find((p) => p > 0) ?? 0,
     }));
     if (options.length === 0) continue;

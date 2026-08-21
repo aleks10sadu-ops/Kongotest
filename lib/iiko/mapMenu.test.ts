@@ -166,6 +166,34 @@ describe2('mapExternalMenu — business split + modifiers', () => {
   it2('plain food items have no modifierGroups', () => {
     expect2(result.main.categories[0].items[0].modifierGroups).toBeUndefined();
   });
+
+  it2('restores the no-garnish marker for the stale iiko modifier id', () => {
+    const staleModifierMenu = mapExternalMenu({
+      itemCategories: [{
+        id: 'cat-bl',
+        name: 'БИЗНЕС ЛАНЧ',
+        items: [{
+          itemId: 'set1',
+          name: 'Сет №1',
+          itemSizes: [{
+            prices: [{ organizationId: 'o', price: 580 }],
+            itemModifierGroups: [{
+              name: 'Второе блюдо сегодня',
+              itemGroupId: 'g-main',
+              items: [{
+                itemId: '233bcd77-41ed-4360-a105-5dd4cfe7d42f',
+                name: 'Паста Пене с митболами (свин/говяд)',
+                prices: [{ organizationId: 'o', price: 0 }],
+              }],
+            }],
+          }],
+        }],
+      }],
+    } as any);
+
+    const option = staleModifierMenu.business!.categories[0].items[0].modifierGroups![0].options[0];
+    expect2(option.name).toBe('Паста Пене с митболами (свин/говяд) (БЕЗ ГАРНИРА)');
+  });
 });
 
 import { mapExternalMenu as _mapForBread } from './mapMenu';
