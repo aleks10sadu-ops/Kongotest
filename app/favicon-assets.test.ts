@@ -48,11 +48,11 @@ async function readRenderedPixels(asset: string, ico = false) {
 
 describe('favicon assets', () => {
     const assets = [
-        { label: 'cache-safe SVG', file: 'kucher-conga-favicon-v2.svg' },
+        { label: 'cache-safe SVG', file: 'kucher-conga-favicon-v3.svg' },
         { label: 'legacy SVG', file: 'icon.svg' },
-        { label: '48px PNG', file: 'favicon-48x48.png' },
-        { label: 'Apple touch PNG', file: 'apple-touch-icon.png' },
-        { label: 'ICO', file: 'favicon.ico', ico: true },
+        { label: '48px PNG', file: 'favicon-48x48-v3.png' },
+        { label: 'Apple touch PNG', file: 'apple-touch-icon-v3.png' },
+        { label: 'ICO', file: 'favicon-v3.ico', ico: true },
     ];
 
     it.each(assets)('$label renders a white circular badge with transparent corners', async ({ file, ico }) => {

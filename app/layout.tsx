@@ -89,12 +89,12 @@ export const metadata: Metadata = {
     },
     icons: {
         icon: [
-            { url: '/favicon.ico', type: 'image/x-icon', sizes: '256x256' },
-            { url: '/favicon-48x48.png', type: 'image/png', sizes: '48x48' },
-            { url: '/kucher-conga-favicon-v2.svg', type: 'image/svg+xml', sizes: 'any' },
+            { url: '/favicon-v3.ico', type: 'image/x-icon', sizes: '256x256' },
+            { url: '/favicon-48x48-v3.png', type: 'image/png', sizes: '48x48' },
+            { url: '/kucher-conga-favicon-v3.svg', type: 'image/svg+xml', sizes: 'any' },
         ],
-        shortcut: '/favicon.ico',
-        apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+        shortcut: '/favicon-v3.ico',
+        apple: [{ url: '/apple-touch-icon-v3.png', type: 'image/png', sizes: '180x180' }],
     },
 };
 
