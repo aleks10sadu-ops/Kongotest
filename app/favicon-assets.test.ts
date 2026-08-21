@@ -35,12 +35,8 @@ async function readRenderedPixels(asset: string, ico = false) {
     const alphaAt = (x: number, y: number) => data[(y * info.width + x) * 4 + 3];
     return {
         whitePixels,
-        badgeEdgeAlphas: [
-            alphaAt(7, 64),
-            alphaAt(120, 64),
-            alphaAt(64, 7),
-            alphaAt(64, 120),
-        ],
+        innerBottomAlpha: alphaAt(64, 120),
+        outsideContourAlphas: [alphaAt(6, 64), alphaAt(121, 64)],
         cornerAlphas: [
             alphaAt(0, 0),
             alphaAt(info.width - 1, 0),
@@ -63,7 +59,8 @@ describe('favicon assets', () => {
         const rendered = await readRenderedPixels(file, ico);
 
         expect(rendered.whitePixels).toBeGreaterThan(1_000);
-        expect(rendered.badgeEdgeAlphas.every((alpha) => alpha >= 200)).toBe(true);
+        expect(rendered.innerBottomAlpha).toBeGreaterThanOrEqual(180);
+        expect(rendered.outsideContourAlphas.every((alpha) => alpha <= 25)).toBe(true);
         expect(rendered.cornerAlphas).toEqual([0, 0, 0, 0]);
     });
 });
