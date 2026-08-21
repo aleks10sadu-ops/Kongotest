@@ -68,6 +68,18 @@ describe('root SEO metadata', () => {
         expect(metadata.openGraph).toEqual(expect.objectContaining({ locale: 'ru_RU', type: 'website' }));
         expect(metadata.twitter).toEqual(expect.objectContaining({ card: 'summary_large_image' }));
     });
+
+    it('publishes favicon formats for search engines and major browsers', () => {
+        expect(metadata.icons).toEqual({
+            icon: [
+                { url: '/favicon.ico', type: 'image/x-icon', sizes: '256x256' },
+                { url: '/favicon-48x48.png', type: 'image/png', sizes: '48x48' },
+                { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
+            ],
+            shortcut: '/favicon.ico',
+            apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+        });
+    });
 });
 
 describe('Yandex Metrika', () => {
