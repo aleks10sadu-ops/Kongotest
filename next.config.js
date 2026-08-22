@@ -42,6 +42,8 @@ const nextConfig = {
       { source: '/delivery/khinkali', destination: '/menu?category=khinkali#delivery', permanent: true },
       { source: '/menu/shashlyk', destination: '/menu?category=shashlyk#delivery', permanent: true },
       { source: '/menu/khinkali', destination: '/menu?category=khinkali#delivery', permanent: true },
+      { source: '/shashlyk-dmitrov', destination: '/menu?category=shashlyk#delivery', permanent: true },
+      { source: '/khinkali-dmitrov', destination: '/menu?category=khinkali#delivery', permanent: true },
       { source: '/osnovnoe-menyu', destination: '/menu#main', permanent: true },
       { source: '/detskoe-menyu', destination: '/menu#main', permanent: true },
       { source: '/barnoe-menyu', destination: '/menu#bar', permanent: true },

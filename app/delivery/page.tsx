@@ -54,11 +54,11 @@ export default function DeliveryPage() {
                         Посмотрите актуальные позиции и цены, затем откройте нужную категорию в меню доставки.
                     </p>
                     <div className="mt-7 grid gap-5 md:grid-cols-2">
-                        <Link href="/khinkali-dmitrov" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
+                        <Link href="/menu?category=khinkali#delivery" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
                             <h3 className="font-display text-2xl font-bold">Хинкали в Дмитрове</h3>
                             <p className="mt-3 text-cream/70">Виды хинкали, актуальные цены и быстрый переход к заказу.</p>
                         </Link>
-                        <Link href="/shashlyk-dmitrov" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
+                        <Link href="/menu?category=shashlyk#delivery" className="rounded-2xl border border-white/10 bg-white/[0.04] p-7 transition-colors hover:border-brass/60 hover:bg-white/[0.07]">
                             <h3 className="font-display text-2xl font-bold">Шашлык в Дмитрове</h3>
                             <p className="mt-3 text-cream/70">Блюда с мангала и сеты из актуального меню доставки.</p>
                         </Link>

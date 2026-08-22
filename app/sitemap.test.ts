@@ -41,11 +41,11 @@ describe('sitemap', () => {
         expect(paths).toEqual(expect.arrayContaining([
             '/delivery',
             '/business-lunch',
-            '/khinkali-dmitrov',
-            '/shashlyk-dmitrov',
         ]));
         expect(paths).not.toContain('/delivery/shashlyk');
         expect(paths).not.toContain('/delivery/khinkali');
+        expect(paths).not.toContain('/shashlyk-dmitrov');
+        expect(paths).not.toContain('/khinkali-dmitrov');
     });
 
     it('excludes both legacy hall detail paths without duplicating canonical halls', async () => {
