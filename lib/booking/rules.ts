@@ -46,6 +46,7 @@ const ADULTS_BANQUET_MIN = 6;
 const ADULTS_NO_ONSITE = 9;
 const ADULTS_BANQUET_ONLY = 12;
 const BANQUET_LEAD_DAYS = 2;
+const BOOKING_CLOSED_DATES = new Set(['2026-09-01']);
 const BOOKING_CLOSED_FROM = '2026-12-18';
 const BOOKING_CLOSED_TO = '2027-01-04';
 // Минимум предзаказа НА КАЖДОГО ВЗРОСЛОГО (₽). Итоговый минимум = значение × число взрослых.
@@ -61,8 +62,16 @@ function formatRubles(amount: number): string {
   return String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
+export function bookingDateClosureMessage(eventDate: string): string | null {
+  if (BOOKING_CLOSED_DATES.has(eventDate)) return '1 сентября бронирование недоступно.';
+  if (eventDate >= BOOKING_CLOSED_FROM && eventDate <= BOOKING_CLOSED_TO) {
+    return 'С 18 декабря по 4 января бронирование недоступно.';
+  }
+  return null;
+}
+
 export function isBookingDateClosed(eventDate: string): boolean {
-  return eventDate >= BOOKING_CLOSED_FROM && eventDate <= BOOKING_CLOSED_TO;
+  return bookingDateClosureMessage(eventDate) !== null;
 }
 
 export function bookingTimeWindowForDate(eventDate: string): { start: string; end: string } | null {

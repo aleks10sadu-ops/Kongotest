@@ -8,6 +8,7 @@ import { useCart } from '@/lib/hooks/useCart';
 import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
 import {
     evaluateBooking,
+    bookingDateClosureMessage,
     isBookingDateClosed,
     bookingTimeWindowForDate,
     isBookingTimeAllowed,
@@ -125,8 +126,9 @@ export default function BookingForm({
             setStatus('error');
             return;
         }
-        if (isBookingDateClosed(date)) {
-            setErrorMsg('С 18 декабря по 4 января бронирование недоступно.');
+        const bookingClosureMessage = bookingDateClosureMessage(date);
+        if (bookingClosureMessage) {
+            setErrorMsg(bookingClosureMessage);
             setStatus('error');
             return;
         }

@@ -4,6 +4,7 @@ import {
   classifyHall,
   preorderMinimum,
   banquetPackagesForHall,
+  bookingDateClosureMessage,
   isBookingDateClosed,
   bookingTimeWindowForDate,
   isBookingTimeAllowed,
@@ -67,11 +68,20 @@ describe('preorderMinimum / banquetPackagesForHall', () => {
 });
 
 describe('booking closure dates', () => {
+  it('blocks 1 September 2026 only', () => {
+    expect(isBookingDateClosed('2026-08-31')).toBe(false);
+    expect(isBookingDateClosed('2026-09-01')).toBe(true);
+    expect(isBookingDateClosed('2026-09-02')).toBe(false);
+    expect(bookingDateClosureMessage('2026-09-01')).toBe('1 сентября бронирование недоступно.');
+  });
+
   it('blocks 18 December through 4 January inclusively', () => {
     expect(isBookingDateClosed('2026-12-17')).toBe(false);
     expect(isBookingDateClosed('2026-12-18')).toBe(true);
     expect(isBookingDateClosed('2027-01-04')).toBe(true);
     expect(isBookingDateClosed('2027-01-05')).toBe(false);
+    expect(bookingDateClosureMessage('2026-12-18')).toBe('С 18 декабря по 4 января бронирование недоступно.');
+    expect(bookingDateClosureMessage('2026-12-17')).toBeNull();
   });
 });
 
