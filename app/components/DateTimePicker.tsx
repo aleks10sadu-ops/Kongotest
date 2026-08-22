@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -38,6 +38,38 @@ type Schedule = {
     end: string;
 };
 
+type CalendarDateState = {
+    selectedDate: string;
+    visibleMonth: string;
+};
+
+type CalendarDateAction =
+    | { type: 'sync'; date: string }
+    | { type: 'select'; date: string }
+    | { type: 'navigate'; months: number };
+
+const formatLocalDate = (date: Date, day = date.getDate()) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}-${month}-${day.toString().padStart(2, '0')}`;
+};
+
+export function calendarDateStateReducer(
+    state: CalendarDateState,
+    action: CalendarDateAction,
+): CalendarDateState {
+    if (action.type === 'navigate') {
+        const nextMonth = new Date(`${state.visibleMonth}T12:00:00`);
+        nextMonth.setMonth(nextMonth.getMonth() + action.months, 1);
+        return { ...state, visibleMonth: formatLocalDate(nextMonth, 1) };
+    }
+
+    return {
+        selectedDate: action.date,
+        visibleMonth: action.date ? `${action.date.slice(0, 7)}-01` : state.visibleMonth,
+    };
+}
+
 export default function DateTimePicker({
     value,
     onChange,
@@ -56,7 +88,11 @@ export default function DateTimePicker({
     ariaLabel,
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedDate, setSelectedDate] = useState('');
+    const now = new Date();
+    const [{ selectedDate, visibleMonth }, dispatchCalendarDate] = useReducer(calendarDateStateReducer, {
+        selectedDate: '',
+        visibleMonth: formatLocalDate(now, 1),
+    });
     const [selectedTime, setSelectedTime] = useState('');
     const [restrictions, setRestrictions] = useState<Restrictions>({ dates: [], times: {} });
     // Default to 10:00 - 00:00 if not set, but will be overwritten by DB
@@ -120,12 +156,12 @@ export default function DateTimePicker({
                 setSelectedTime(value);
             } else if (dateOnly) {
                 // Для поля даты только
-                setSelectedDate(value);
+                dispatchCalendarDate({ type: 'sync', date: value });
             } else {
                 // Для полного datetime
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    setSelectedDate(date.toISOString().split('T')[0]);
+                    dispatchCalendarDate({ type: 'sync', date: date.toISOString().split('T')[0] });
                     if (showTime) {
                         setSelectedTime(date.toTimeString().slice(0, 5));
                     }
@@ -136,14 +172,14 @@ export default function DateTimePicker({
             // Используем локальное время для согласованности с сервером
             const now = new Date();
             const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-            setSelectedDate(today);
+            dispatchCalendarDate({ type: 'sync', date: today });
         }
     }, [value, showTime, timeOnly, dateOnly, todayOnly]);
 
     // Синхронизируем внутреннее состояние с внешним значением
     useEffect(() => {
         if (!value) {
-            setSelectedDate('');
+            dispatchCalendarDate({ type: 'sync', date: '' });
             setSelectedTime('');
         }
     }, [value]);
@@ -184,8 +220,7 @@ export default function DateTimePicker({
 
     // Генерируем дни месяца
     const generateCalendarDays = () => {
-        const today = new Date();
-        const currentMonth = selectedDate ? new Date(selectedDate + 'T12:00:00') : today;
+        const currentMonth = new Date(visibleMonth + 'T12:00:00');
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
 
@@ -302,7 +337,7 @@ export default function DateTimePicker({
     };
 
     const calendarDays = generateCalendarDays();
-    const currentMonth = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+    const currentMonth = new Date(visibleMonth + 'T12:00:00');
 
     return (
         <div className={`relative ${className}`}>
@@ -348,14 +383,7 @@ export default function DateTimePicker({
                                 <div className="flex items-center justify-between p-4 border-b border-neutral-600">
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            const newDate = new Date(currentMonth);
-                                            newDate.setMonth(newDate.getMonth() - 1);
-                                            const year = newDate.getFullYear();
-                                            const month = (newDate.getMonth() + 1).toString().padStart(2, '0');
-                                            const date = newDate.getDate().toString().padStart(2, '0');
-                                            setSelectedDate(`${year}-${month}-${date}`);
-                                        }}
+                                        onClick={() => dispatchCalendarDate({ type: 'navigate', months: -1 })}
                                         className="p-1 hover:bg-neutral-700 rounded"
                                     >
                                         ‹
@@ -365,14 +393,7 @@ export default function DateTimePicker({
                                     </span>
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            const newDate = new Date(currentMonth);
-                                            newDate.setMonth(newDate.getMonth() + 1);
-                                            const year = newDate.getFullYear();
-                                            const month = (newDate.getMonth() + 1).toString().padStart(2, '0');
-                                            const date = newDate.getDate().toString().padStart(2, '0');
-                                            setSelectedDate(`${year}-${month}-${date}`);
-                                        }}
+                                        onClick={() => dispatchCalendarDate({ type: 'navigate', months: 1 })}
                                         className="p-1 hover:bg-neutral-700 rounded"
                                     >
                                         ›
@@ -414,7 +435,7 @@ export default function DateTimePicker({
                                                         const month = (day.getMonth() + 1).toString().padStart(2, '0');
                                                         const date = day.getDate().toString().padStart(2, '0');
                                                         const newDate = `${year}-${month}-${date}`;
-                                                        setSelectedDate(newDate);
+                                                        dispatchCalendarDate({ type: 'select', date: newDate });
                                                         if (dateOnly) {
                                                             updateValue(newDate);
                                                             setIsOpen(false);
