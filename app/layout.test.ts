@@ -72,12 +72,12 @@ describe('root SEO metadata', () => {
     it('publishes favicon formats for search engines and major browsers', () => {
         expect(metadata.icons).toEqual({
             icon: [
-                { url: '/favicon-v3.ico', type: 'image/x-icon', sizes: '256x256' },
-                { url: '/favicon-48x48-v3.png', type: 'image/png', sizes: '48x48' },
-                { url: '/kucher-conga-favicon-v3.svg', type: 'image/svg+xml', sizes: 'any' },
+                { url: '/favicon-v4.ico', type: 'image/x-icon', sizes: '256x256' },
+                { url: '/favicon-48x48-v4.png', type: 'image/png', sizes: '48x48' },
+                { url: '/kucher-conga-favicon-v4.svg', type: 'image/svg+xml', sizes: 'any' },
             ],
-            shortcut: '/favicon-v3.ico',
-            apple: [{ url: '/apple-touch-icon-v3.png', type: 'image/png', sizes: '180x180' }],
+            shortcut: '/favicon-v4.ico',
+            apple: [{ url: '/apple-touch-icon-v4.png', type: 'image/png', sizes: '180x180' }],
         });
     });
 });
