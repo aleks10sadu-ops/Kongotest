@@ -1,5 +1,6 @@
 import { getFullMenu } from '@/lib/menu/getFullMenu';
 import { loadContentPostsServer } from '@/lib/content/loadContentPosts.server';
+import { CURRENT_BUSINESS_LUNCH_POSTER } from '@/lib/menu/businessLunchPoster';
 import MenuClient from './MenuClient';
 
 // ISR: страница меню пререндерена вместе с блюдами и отдаётся с CDN мгновенно.
@@ -21,6 +22,6 @@ export default async function MenuPage() {
     const latest = weekPosts.find((p: any) => p.image_url);
     const weeklyLunch = latest
         ? { image: latest.image_url as string, title: latest.title as string }
-        : { image: '/business-lunch/week-2026-08-17.jpg', title: 'Бизнес-ланч 17.08–21.08' };
+        : CURRENT_BUSINESS_LUNCH_POSTER;
     return <MenuClient initialMenu={menu} weeklyLunch={weeklyLunch} />;
 }
