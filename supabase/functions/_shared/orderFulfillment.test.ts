@@ -25,6 +25,13 @@ describe('iikoFulfillmentPresentation', () => {
       .toMatchObject({ type: 'pickup' });
   });
 
+  it.each([
+    ['explicit marker', 'ЗАКАЗ С САЙТА\nСпособ получения: Самовывоз'],
+    ['legacy time marker', 'ЗАКАЗ С САЙТА\nВремя самовывоза: 2026-08-25T21:45:00'],
+  ])('identifies pickup from the controlled %s when iiko omits service type', (_label, comment) => {
+    expect(iikoFulfillmentPresentation({ comment })).toMatchObject({ type: 'pickup' });
+  });
+
   it('defaults unknown and old events to courier delivery', () => {
     expect(iikoFulfillmentPresentation({})).toMatchObject({
       type: 'delivery',
@@ -102,8 +109,9 @@ describe('poller discovery boundaries', () => {
 });
 
 describe('iiko card time formatting', () => {
-  it('formats completeBefore as the webhook Moscow-local time line', () => {
-    expect(formatIikoCompleteBefore('2026-07-13 19:30:00.000')).toBe('19:30 (13.07)');
+  it('formats space-separated and ISO completeBefore as DD.MM.YYYY and hh:mm', () => {
+    expect(formatIikoCompleteBefore('2026-07-13 19:30:00.000')).toBe('13.07.2026 в 19:30');
+    expect(formatIikoCompleteBefore('2026-08-25T21:45:00')).toBe('25.08.2026 в 21:45');
     expect(formatIikoCompleteBefore(null)).toBeNull();
   });
 });

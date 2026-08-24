@@ -113,6 +113,9 @@ describe('POST /api/orders fulfillment boundary', () => {
       comment: expect.stringContaining('Итого: 800 ₽'),
     }));
     expect(mocks.createSiteOrder.mock.calls[0][0].comment).not.toContain('99999');
+    expect(mocks.createSiteOrder.mock.calls[0][0].comment).toContain('Способ получения: Самовывоз');
+    expect(mocks.createSiteOrder.mock.calls[0][0].comment).toContain('Время самовывоза: 13.07.2026 в 15:30');
+    expect(mocks.createSiteOrder.mock.calls[0][0].comment).not.toContain('2026-07-13T15:30:00');
     expect(mocks.createSiteOrder.mock.calls[0][0]).not.toHaveProperty('address');
     expect(mocks.checkDeliveryZoneForCoords).not.toHaveBeenCalled();
     expect(mocks.findZoneByName).not.toHaveBeenCalled();

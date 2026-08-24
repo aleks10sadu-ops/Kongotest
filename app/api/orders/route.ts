@@ -166,13 +166,18 @@ function parseAddress(full: string) {
 }
 
 function buildComment(p: IncomingPayload, fulfillmentType: FulfillmentType): string {
-  const lines: string[] = ['ЗАКАЗ С САЙТА'];
+  const fulfillmentLabel = fulfillmentType === 'pickup' ? 'Самовывоз' : 'Доставка';
+  const lines: string[] = ['ЗАКАЗ С САЙТА', `Способ получения: ${fulfillmentLabel}`];
   // Дом не дублируем — он уже в самом адресе; тут только корпус/подъезд/этаж/кв/домофон.
   const details = fulfillmentType === 'delivery' ? composeAddressDetails({ ...p, house: null }) : '';
   if (details) lines.push(`Детали адреса: ${details}`);
   const timingSubject = fulfillmentType === 'pickup' ? 'самовывоза' : 'доставки';
   if (p.deliveryTime === 'custom' && p.deliveryTimeCustom) {
-    lines.push(`Время ${timingSubject}: ${p.deliveryTimeCustom}`);
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(p.deliveryTimeCustom);
+    const formattedTime = match
+      ? `${match[3]}.${match[2]}.${match[1]} в ${match[4]}:${match[5]}`
+      : p.deliveryTimeCustom;
+    lines.push(`Время ${timingSubject}: ${formattedTime}`);
   } else {
     lines.push(`Время ${timingSubject}: как можно быстрее`);
   }
