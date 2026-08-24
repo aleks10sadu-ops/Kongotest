@@ -78,11 +78,14 @@ async function sendTelegramFallback(
     fetcher: typeof fetch,
 ): Promise<CheckoutSubmissionResult> {
     try {
-        await fetcher('/api/telegram', {
+        const response = await fetcher('/api/telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
+        if (!response.ok) {
+            return { ok: false, message: 'Не удалось отправить заказ. Позвоните нам, пожалуйста.' };
+        }
         return { ok: true };
     } catch (error) {
         console.error('TG fallback failed:', error);
@@ -376,11 +379,16 @@ export default function DeliveryCheckout({
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-forest-ink/40 p-1">
+                <div
+                    role="group"
+                    aria-label="Способ получения заказа"
+                    className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-forest-ink/40 p-1"
+                >
                     {([['delivery', 'Доставка'], ['pickup', 'Самовывоз']] as const).map(([value, label]) => (
                         <button
                             key={value}
                             type="button"
+                            aria-pressed={fulfillmentType === value}
                             onClick={() => chooseFulfillmentType(value)}
                             className={`rounded-lg px-3 py-2.5 text-sm font-medium ${fulfillmentType === value ? 'bg-terracotta text-[#FBF3EA]' : 'text-cream/70'}`}
                         >

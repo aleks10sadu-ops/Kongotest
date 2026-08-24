@@ -47,4 +47,20 @@ describe('DeliveryCheckout order boundary', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledWith('/api/orders', expect.any(Object));
   });
+
+  it('reports failure when the orders 500 fallback receives Telegram 502', async () => {
+    const module = await import('./DeliveryCheckout') as unknown as CheckoutModule;
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(response(500, { ok: false, error: 'iiko_unavailable' }))
+      .mockResolvedValueOnce(response(502, { ok: false, error: 'telegram_unavailable' }));
+
+    const result = await module.submitCheckoutOrder({ fulfillmentType: 'pickup' }, fetcher);
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'Не удалось отправить заказ. Позвоните нам, пожалуйста.',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenNthCalledWith(2, '/api/telegram', expect.any(Object));
+  });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useReducer } from 'react';
+import React, { useState, useEffect, useReducer, useRef } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -114,6 +114,7 @@ export default function DateTimePicker({
         visibleMonth: formatLocalDate(now, 1),
     });
     const [selectedTime, setSelectedTime] = useState('');
+    const pendingDateAfterValueClear = useRef<string | null>(null);
     const [restrictions, setRestrictions] = useState<Restrictions>({ dates: [], times: {} });
     // Default to 10:00 - 00:00 if not set, but will be overwritten by DB
     const [standardSchedule, setStandardSchedule] = useState<Schedule>({ start: '10:00', end: '00:00' });
@@ -204,10 +205,21 @@ export default function DateTimePicker({
     // Синхронизируем внутреннее состояние с внешним значением
     useEffect(() => {
         if (!value) {
+            if (pendingDateAfterValueClear.current) {
+                pendingDateAfterValueClear.current = null;
+                setSelectedTime('');
+                return;
+            }
             dispatchCalendarDate({ type: 'sync', date: '' });
             setSelectedTime('');
         }
     }, [value]);
+
+    useEffect(() => {
+        if (value && pendingDateAfterValueClear.current) {
+            pendingDateAfterValueClear.current = null;
+        }
+    });
 
     // Обновляем времена когда меняются availableTimes или selectedDate
     useEffect(() => {
@@ -461,6 +473,11 @@ export default function DateTimePicker({
                                                         const month = (day.getMonth() + 1).toString().padStart(2, '0');
                                                         const date = day.getDate().toString().padStart(2, '0');
                                                         const newDate = `${year}-${month}-${date}`;
+                                                        if (newDate !== selectedDate && showTime && !dateOnly && !timeOnly) {
+                                                            pendingDateAfterValueClear.current = newDate;
+                                                            setSelectedTime('');
+                                                            onChange('');
+                                                        }
                                                         dispatchCalendarDate({ type: 'select', date: newDate });
                                                         if (dateOnly) {
                                                             updateValue(newDate);
