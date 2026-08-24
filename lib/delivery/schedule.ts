@@ -81,13 +81,16 @@ export function validateOrderTime(
   if (!windowForDate(date) || Number.isNaN(requestedAt.getTime())) {
     return { ok: false, code: 'order_time_invalid', message: 'Некорректная дата заказа.' };
   }
-  if (requestedAt.getTime() <= now.getTime()) {
-    return { ok: false, code: 'order_time_past', message: 'Выбранное время уже прошло.' };
-  }
   const window = windowForDate(date)!;
   const minute = Number(match[4]) * 60 + Number(match[5]);
   const from = window.from[0] * 60 + window.from[1];
   const to = window.to[0] * 60 + window.to[1];
+  if (Number(match[6] || '0') !== 0 || (minute - from) % 15 !== 0) {
+    return { ok: false, code: 'order_time_invalid', message: 'Выберите время с шагом 15 минут.' };
+  }
+  if (requestedAt.getTime() <= now.getTime()) {
+    return { ok: false, code: 'order_time_past', message: 'Выбранное время уже прошло.' };
+  }
   if (minute < from || minute > to) {
     return { ok: false, code: 'order_time_outside_schedule', message: `Выберите время в интервале ${fmt(window.from)}–${fmt(window.to)}.` };
   }

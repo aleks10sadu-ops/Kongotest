@@ -51,6 +51,38 @@ export function resolvePickerTimes(
     return provider ? provider(date) : availableTimes;
 }
 
+const CONTROLLED_LOCAL_DATETIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/;
+
+export function parseControlledPickerValue(value: string): { date: string; time: string } | null {
+    const match = CONTROLLED_LOCAL_DATETIME.exec(value);
+    if (!match) return null;
+    const [year, month, day] = match[1].split('-').map(Number);
+    const calendarDate = new Date(Date.UTC(year, month - 1, day, 12));
+    const validDate = calendarDate.getUTCFullYear() === year
+        && calendarDate.getUTCMonth() === month - 1
+        && calendarDate.getUTCDate() === day;
+    const hour = Number(match[2]);
+    const minute = Number(match[3]);
+    return validDate && hour < 24 && minute < 60
+        ? { date: match[1], time: `${match[2]}:${match[3]}` }
+        : null;
+}
+
+export function moscowDateString(now: Date = new Date()): string {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now);
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+export function isBeforeMoscowToday(date: string, now: Date = new Date()): boolean {
+    return date < moscowDateString(now);
+}
+
 type Schedule = {
     start: string;
     end: string;
@@ -109,9 +141,10 @@ export default function DateTimePicker({
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const now = new Date();
+    const todayInMoscow = moscowDateString(now);
     const [{ selectedDate, visibleMonth }, dispatchCalendarDate] = useReducer(calendarDateStateReducer, {
         selectedDate: '',
-        visibleMonth: formatLocalDate(now, 1),
+        visibleMonth: `${todayInMoscow.slice(0, 7)}-01`,
     });
     const [selectedTime, setSelectedTime] = useState('');
     const pendingDateAfterValueClear = useRef<string | null>(null);
@@ -185,20 +218,17 @@ export default function DateTimePicker({
                 dispatchCalendarDate({ type: 'sync', date: value });
             } else {
                 // Для полного datetime
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                    dispatchCalendarDate({ type: 'sync', date: date.toISOString().split('T')[0] });
+                const parsed = parseControlledPickerValue(value);
+                if (parsed) {
+                    dispatchCalendarDate({ type: 'sync', date: parsed.date });
                     if (showTime) {
-                        setSelectedTime(date.toTimeString().slice(0, 5));
+                        setSelectedTime(parsed.time);
                     }
                 }
             }
         } else if (todayOnly && !dateOnly && !timeOnly) {
             // Для todayOnly автоматически устанавливаем сегодняшнюю дату
-            // Используем локальное время для согласованности с сервером
-            const now = new Date();
-            const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-            dispatchCalendarDate({ type: 'sync', date: today });
+            dispatchCalendarDate({ type: 'sync', date: moscowDateString() });
         }
     }, [value, showTime, timeOnly, dateOnly, todayOnly]);
 
@@ -411,7 +441,7 @@ export default function DateTimePicker({
                         onClick={() => setIsOpen(false)}
                     />
                     <div
-                        className="absolute top-full left-0 right-0 z-50 mt-1 bg-neutral-800 border border-neutral-600 rounded-lg shadow-xl max-h-96 overflow-hidden"
+                        className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-neutral-600 bg-neutral-800 shadow-xl"
                         style={timeOnly ? undefined : { minWidth: 'min(320px, calc(100vw - 2rem))' }}
                     >
                         {/* Календарь (показывается для dateOnly и полного режима) */}
@@ -457,9 +487,11 @@ export default function DateTimePicker({
                                         const dayDate = day.getDate().toString().padStart(2, '0');
                                         const dayFormatted = `${dayYear}-${dayMonth}-${dayDate}`;
                                         const isSelected = selectedDate === dayFormatted;
-                                        const isToday = day.toDateString() === new Date().toDateString();
+                                        const isToday = dayFormatted === todayInMoscow;
                                         const isRestricted = isPickerDateRestricted(dayFormatted, restrictions, useReservationRestrictions);
-                                        const isDisabled = (min && day < new Date(min)) || (max && day > new Date(max)) || (todayOnly && !isToday) || (disablePastDates && day.getTime() < new Date().setHours(0, 0, 0, 0)) || isRestricted || Boolean(isDateDisabled?.(dayFormatted));
+                                        const minDate = min?.slice(0, 10);
+                                        const maxDate = max?.slice(0, 10);
+                                        const isDisabled = Boolean((minDate && dayFormatted < minDate) || (maxDate && dayFormatted > maxDate) || (todayOnly && !isToday) || (disablePastDates && isBeforeMoscowToday(dayFormatted, now)) || isRestricted || isDateDisabled?.(dayFormatted));
 
                                         return (
                                             <button

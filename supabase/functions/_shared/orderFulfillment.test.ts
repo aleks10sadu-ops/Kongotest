@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   chunkForIiko,
+  collectSupabasePages,
   confirmationReminderDue,
+  formatIikoCompleteBefore,
   iikoFulfillmentPresentation,
   mergeIikoOrderCandidates,
   recentUnclaimedOrderIds,
@@ -55,6 +57,21 @@ describe('poller discovery boundaries', () => {
     )).toEqual(['future-order']);
   });
 
+  it('paginates beyond 200 successful logs so an older unclaimed order is not starved', async () => {
+    const rows = Array.from({ length: 251 }, (_, index) => ({
+      detail: index === 250 ? 'older-unclaimed' : `claimed-${index}`,
+    }));
+    const ranges: Array<[number, number]> = [];
+    const collected = await collectSupabasePages(async (from, to) => {
+      ranges.push([from, to]);
+      return rows.slice(from, to + 1);
+    });
+    const claimed = new Set(rows.slice(0, 250).map((row) => row.detail));
+
+    expect(ranges).toEqual([[0, 199], [200, 399]]);
+    expect(recentUnclaimedOrderIds(collected, claimed)).toEqual(['older-unclaimed']);
+  });
+
   it('feeds date and creation-time discoveries through one duplicate-free candidate list', () => {
     const byDate = [{ id: 'same', source: 'date' }, { id: 'date-only', source: 'date' }];
     const byCreation = [{ id: 'same', source: 'log' }, { id: 'future-only', source: 'log' }];
@@ -81,6 +98,13 @@ describe('poller discovery boundaries', () => {
     expect(statusTrackingPage(450, 1)?.pageIndex).toBe(1);
     expect(statusTrackingPage(450, 2)?.pageIndex).toBe(2);
     expect(statusTrackingPage(450, 3)?.pageIndex).toBe(0);
+  });
+});
+
+describe('iiko card time formatting', () => {
+  it('formats completeBefore as the webhook Moscow-local time line', () => {
+    expect(formatIikoCompleteBefore('2026-07-13 19:30:00.000')).toBe('19:30 (13.07)');
+    expect(formatIikoCompleteBefore(null)).toBeNull();
   });
 });
 

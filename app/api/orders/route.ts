@@ -12,6 +12,8 @@ import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers'
 import { evaluateOrderRules } from '@/lib/delivery/orderRules';
 import type { FulfillmentType } from '@/lib/delivery/types';
 import { SITE } from '@/app/components/forest/site';
+import { getIikoMenu } from '@/lib/iiko';
+import type { MenuItem } from '@/types/index';
 
 export const maxDuration = 60; // опрос статуса создания занимает до ~25с
 
@@ -24,6 +26,14 @@ interface IncomingItem {
   isBusinessLunch?: boolean;
   modifiers?: { group: string; option: string; groupId?: string; optionId?: string }[];
 }
+
+type IncomingModifier = NonNullable<IncomingItem['modifiers']>[number];
+
+type AuthoritativeItem = IncomingItem & {
+  productId: string;
+  isBusinessLunch: boolean;
+  modifiers: IncomingModifier[];
+};
 
 interface IncomingPayload {
   fulfillmentType?: 'delivery' | 'pickup';
@@ -56,6 +66,85 @@ function normalizePhone(raw: string): string {
   if (digits.length === 11 && digits.startsWith('7')) return '+' + digits;
   if (digits.length === 10) return '+7' + digits;
   return '+' + digits;
+}
+
+function resolveAuthoritativeItems(
+  incoming: IncomingItem[],
+  menu: Record<string, { categories: Array<{ items: MenuItem[] }> }>,
+): { ok: true; items: AuthoritativeItem[] } | { ok: false; message: string } {
+  const catalog = new Map<string, { item: MenuItem; isBusinessLunch: boolean }>();
+  for (const [menuType, section] of Object.entries(menu)) {
+    for (const category of section.categories || []) {
+      for (const item of category.items || []) {
+        catalog.set(String(item.id), { item, isBusinessLunch: menuType === 'business' });
+      }
+    }
+  }
+
+  const items: AuthoritativeItem[] = [];
+  for (const candidate of incoming) {
+    const productId = typeof candidate?.productId === 'string' ? candidate.productId.trim() : '';
+    const catalogEntry = productId ? catalog.get(productId) : null;
+    if (!catalogEntry) {
+      return { ok: false, message: `Позиция «${candidate?.name || 'без названия'}» отсутствует в актуальном меню.` };
+    }
+
+    const basePrice = Number(catalogEntry.item.price);
+    if (!Number.isFinite(basePrice) || basePrice < 0) {
+      return { ok: false, message: `Для позиции «${catalogEntry.item.name}» не удалось определить актуальную цену.` };
+    }
+
+    if (candidate.modifiers != null && !Array.isArray(candidate.modifiers)) {
+      return { ok: false, message: `Некорректные модификаторы позиции «${catalogEntry.item.name}».` };
+    }
+    const groups = catalogEntry.item.modifierGroups || [];
+    const mappedModifiers: Array<IncomingModifier & { price: number }> = [];
+    const selectedKeys = new Set<string>();
+    for (const modifier of candidate.modifiers || []) {
+      const groupId = typeof modifier?.groupId === 'string' ? modifier.groupId.trim() : '';
+      const optionId = typeof modifier?.optionId === 'string' ? modifier.optionId.trim() : '';
+      const group = groups.find((entry) => String(entry.id) === groupId);
+      const option = group?.options.find((entry) => String(entry.id) === optionId);
+      const key = `${groupId}:${optionId}`;
+      if (!group || !option || selectedKeys.has(key)) {
+        return { ok: false, message: `Модификаторы позиции «${catalogEntry.item.name}» устарели или некорректны.` };
+      }
+      selectedKeys.add(key);
+      mappedModifiers.push({
+        group: group.name,
+        option: option.name,
+        groupId: String(group.id),
+        optionId: String(option.id),
+        price: Number(option.price) || 0,
+      });
+    }
+
+    const modifiers = withoutGarnishForMarkedLunch(mappedModifiers, catalogEntry.isBusinessLunch);
+    const garnishWasDisabled = modifiers.length !== mappedModifiers.length;
+    for (const group of groups) {
+      if (garnishWasDisabled && group.name.toLocaleLowerCase('ru-RU').includes('гарнир')) continue;
+      const selectedCount = modifiers.filter((modifier) => modifier.groupId === String(group.id)).length;
+      if (selectedCount < (group.min ?? 0) || selectedCount > (group.max ?? 1)) {
+        return { ok: false, message: `Выберите допустимые модификаторы для позиции «${catalogEntry.item.name}».` };
+      }
+    }
+
+    const unitPrice = basePrice + modifiers.reduce((sum, modifier) => sum + modifier.price, 0);
+    if (!Number.isFinite(candidate.price) || candidate.price !== unitPrice) {
+      return { ok: false, message: `Цена позиции «${catalogEntry.item.name}» изменилась. Обновите меню и корзину.` };
+    }
+
+    items.push({
+      ...candidate,
+      id: productId,
+      name: catalogEntry.item.name,
+      productId,
+      price: unitPrice,
+      isBusinessLunch: catalogEntry.isBusinessLunch,
+      modifiers: modifiers.map(({ price: _price, ...modifier }) => modifier),
+    });
+  }
+  return { ok: true, items };
 }
 
 // Грубый разбор адреса из строки Яндекс-подсказок:
@@ -116,17 +205,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'phone и items обязательны' }, { status: 400 });
     }
 
+    if (p.fulfillmentType != null && p.fulfillmentType !== 'delivery' && p.fulfillmentType !== 'pickup') {
+      await logOrderAttempt({ outcome: 'bad_request', detail: 'Неизвестный способ получения заказа.', ...logTail });
+      return NextResponse.json(
+        { ok: false, error: 'invalid_fulfillment_type', message: 'Неизвестный способ получения заказа.' },
+        { status: 400 },
+      );
+    }
+
+    if (p.items.some((item) => !item || !Number.isSafeInteger(item.qty) || item.qty <= 0)) {
+      await logOrderAttempt({ outcome: 'bad_request', detail: 'Количество позиций должно быть целым положительным числом.', ...logTail });
+      return NextResponse.json(
+        { ok: false, error: 'invalid_items', message: 'Количество каждой позиции должно быть целым положительным числом.' },
+        { status: 422 },
+      );
+    }
+
+    const authoritative = resolveAuthoritativeItems(p.items, await getIikoMenu());
+    if (!authoritative.ok) {
+      await logOrderAttempt({ outcome: 'bad_request', detail: authoritative.message, ...logTail });
+      return NextResponse.json(
+        { ok: false, error: 'invalid_items', message: authoritative.message },
+        { status: 422 },
+      );
+    }
+    const authoritativeItems = authoritative.items;
+
     const zone = p.fulfillmentType === 'pickup'
       ? null
       : ((Array.isArray(p.coordinates) && p.coordinates.length === 2
           ? checkDeliveryZoneForCoords(p.coordinates)
           : null) ?? findZoneByName(p.zoneName));
-    const serverSubtotal = p.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const serverSubtotal = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
     const serverDeliveryPrice = p.fulfillmentType === 'pickup' ? 0 : (zone?.price ?? 0);
     logTail = {
       ...logTail,
       address: p.fulfillmentType === 'pickup' ? `Самовывоз: ${SITE.address}` : p.address,
-      items: p.items.map((it) => ({ name: it.name, qty: it.qty, price: it.price })),
+      items: authoritativeItems.map((it) => ({ name: it.name, qty: it.qty, price: it.price })),
       subtotal: serverSubtotal,
       total: serverSubtotal + serverDeliveryPrice,
     };
@@ -134,7 +249,7 @@ export async function POST(req: NextRequest) {
     const rules = evaluateOrderRules({
       fulfillmentType: p.fulfillmentType,
       address: p.address,
-      items: p.items,
+      items: authoritativeItems,
       zone,
       deliveryTime: p.deliveryTime,
       deliveryTimeCustom: p.deliveryTimeCustom,
@@ -164,6 +279,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedPayload: IncomingPayload = {
       ...p,
+      items: authoritativeItems,
       subtotal: serverSubtotal,
       deliveryPrice: rules.fulfillmentType === 'delivery' ? (zone?.price ?? 0) : 0,
       total: serverSubtotal + (rules.fulfillmentType === 'delivery' ? (zone?.price ?? 0) : 0),
@@ -173,10 +289,7 @@ export async function POST(req: NextRequest) {
     // Сервер повторяет правило конструктора: если выбранное блюдо бизнес-ланча
     // отмечено «Без гарнира», старый/подменённый выбор гарнира не должен попасть
     // ни в проверку стоп-листа, ни в заказ iiko.
-    const orderItems = p.items.map((item) => ({
-      ...item,
-      modifiers: withoutGarnishForMarkedLunch(item.modifiers, item.isBusinessLunch === true),
-    }));
+    const orderItems = authoritativeItems;
 
     // Стоп-лист: блюда и модификаторы «на стопе» отклоняем ДО создания заказа в iiko.
     // Клиент обязан обработать 409 без TG-фолбэка — иначе стоп-лист обходится.

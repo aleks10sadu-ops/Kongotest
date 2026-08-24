@@ -15,7 +15,7 @@
 // в настройках iiko он выставлен равным POLLER_KEY этого проекта.
 // Секреты: TG_TOKEN, TG_CHAT_ID, POLLER_KEY (+ SUPABASE_* автоматически).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { iikoFulfillmentPresentation } from '../_shared/orderFulfillment.ts';
+import { formatIikoCompleteBefore, iikoFulfillmentPresentation } from '../_shared/orderFulfillment.ts';
 
 const TERMINAL = ['Delivered', 'Closed', 'Cancelled', 'Deleted'];
 const DASHES = /^[-–—\s]*$/; // iiko ставит улицу «----------», если не нашёл её в справочнике
@@ -29,12 +29,6 @@ async function tgCall(method: string, payload: Record<string, unknown>) {
   const j = await r.json();
   if (!j.ok) console.error(`TG ${method} error:`, JSON.stringify(j).slice(0, 300));
   return j;
-}
-
-// «2026-07-14 14:10:23.716» (время ресторана, МСК) → «14:10 (14.07)»
-function fmtWhen(s: unknown): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(s || ''));
-  return m ? `${m[4]}:${m[5]} (${m[3]}.${m[2]})` : null;
 }
 
 // Один адрес, каждая деталь один раз. Улица не зарезолвилась в справочник
@@ -71,7 +65,7 @@ function fmtOrder(ord: any): string {
     const addr = fmtAddress(ord);
     if (addr) lines.push(`Адрес: ${addr}`);
   }
-  const when = fmtWhen(ord.completeBefore);
+  const when = formatIikoCompleteBefore(ord.completeBefore);
   if (when) lines.push(`Ко времени: ${when}`);
   if (ord.sourceKey) lines.push(`Источник: ${ord.sourceKey}`);
   lines.push('');

@@ -26,7 +26,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
   chunkForIiko,
+  collectSupabasePages,
   confirmationReminderDue,
+  formatIikoCompleteBefore,
   IIKO_BY_ID_CHUNK_SIZE,
   iikoFulfillmentPresentation,
   mergeIikoOrderCandidates,
@@ -126,6 +128,8 @@ function fmtBase(ord: any): string {
     const addr = fmtAddress(ord);
     if (addr) lines.push(`Адрес: ${addr}`);
   }
+  const when = formatIikoCompleteBefore(ord.completeBefore);
+  if (when) lines.push(`Ко времени: ${when}`);
   lines.push('');
   const items = ord.items || [];
   for (const it of items.slice(0, 25)) {
@@ -166,16 +170,25 @@ Deno.serve(async (req: Request) => {
     // by_delivery_date_and_status. Журнал успешного создания даёт bounded
     // creation-time discovery независимо от даты исполнения заказа.
     const recentCreatedAfter = new Date(Date.now() - SITE_ORDER_DISCOVERY_MAX_AGE_MS).toISOString();
-    const { data: recentLogs, error: recentLogsError } = await sb.from('site_order_log')
-      .select('detail')
-      .eq('outcome', 'iiko_ok')
-      .gte('created_at', recentCreatedAfter)
-      .not('detail', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(IIKO_BY_ID_CHUNK_SIZE);
-    if (recentLogsError) console.error('site_order_log discovery failed:', recentLogsError.message);
+    let recentLogs: Array<{ detail?: unknown }> = [];
+    try {
+      recentLogs = await collectSupabasePages(async (from, to) => {
+        const { data, error } = await sb.from('site_order_log')
+          .select('detail')
+          .eq('outcome', 'iiko_ok')
+          .gte('created_at', recentCreatedAfter)
+          .not('detail', 'is', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to);
+        if (error) throw new Error(error.message);
+        return data || [];
+      });
+    } catch (error) {
+      console.error('site_order_log discovery failed:', String(error));
+    }
 
-    const recentIds = recentUnclaimedOrderIds(recentLogs || [], new Set());
+    const recentIds = recentUnclaimedOrderIds(recentLogs, new Set());
     const dateCandidateIds = new Set(pending.map((o: any) => String(o?.id || '')).filter(Boolean));
     const candidateSeedIds = Array.from(new Set([...dateCandidateIds, ...recentIds]));
     const seenById = new Map<string, any>();
@@ -187,7 +200,7 @@ Deno.serve(async (req: Request) => {
 
     // Не запрашиваем by_id повторно для уже claimed строк и заказов, которые
     // date/status discovery уже вернуло целиком.
-    const discoveredIds = recentUnclaimedOrderIds(recentLogs || [], new Set(seenById.keys()))
+    const discoveredIds = recentUnclaimedOrderIds(recentLogs, new Set(seenById.keys()))
       .filter((id) => !dateCandidateIds.has(id));
     const creationTimeOrders: any[] = [];
     for (const ids of chunkForIiko(discoveredIds)) {

@@ -32,6 +32,23 @@ export function chunkForIiko<T>(values: T[]): T[][] {
   return chunks;
 }
 
+export async function collectSupabasePages<T>(
+  fetchPage: (from: number, to: number) => Promise<T[]>,
+  pageSize = IIKO_BY_ID_CHUNK_SIZE,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const page = await fetchPage(from, from + pageSize - 1);
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
+
+export function formatIikoCompleteBefore(value: unknown): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(value ?? ''));
+  return match ? `${match[4]}:${match[5]} (${match[3]}.${match[2]})` : null;
+}
+
 export function recentUnclaimedOrderIds(
   rows: Array<{ detail?: unknown }>,
   claimedIds: ReadonlySet<string>,

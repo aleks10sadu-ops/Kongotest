@@ -86,6 +86,15 @@ describe('validateOrderTime', () => {
       .toMatchObject({ ok: false, code: 'order_time_outside_schedule' });
   });
 
+  it('rejects seconds and minutes that are not on the 15-minute opening grid', () => {
+    const now = msk('2026-07-13T08:00:00');
+
+    expect(validateOrderTime('custom', '2026-07-13T12:07:59', now))
+      .toMatchObject({ ok: false, code: 'order_time_invalid' });
+    expect(validateOrderTime('custom', '2026-07-13T12:15:01', now))
+      .toMatchObject({ ok: false, code: 'order_time_invalid' });
+  });
+
   it('keeps ASAP tied to the current opening window', () => {
     expect(validateOrderTime('asap', undefined, msk('2026-07-13T11:59:00')))
       .toMatchObject({ ok: false, code: 'delivery_closed' });

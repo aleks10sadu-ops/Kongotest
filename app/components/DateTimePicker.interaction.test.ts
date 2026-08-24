@@ -29,6 +29,7 @@ import DateTimePicker from './DateTimePicker';
 type ElementNode = {
   props?: {
     'aria-label'?: string;
+    className?: string;
     children?: unknown;
     onClick?: () => void;
   };
@@ -45,6 +46,24 @@ function findElement(node: unknown, predicate: (element: ElementNode) => boolean
   if (!node || typeof node !== 'object' || !('props' in node)) return undefined;
   const element = node as ElementNode;
   return predicate(element) ? element : findElement(element.props?.children, predicate);
+}
+
+function findElementPath(
+  node: unknown,
+  predicate: (element: ElementNode) => boolean,
+  ancestors: ElementNode[] = [],
+): ElementNode[] | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findElementPath(child, predicate, ancestors);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (!node || typeof node !== 'object' || !('props' in node)) return undefined;
+  const element = node as ElementNode;
+  const path = [...ancestors, element];
+  return predicate(element) ? path : findElementPath(element.props?.children, predicate, path);
 }
 
 describe('DateTimePicker date interaction', () => {
@@ -73,5 +92,21 @@ describe('DateTimePicker date interaction', () => {
     expect(hooks.setSelectedTime).toHaveBeenCalledWith('');
     expect(onChange).toHaveBeenCalledWith('');
     expect(hooks.dispatchCalendarDate).toHaveBeenCalledWith({ type: 'select', date: '2026-07-13' });
+  });
+
+  it('keeps a late full-picker slot inside a scrollable popover and selectable', () => {
+    const onChange = vi.fn();
+    const picker = DateTimePicker({
+      value: '2026-07-12T12:00:00',
+      onChange,
+      useReservationRestrictions: false,
+      availableTimes: ['19:30'],
+    });
+    const path = findElementPath(picker, (element) => element.props?.children === '19:30');
+
+    expect(path).toBeDefined();
+    expect(path!.some((element) => element.props?.className?.includes('overflow-y-auto'))).toBe(true);
+    path!.at(-1)!.props!.onClick!();
+    expect(onChange).toHaveBeenCalledWith('2026-07-12T19:30:00');
   });
 });
