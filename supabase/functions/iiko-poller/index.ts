@@ -32,7 +32,7 @@ import {
   mergeIikoOrderCandidates,
   recentUnclaimedOrderIds,
   SITE_ORDER_DISCOVERY_MAX_AGE_MS,
-  statusTrackingCutoff,
+  statusTrackingPage,
 } from '../_shared/orderFulfillment.ts';
 
 const IIKO = 'https://api-ru.iiko.services';
@@ -239,19 +239,28 @@ Deno.serve(async (req: Request) => {
 
     // --- 2. Каскадное обновление ранее уведомлённых (только облачные id:
     // rms-строки в deliveries/by_id нельзя — там не GUID) ---
-    const tracked: any[] = [];
-    const trackingCutoff = statusTrackingCutoff();
-    for (let from = 0; ; from += IIKO_BY_ID_CHUNK_SIZE) {
-      const { data: page, error } = await sb.from('iiko_notified_orders')
+    // Exact count + текущая UTC-минута выбирают одну стабильную страницу:
+    // нагрузка ограничена 200 строками/тик, но возраст заказа его не исключает.
+    const { count: trackedCount, error: trackedCountError } = await sb.from('iiko_notified_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('finalized', false).not('tg_message_id', 'is', null)
+      .not('id', 'like', 'rms-%');
+    if (trackedCountError) throw new Error(`tracking count failed: ${trackedCountError.message}`);
+
+    const selectedTrackingPage = statusTrackingPage(
+      trackedCount || 0,
+      Math.floor(Date.now() / 60_000),
+    );
+    let tracked: any[] = [];
+    if (selectedTrackingPage) {
+      const { data, error } = await sb.from('iiko_notified_orders')
         .select('*').eq('finalized', false).not('tg_message_id', 'is', null)
         .not('id', 'like', 'rms-%')
-        .gte('notified_at', trackingCutoff)
         .order('notified_at', { ascending: true })
         .order('id', { ascending: true })
-        .range(from, from + IIKO_BY_ID_CHUNK_SIZE - 1);
+        .range(selectedTrackingPage.from, selectedTrackingPage.to);
       if (error) throw new Error(`tracking lookup failed: ${error.message}`);
-      tracked.push(...(page || []));
-      if (!page || page.length < IIKO_BY_ID_CHUNK_SIZE) break;
+      tracked = data || [];
     }
     if (tracked.length) {
       const byId = new Map<string, any>();

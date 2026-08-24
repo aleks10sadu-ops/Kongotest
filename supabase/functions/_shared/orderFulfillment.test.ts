@@ -5,7 +5,7 @@ import {
   iikoFulfillmentPresentation,
   mergeIikoOrderCandidates,
   recentUnclaimedOrderIds,
-  statusTrackingCutoff,
+  statusTrackingPage,
 } from './orderFulfillment';
 
 describe('iikoFulfillmentPresentation', () => {
@@ -66,9 +66,21 @@ describe('poller discovery boundaries', () => {
     ]);
   });
 
-  it('ages persistently missing status IDs out after 30 days', () => {
-    expect(statusTrackingCutoff(new Date('2026-08-24T12:00:00.000Z')))
-      .toBe('2026-07-25T12:00:00.000Z');
+  it('bounds every status page to at most 200 rows', () => {
+    expect(statusTrackingPage(450, 2)).toEqual({
+      pageIndex: 2,
+      pageCount: 3,
+      from: 400,
+      to: 449,
+    });
+    expect(statusTrackingPage(0, 2)).toBeNull();
+  });
+
+  it('rotates deterministically through every live status page and wraps', () => {
+    expect(statusTrackingPage(450, 0)?.pageIndex).toBe(0);
+    expect(statusTrackingPage(450, 1)?.pageIndex).toBe(1);
+    expect(statusTrackingPage(450, 2)?.pageIndex).toBe(2);
+    expect(statusTrackingPage(450, 3)?.pageIndex).toBe(0);
   });
 });
 

@@ -1,7 +1,6 @@
 export const PICKUP_ADDRESS = 'Дмитров, Промышленная улица, 20Б';
 export const IIKO_BY_ID_CHUNK_SIZE = 200;
 export const SITE_ORDER_DISCOVERY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-export const STATUS_TRACKING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 type IikoFulfillmentOrder = {
   orderServiceType?: string;
@@ -62,8 +61,25 @@ export function mergeIikoOrderCandidates<T extends { id: unknown }>(...sources: 
   return merged;
 }
 
-export function statusTrackingCutoff(now = new Date()): string {
-  return new Date(now.getTime() - STATUS_TRACKING_MAX_AGE_MS).toISOString();
+export function statusTrackingPage(totalCount: number, epochMinute: number): {
+  pageIndex: number;
+  pageCount: number;
+  from: number;
+  to: number;
+} | null {
+  const rowCount = Math.max(0, Math.floor(totalCount));
+  if (!rowCount) return null;
+
+  const pageCount = Math.ceil(rowCount / IIKO_BY_ID_CHUNK_SIZE);
+  const minute = Math.floor(epochMinute);
+  const pageIndex = ((minute % pageCount) + pageCount) % pageCount;
+  const from = pageIndex * IIKO_BY_ID_CHUNK_SIZE;
+  return {
+    pageIndex,
+    pageCount,
+    from,
+    to: Math.min(from + IIKO_BY_ID_CHUNK_SIZE - 1, rowCount - 1),
+  };
 }
 
 type ReminderInput = {
