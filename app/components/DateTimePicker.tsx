@@ -21,17 +21,35 @@ type DateTimePickerProps = {
     timeOnly?: boolean;
     dateOnly?: boolean;
     availableTimes?: string[] | null;
+    availableTimesForDate?: (date: string) => string[];
     todayOnly?: boolean;
     availableTimeRange?: AvailableTimeRange | null;
     disablePastDates?: boolean;
     isDateDisabled?: (date: string) => boolean;
     ariaLabel?: string;
+    useReservationRestrictions?: boolean;
 };
 
 type Restrictions = {
     dates: string[];
     times: Record<string, string[]>;
 };
+
+export function isPickerDateRestricted(
+    date: string,
+    restrictions: Restrictions,
+    useReservationRestrictions: boolean,
+): boolean {
+    return useReservationRestrictions && restrictions.dates.includes(date);
+}
+
+export function resolvePickerTimes(
+    date: string,
+    availableTimes: string[] | null,
+    provider?: (date: string) => string[],
+): string[] | null {
+    return provider ? provider(date) : availableTimes;
+}
 
 type Schedule = {
     start: string;
@@ -81,11 +99,13 @@ export default function DateTimePicker({
     timeOnly = false,
     dateOnly = false,
     availableTimes = null,
+    availableTimesForDate,
     todayOnly = false,
     availableTimeRange = null,
     disablePastDates = false,
     isDateDisabled,
     ariaLabel,
+    useReservationRestrictions = true,
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const now = new Date();
@@ -101,6 +121,11 @@ export default function DateTimePicker({
 
     // Загружаем ограничения при монтировании
     useEffect(() => {
+        if (!useReservationRestrictions) {
+            setRestrictions({ dates: [], times: {} });
+            return;
+        }
+
         const fetchRestrictions = async () => {
             try {
                 const supabase = createSupabaseBrowserClient() as any;
@@ -146,7 +171,7 @@ export default function DateTimePicker({
             }
         };
         fetchRestrictions();
-    }, []);
+    }, [useReservationRestrictions]);
 
     // Парсим начальное значение
     useEffect(() => {
@@ -242,7 +267,8 @@ export default function DateTimePicker({
 
     // Генерируем доступные временные интервалы
     const generateTimeSlots = (): string[] => {
-        if (availableTimes) return availableTimes;
+        const resolvedTimes = resolvePickerTimes(selectedDate, availableTimes, availableTimesForDate);
+        if (resolvedTimes !== null) return resolvedTimes;
 
         if (availableTimeRange) {
             const { start, end, interval = 60 } = availableTimeRange;
@@ -420,7 +446,7 @@ export default function DateTimePicker({
                                         const dayFormatted = `${dayYear}-${dayMonth}-${dayDate}`;
                                         const isSelected = selectedDate === dayFormatted;
                                         const isToday = day.toDateString() === new Date().toDateString();
-                                        const isRestricted = restrictions.dates.includes(dayFormatted);
+                                        const isRestricted = isPickerDateRestricted(dayFormatted, restrictions, useReservationRestrictions);
                                         const isDisabled = (min && day < new Date(min)) || (max && day > new Date(max)) || (todayOnly && !isToday) || (disablePastDates && day.getTime() < new Date().setHours(0, 0, 0, 0)) || isRestricted || Boolean(isDateDisabled?.(dayFormatted));
 
                                         return (
@@ -476,7 +502,7 @@ export default function DateTimePicker({
                                         // Для бронирования столов не применяем дополнительную фильтрацию времени
                                         // availableTimes уже содержит правильную логику фильтрации
                                         const restrictedTimesForDate = restrictions.times[selectedDate] || [];
-                                        const isTimeDisabled = restrictedTimesForDate.includes(time);
+                                        const isTimeDisabled = useReservationRestrictions && restrictedTimesForDate.includes(time);
 
                                         return (
                                             <button

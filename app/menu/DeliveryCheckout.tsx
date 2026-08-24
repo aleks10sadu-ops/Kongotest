@@ -7,10 +7,12 @@ import type { CartItem } from '@/types/index';
 import { deliveryZones, checkDeliveryZoneForCoords, type DeliveryZone } from '../data/deliveryZones';
 import { composeAddressDetails } from '@/lib/booking/addressDetails';
 import { validateMinOrder } from '@/lib/delivery/minOrder';
-import { isDeliveryOpen, todayDeliveryWindowText } from '@/lib/delivery/schedule';
+import { isDeliveryOpen, orderTimeSlots, todayDeliveryWindowText } from '@/lib/delivery/schedule';
+import type { FulfillmentType } from '@/lib/delivery/types';
 import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
 import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
 import { SITE } from '../components/forest/site';
+import DateTimePicker from '../components/DateTimePicker';
 import DeliveryZoneMiniMap from '../components/DeliveryZoneMiniMap';
 
 const inputCls =
@@ -26,6 +28,66 @@ function zoneByKeyword(address: string) {
     if (/солнечная|юбилейная|габово/.test(a)) return deliveryZones[3];
     if (/центральная|богослово|жуково/.test(a)) return deliveryZones[4];
     return null;
+}
+
+export type CheckoutSubmissionResult =
+    | { ok: true }
+    | { ok: false; message: string };
+
+export async function submitCheckoutOrder(
+    payload: Record<string, unknown>,
+    fetcher: typeof fetch = fetch,
+    fallbackPayload: Record<string, unknown> = payload,
+): Promise<CheckoutSubmissionResult> {
+    let response: Response;
+    try {
+        response = await fetcher('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    } catch (error) {
+        console.error('iiko order network failure, TG fallback:', error);
+        return sendTelegramFallback(fallbackPayload, fetcher);
+    }
+
+    let data: { ok?: boolean; message?: string; error?: string } = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        if (response.status >= 500) {
+            console.error('iiko order server failure, TG fallback:', error);
+            return sendTelegramFallback(fallbackPayload, fetcher);
+        }
+        return { ok: false, message: 'Проверьте данные заказа.' };
+    }
+
+    if (response.status < 500) {
+        if (!response.ok || !data.ok) {
+            return { ok: false, message: data.message || data.error || 'Проверьте данные заказа.' };
+        }
+        return { ok: true };
+    }
+
+    console.error('iiko order server failure, TG fallback:', data.error || response.status);
+    return sendTelegramFallback(fallbackPayload, fetcher);
+}
+
+async function sendTelegramFallback(
+    payload: Record<string, unknown>,
+    fetcher: typeof fetch,
+): Promise<CheckoutSubmissionResult> {
+    try {
+        await fetcher('/api/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        return { ok: true };
+    } catch (error) {
+        console.error('TG fallback failed:', error);
+        return { ok: false, message: 'Не удалось отправить заказ. Позвоните нам, пожалуйста.' };
+    }
 }
 
 export default function DeliveryCheckout({
@@ -60,6 +122,7 @@ export default function DeliveryCheckout({
     const [consent, setConsent] = useState(false);
     const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
+    const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery');
 
     const set = (patch: Partial<typeof f>) => setF((o) => ({ ...o, ...patch }));
 
@@ -68,7 +131,9 @@ export default function DeliveryCheckout({
     // Полный адрес, который реально нашёл геокодер (с городом) — показываем гостю,
     // чтобы адрес из другого города не «проходил» молча как дмитровский.
     const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
-    const deliveryPrice = zone?.price ?? null;
+    const isPickup = fulfillmentType === 'pickup';
+    const effectiveZone = isPickup ? null : zone;
+    const deliveryPrice = isPickup ? 0 : (zone?.price ?? null);
     const total = subtotal + (deliveryPrice || 0);
 
     // График приёма доставок (МСК). Пока открыто — гость ничего не видит;
@@ -132,7 +197,26 @@ export default function DeliveryCheckout({
 
     // Минимальный заказ зависит от зоны: бесплатная — от 1000 ₽ или 2 бизнес-ланчей,
     // платные — от 2000/3000 ₽. Пока зона не определена, действует базовое правило.
-    const minOrder = validateMinOrder(items, subtotal, zone);
+    const minOrder = validateMinOrder(items, subtotal, effectiveZone, fulfillmentType);
+    const asapUnavailable = f.deliveryTime === 'asap' && !scheduleOpen;
+
+    const chooseFulfillmentType = (nextType: FulfillmentType) => {
+        setFulfillmentType(nextType);
+        if (nextType === 'pickup') {
+            set({
+                address: '',
+                house: '',
+                building: '',
+                entrance: '',
+                floor: '',
+                apartment: '',
+                intercom: '',
+            });
+            setZone(null);
+            setCoords(null);
+            setResolvedAddress(null);
+        }
+    };
 
     // Гость выбрал точку на мини-карте: раскладываем адрес по полям —
     // улица/населённый пункт в «Улица», номер дома в «Дом».
@@ -154,9 +238,9 @@ export default function DeliveryCheckout({
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isDeliveryOpen()) {
+        if (f.deliveryTime === 'asap' && !isDeliveryOpen()) {
             setScheduleOpen(false);
-            setErrorMsg(`Сейчас доставка не принимается. Приём заказов сегодня: ${todayDeliveryWindowText()} (по Москве).`);
+            setErrorMsg(`Сейчас заказы не принимаются. Приём заказов сегодня: ${todayDeliveryWindowText()} (по Москве).`);
             setStatus('error');
             return;
         }
@@ -165,14 +249,14 @@ export default function DeliveryCheckout({
             setStatus('error');
             return;
         }
-        if (!f.name.trim() || !f.phone.trim() || !f.address.trim()) {
-            setErrorMsg('Заполните имя, телефон и адрес.');
+        if (!f.name.trim() || !f.phone.trim() || (!isPickup && !f.address.trim())) {
+            setErrorMsg(isPickup ? 'Заполните имя и телефон.' : 'Заполните имя, телефон и адрес.');
             setStatus('error');
             return;
         }
         // Адрес распознан по координатам, но не попал ни в одну зону —
         // доставка туда не осуществляется (например, другой город).
-        if (coords && !zone) {
+        if (!isPickup && coords && !zone) {
             setErrorMsg('Этот адрес вне зон доставки — привезти туда не сможем. Проверьте адрес или выберите точку на карте.');
             setStatus('error');
             return;
@@ -198,11 +282,12 @@ export default function DeliveryCheckout({
         const allergyInfo = f.hasAllergy && f.allergyDetails.trim() ? { allergy: `Аллергия на: ${f.allergyDetails.trim()}` } : {};
         const deliveryTimeCustom =
             f.deliveryTime === 'custom' && f.deliveryTimeCustom
-                ? `${new Date().toISOString().split('T')[0]}T${f.deliveryTimeCustom}:00`
+                ? f.deliveryTimeCustom
                 : '';
 
         const payload = {
             type: 'delivery' as const,
+            fulfillmentType,
             name: f.name,
             phone: f.phone,
             address: f.address,
@@ -214,7 +299,7 @@ export default function DeliveryCheckout({
             intercom: f.intercom,
             comment: f.comment,
             ...allergyInfo,
-            coordinates: coords,
+            coordinates: isPickup ? null : coords,
             items: items.map((c) => ({
                 id: c.id,
                 name: c.name,
@@ -227,65 +312,35 @@ export default function DeliveryCheckout({
             subtotal,
             deliveryPrice,
             total,
-            zoneName: zone?.name,
+            zoneName: effectiveZone?.name,
             deliveryTime: f.deliveryTime,
             deliveryTimeCustom,
             paymentMethod: f.paymentMethod,
             changeAmount: f.changeAmount,
         };
 
-        let ok = false;
-        try {
-            const res = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            // Осознанный отказ сервера (стоп-лист, закрытое окно бизнес-ланча,
-            // минимальный заказ): НЕ уходим в TG-фолбэк, иначе заказ утёк бы мимо проверки.
-            if (res.status === 409 && (data.error === 'stop_list' || data.error === 'business_lunch_closed' || data.error === 'delivery_closed')) {
-                setStatus('error');
-                setErrorMsg(data.message || 'Часть позиций сейчас недоступна. Обновите корзину.');
-                return;
-            }
-            if (!data.ok && data.code === 'MIN_ORDER') {
-                setStatus('error');
-                setErrorMsg(data.error);
-                return;
-            }
-            if (!data.ok) throw new Error(data.error || 'iiko order failed');
-            ok = true;
-        } catch (err) {
-            console.error('iiko order failed, TG fallback:', err);
-            try {
-                const addrDetails = composeAddressDetails(f);
-                await fetch('/api/telegram', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ...payload,
-                        address: addrDetails ? `${f.address}, ${addrDetails}` : f.address,
-                        comment: `${f.comment ? f.comment + ' | ' : ''}⚠️ Заказ НЕ создан в iiko — пробейте вручную!`,
-                    }),
-                });
-                ok = true;
-            } catch (tgErr) {
-                console.error('TG fallback failed:', tgErr);
-            }
-        }
+        const addrDetails = isPickup ? '' : composeAddressDetails(f);
+        const fallbackAddress = isPickup
+            ? SITE.address
+            : addrDetails ? `${f.address}, ${addrDetails}` : f.address;
+        const result = await submitCheckoutOrder(payload, fetch, {
+            ...payload,
+            address: fallbackAddress,
+            comment: `${f.comment ? f.comment + ' | ' : ''}⚠️ Заказ НЕ создан в iiko — пробейте вручную!`,
+        });
 
-        if (ok) {
+        if (result.ok) {
             reachYandexGoal('delivery_order', {
                 total,
-                zone: zone?.name,
+                fulfillment_type: fulfillmentType,
+                zone: effectiveZone?.name,
                 items_count: items.reduce((sum, item) => sum + item.qty, 0),
             });
             setStatus('ok');
             onSuccess();
         } else {
             setStatus('error');
-            setErrorMsg('Не удалось отправить заказ. Позвоните нам, пожалуйста.');
+            setErrorMsg(result.message);
         }
     };
 
@@ -295,7 +350,9 @@ export default function DeliveryCheckout({
                 <div className="p-6 text-center text-cream">
                     <div className="mb-3 text-3xl">🌿</div>
                     <p className="text-cream/80">
-                        Заявка на доставку принята{deliveryPrice != null ? ` — доставка ${deliveryPrice === 0 ? 'бесплатно' : deliveryPrice + ' ₽'}` : ''}. Ожидайте звонка
+                        {isPickup
+                            ? 'Заявка на самовывоз принята.'
+                            : `Заявка на доставку принята${deliveryPrice != null ? ` — доставка ${deliveryPrice === 0 ? 'бесплатно' : deliveryPrice + ' ₽'}` : ''}.`} Ожидайте звонка
                         для подтверждения.
                     </p>
                     <button onClick={onClose} className="mt-6 rounded-lg bg-terracotta px-6 py-2.5 font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark">
@@ -307,69 +364,94 @@ export default function DeliveryCheckout({
     }
 
     return (
-        <Shell onClose={onClose} title="Оформление доставки">
+        <Shell onClose={onClose} title={isPickup ? 'Оформление самовывоза' : 'Оформление доставки'}>
             <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
-                {!scheduleOpen && (
+                {asapUnavailable && (
                     <div className="rounded-lg border border-brass/30 bg-brass/10 p-3 text-sm text-cream">
-                        <p className="font-semibold text-brass">Сейчас доставка не принимается</p>
+                        <p className="font-semibold text-brass">Сейчас заказы не принимаются</p>
                         <p className="mt-1 text-cream/80">
                             Приём заказов сегодня: <span className="font-semibold text-cream">{todayDeliveryWindowText()}</span> (по Москве).
-                            Возвращайтесь в рабочее время — или позвоните нам.
+                            Выберите время получения — или позвоните нам.
                         </p>
                     </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-forest-ink/40 p-1">
+                    {([['delivery', 'Доставка'], ['pickup', 'Самовывоз']] as const).map(([value, label]) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => chooseFulfillmentType(value)}
+                            className={`rounded-lg px-3 py-2.5 text-sm font-medium ${fulfillmentType === value ? 'bg-terracotta text-[#FBF3EA]' : 'text-cream/70'}`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {isPickup && (
+                    <div className="rounded-lg border border-brass/30 bg-brass/10 p-3 text-sm text-cream">
+                        <p className="font-semibold text-brass">Забрать в ресторане</p>
+                        <p className="mt-1">{SITE.address}</p>
+                    </div>
+                )}
+
                 {/* Мини-карта зон — первой в форме: гость сразу видит зоны и условия,
                     может выбрать точку кликом, адрес подставится в поля ниже. */}
-                <DeliveryZoneMiniMap coords={coords} onPick={pickFromMap} />
+                {!isPickup && <DeliveryZoneMiniMap coords={coords} onPick={pickFromMap} />}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <input placeholder="Имя *" className={inputCls} value={f.name} onChange={(e) => set({ name: e.target.value })} />
                     <input placeholder="Телефон *" type="tel" className={inputCls} value={f.phone} onChange={(e) => set({ phone: e.target.value })} />
                 </div>
-                <input
-                    placeholder="Улица *"
-                    className={inputCls}
-                    value={f.address}
-                    onChange={(e) => {
-                        // Гость правит адрес руками — старые координаты и найденный
-                        // адрес больше не актуальны, зона пока по ключевым словам.
-                        set({ address: e.target.value });
-                        setCoords(null);
-                        setResolvedAddress(null);
-                        setZone(zoneByKeyword(e.target.value));
-                    }}
-                    onBlur={() => resolveZone(f.address, f.house)}
-                />
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {/* Дом уточняет геокодинг: после ввода маркер встаёт на конкретное здание */}
-                    <input placeholder="Дом" className={inputCls} value={f.house} onChange={(e) => set({ house: e.target.value })} onBlur={() => resolveZone(f.address, f.house)} />
-                    <input placeholder="Корпус" className={inputCls} value={f.building} onChange={(e) => set({ building: e.target.value })} />
-                    <input placeholder="Подъезд" className={inputCls} value={f.entrance} onChange={(e) => set({ entrance: e.target.value })} />
-                    <input placeholder="Этаж" className={inputCls} value={f.floor} onChange={(e) => set({ floor: e.target.value })} />
-                    <input placeholder="Квартира" className={inputCls} value={f.apartment} onChange={(e) => set({ apartment: e.target.value })} />
-                    <input placeholder="Домофон" className={inputCls} value={f.intercom} onChange={(e) => set({ intercom: e.target.value })} />
-                </div>
-                {resolvedAddress && (
-                    <p className="text-xs text-cream/45">Найдено: {resolvedAddress}</p>
-                )}
-                {f.address.trim() && (
-                    zone ? (
-                        <p className="text-xs text-cream/55">
-                            Зона: {zone.name} — {zone.price === 0 ? 'доставка бесплатно' : `доставка ${zone.price} ₽`}, заказ от {zone.minOrder.toLocaleString('ru-RU')} ₽
-                            {zone.price === 0 && ' (или от 2 бизнес-ланчей)'}
-                        </p>
-                    ) : coords ? (
-                        <p className="text-xs text-terracotta">
-                            Адрес вне зон доставки — привезти туда не сможем. Проверьте адрес или выберите точку на карте.
-                        </p>
-                    ) : (
-                        <p className="text-xs text-cream/55">Зону доставки уточнит администратор при подтверждении.</p>
-                    )
+                {!isPickup && (
+                    <>
+                        <input
+                            placeholder="Улица *"
+                            className={inputCls}
+                            value={f.address}
+                            onChange={(e) => {
+                                // Гость правит адрес руками — старые координаты и найденный
+                                // адрес больше не актуальны, зона пока по ключевым словам.
+                                set({ address: e.target.value });
+                                setCoords(null);
+                                setResolvedAddress(null);
+                                setZone(zoneByKeyword(e.target.value));
+                            }}
+                            onBlur={() => resolveZone(f.address, f.house)}
+                        />
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {/* Дом уточняет геокодинг: после ввода маркер встаёт на конкретное здание */}
+                            <input placeholder="Дом" className={inputCls} value={f.house} onChange={(e) => set({ house: e.target.value })} onBlur={() => resolveZone(f.address, f.house)} />
+                            <input placeholder="Корпус" className={inputCls} value={f.building} onChange={(e) => set({ building: e.target.value })} />
+                            <input placeholder="Подъезд" className={inputCls} value={f.entrance} onChange={(e) => set({ entrance: e.target.value })} />
+                            <input placeholder="Этаж" className={inputCls} value={f.floor} onChange={(e) => set({ floor: e.target.value })} />
+                            <input placeholder="Квартира" className={inputCls} value={f.apartment} onChange={(e) => set({ apartment: e.target.value })} />
+                            <input placeholder="Домофон" className={inputCls} value={f.intercom} onChange={(e) => set({ intercom: e.target.value })} />
+                        </div>
+                        {resolvedAddress && (
+                            <p className="text-xs text-cream/45">Найдено: {resolvedAddress}</p>
+                        )}
+                        {f.address.trim() && (
+                            zone ? (
+                                <p className="text-xs text-cream/55">
+                                    Зона: {zone.name} — {zone.price === 0 ? 'доставка бесплатно' : `доставка ${zone.price} ₽`}, заказ от {zone.minOrder.toLocaleString('ru-RU')} ₽
+                                    {zone.price === 0 && ' (или от 2 бизнес-ланчей)'}
+                                </p>
+                            ) : coords ? (
+                                <p className="text-xs text-terracotta">
+                                    Адрес вне зон доставки — привезти туда не сможем. Проверьте адрес или выберите точку на карте.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-cream/55">Зону доставки уточнит администратор при подтверждении.</p>
+                            )
+                        )}
+                    </>
                 )}
 
                 {/* Время */}
                 <div className="mt-1">
-                    <div className="mb-1.5 text-sm text-cream/70">Время доставки</div>
+                    <div className="mb-1.5 text-sm text-cream/70">Время получения</div>
                     <div className="flex flex-wrap gap-2">
                         {(['asap', 'custom'] as const).map((v) => (
                             <button
@@ -384,7 +466,15 @@ export default function DeliveryCheckout({
                             </button>
                         ))}
                         {f.deliveryTime === 'custom' && (
-                            <input type="time" min="12:00" max="22:00" className={`${inputCls} [color-scheme:dark] w-auto`} value={f.deliveryTimeCustom} onChange={(e) => set({ deliveryTimeCustom: e.target.value })} />
+                            <DateTimePicker
+                                value={f.deliveryTimeCustom}
+                                onChange={(deliveryTimeCustom) => set({ deliveryTimeCustom })}
+                                className="w-full"
+                                disablePastDates
+                                useReservationRestrictions={false}
+                                availableTimesForDate={(date) => orderTimeSlots(date)}
+                                ariaLabel="Дата и время заказа"
+                            />
                         )}
                     </div>
                 </div>
@@ -430,11 +520,11 @@ export default function DeliveryCheckout({
                 <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-3">
                     <div className="text-sm text-cream/70">
                         Итого: <span className="font-bold text-cream">{total.toLocaleString('ru-RU')} ₽</span>
-                        {deliveryPrice != null && <span className="text-cream/45"> {deliveryPrice === 0 ? '· доставка бесплатно' : `· доставка ${deliveryPrice} ₽`}</span>}
+                        {!isPickup && deliveryPrice != null && <span className="text-cream/45"> {deliveryPrice === 0 ? '· доставка бесплатно' : `· доставка ${deliveryPrice} ₽`}</span>}
                     </div>
                 </div>
-                <button type="submit" disabled={status === 'sending' || items.length === 0 || !minOrder.isValid || !scheduleOpen || (!!coords && !zone)} className="rounded-lg bg-terracotta px-6 py-3.5 font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark disabled:opacity-50">
-                    {status === 'sending' ? 'Отправляем…' : 'Заказать доставку'}
+                <button type="submit" disabled={status === 'sending' || items.length === 0 || !minOrder.isValid || asapUnavailable || (!isPickup && !!coords && !zone)} className="rounded-lg bg-terracotta px-6 py-3.5 font-semibold text-[#FBF3EA] transition-colors hover:bg-terracotta-dark disabled:opacity-50">
+                    {status === 'sending' ? 'Отправляем…' : isPickup ? 'Оформить самовывоз' : 'Заказать доставку'}
                 </button>
                 <p className="text-center text-[12px] text-cream/45">или позвоните <a href={`tel:${SITE.phones[0].tel}`} className="text-brass hover:underline">{SITE.phones[0].label}</a></p>
             </form>
