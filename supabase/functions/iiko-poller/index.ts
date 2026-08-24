@@ -24,6 +24,7 @@
 // для авторизации v2 (опционально, но обязательно после отключения v1): IIKO_APP_ID, IIKO_APP_SECRET;
 // для терминала (опционально): RMS_URL, RMS_LOGIN, RMS_PASS_SHA1.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { confirmationReminderDue, iikoFulfillmentPresentation } from '../_shared/orderFulfillment.ts';
 
 const IIKO = 'https://api-ru.iiko.services';
 const DASHES = /^[-–—\s]*$/; // iiko ставит улицу «----------», если не нашёл её в справочнике
@@ -104,13 +105,18 @@ function fmtAddress(ord: any): string {
 // и именно эта база хранится в orig_text для каскадных редактирований.
 function fmtBase(ord: any): string {
   const lines: string[] = [];
-  lines.push(`🆕 Доставка №${ord.number}`);
+  const fulfillment = iikoFulfillmentPresentation(ord);
+  lines.push(`${fulfillment.emoji} ${fulfillment.type === 'pickup' ? 'Новый самовывоз' : 'Новая доставка'} №${ord.number}`);
   if (ord.sourceKey) lines.push(`Источник: ${ord.sourceKey}`);
   if (ord.externalNumber) lines.push(`Внешний №: ${ord.externalNumber}`);
   const who = [ord.customer?.name, ord.phone].filter(Boolean).join(', ');
   if (who) lines.push(`Клиент: ${who}`);
-  const addr = fmtAddress(ord);
-  if (addr) lines.push(`Адрес: ${addr}`);
+  if (fulfillment.type === 'pickup') {
+    lines.push(`Забрать: ${fulfillment.pickupAddress}`);
+  } else {
+    const addr = fmtAddress(ord);
+    if (addr) lines.push(`Адрес: ${addr}`);
+  }
   lines.push('');
   const items = ord.items || [];
   for (const it of items.slice(0, 25)) {
@@ -165,7 +171,7 @@ Deno.serve(async (req: Request) => {
           sent++;
         }
       } else if (ord.status === 'Unconfirmed' && seen.remind_count === 0
-        && Date.now() - new Date(seen.notified_at).getTime() > 7 * 60 * 1000) {
+        && confirmationReminderDue({ completeBefore: ord.completeBefore, notifiedAt: seen.notified_at })) {
         const j = await tgCall('sendMessage', {
           text: `🔔 Заказ №${ord.number} всё ещё НЕ ПОДТВЕРЖДЁН!\nВисит больше 7 минут — подтвердите на кассе.`,
           ...(seen.tg_message_id ? { reply_to_message_id: seen.tg_message_id } : {}),
@@ -178,8 +184,7 @@ Deno.serve(async (req: Request) => {
     // rms-строки в deliveries/by_id нельзя — там не GUID) ---
     const { data: tracked } = await sb.from('iiko_notified_orders')
       .select('*').eq('finalized', false).not('tg_message_id', 'is', null)
-      .not('id', 'like', 'rms-%')
-      .gt('notified_at', new Date(Date.now() - 864e5).toISOString());
+      .not('id', 'like', 'rms-%');
     if (tracked && tracked.length) {
       const st = await iikoPost('/api/1/deliveries/by_id', { organizationId: orgId, orderIds: tracked.map((t: any) => t.id) }, token);
       const byId = new Map((st.orders || []).map((o: any) => [o.id, o]));
@@ -397,7 +402,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await sb.from('iiko_notified_orders').delete().lt('notified_at', new Date(Date.now() - 3 * 864e5).toISOString());
+    await sb.from('iiko_notified_orders').delete()
+      .eq('finalized', true)
+      .lt('notified_at', new Date(Date.now() - 3 * 864e5).toISOString());
     return new Response(JSON.stringify({ ok: true, pending: pending.length, sent, edited, rmsSent, rmsEdited }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('poller failed:', e);

@@ -25,3 +25,41 @@ describe('telegram booking API message boundary', () => {
     expect(message.match(/^Источник:/gm)).toHaveLength(1);
   });
 });
+
+describe('telegram delivery fallback formatting', () => {
+  it('formats pickup without a courier address', () => {
+    const message = buildMessage({
+      type: 'delivery',
+      fulfillmentType: 'pickup',
+      name: 'Анна',
+      phone: '+79161112233',
+      address: '',
+      items: [{ name: 'Пицца', qty: 1, price: 1000 }],
+      total: 1000,
+      deliveryTime: 'custom',
+      deliveryTimeCustom: '2026-07-17T19:30:00',
+      paymentMethod: 'card',
+    });
+
+    expect(message).toContain('Заявка: Самовывоз');
+    expect(message).toContain('Дмитров, Промышленная улица, 20Б');
+    expect(message).toContain('17 июля 2026 г. в 19:30');
+    expect(message).not.toContain('<b>Адрес доставки:</b>');
+  });
+
+  it('keeps a legacy payload formatted as delivery', () => {
+    const message = buildMessage({
+      type: 'delivery',
+      name: 'Анна',
+      phone: '+79161112233',
+      address: 'Профессиональная, 1',
+      items: [],
+      total: 0,
+      deliveryTime: 'asap',
+      paymentMethod: 'card',
+    });
+
+    expect(message).toContain('Заявка: Доставка');
+    expect(message).toContain('<b>Адрес доставки:</b> Профессиональная, 1');
+  });
+});
