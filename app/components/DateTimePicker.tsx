@@ -148,6 +148,7 @@ export default function DateTimePicker({
     });
     const [selectedTime, setSelectedTime] = useState('');
     const pendingDateAfterValueClear = useRef<string | null>(null);
+    const pickerRootRef = useRef<HTMLDivElement>(null);
     const [restrictions, setRestrictions] = useState<Restrictions>({ dates: [], times: {} });
     // Default to 10:00 - 00:00 if not set, but will be overwritten by DB
     const [standardSchedule, setStandardSchedule] = useState<Schedule>({ start: '10:00', end: '00:00' });
@@ -258,6 +259,19 @@ export default function DateTimePicker({
             // Ничего не делаем, просто перерисовываем компонент
         }
     }, [availableTimes, selectedDate]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const closeOnOutsideClick = (event: MouseEvent) => {
+            if (pickerRootRef.current && !pickerRootRef.current.contains(event.target as Node | null)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('click', closeOnOutsideClick);
+        return () => document.removeEventListener('click', closeOnOutsideClick);
+    }, [isOpen]);
 
     // Функция для обновления значения при выборе
     const updateValue = (date: string, time?: string) => {
@@ -408,7 +422,7 @@ export default function DateTimePicker({
     const currentMonth = new Date(visibleMonth + 'T12:00:00');
 
     return (
-        <div className={`relative ${className}`}>
+        <div ref={pickerRootRef} className={`relative ${className}`}>
             {/* Поле ввода */}
             <div className="relative">
                 <input
@@ -435,15 +449,10 @@ export default function DateTimePicker({
 
             {/* Выпадающий календарь */}
             {isOpen && (
-                <>
-                    <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsOpen(false)}
-                    />
-                    <div
-                        className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-neutral-600 bg-neutral-800 shadow-xl"
-                        style={timeOnly ? undefined : { minWidth: 'min(320px, calc(100vw - 2rem))' }}
-                    >
+                <div
+                    className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-neutral-600 bg-neutral-800 shadow-xl"
+                    style={timeOnly ? undefined : { minWidth: 'min(320px, calc(100vw - 2rem))' }}
+                >
                         {/* Календарь (показывается для dateOnly и полного режима) */}
                         {(!timeOnly) && (
                             <>
@@ -578,8 +587,7 @@ export default function DateTimePicker({
                                 </div>
                             </div>
                         )}
-                    </div>
-                </>
+                </div>
             )}
         </div>
     );

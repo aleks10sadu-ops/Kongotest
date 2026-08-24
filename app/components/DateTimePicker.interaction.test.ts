@@ -1,7 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hooks = vi.hoisted(() => ({
   dispatchCalendarDate: vi.fn(),
+  effects: [] as Array<() => void | (() => void)>,
+  pickerRoot: {
+    current: {
+      contains: vi.fn(),
+    },
+  },
+  refCall: 0,
+  setIsOpen: vi.fn(),
   setSelectedTime: vi.fn(),
   stateCall: 0,
 }));
@@ -10,12 +18,17 @@ vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return {
     ...actual,
-    useEffect: vi.fn(),
+    useEffect: vi.fn((effect: () => void | (() => void)) => {
+      hooks.effects.push(effect);
+    }),
     useReducer: vi.fn(() => [{ selectedDate: '2026-07-12', visibleMonth: '2026-07-01' }, hooks.dispatchCalendarDate]),
-    useRef: vi.fn((initial) => ({ current: initial })),
+    useRef: vi.fn((initial) => {
+      const call = hooks.refCall++;
+      return call === 1 ? hooks.pickerRoot : { current: initial };
+    }),
     useState: vi.fn((initial) => {
       const call = hooks.stateCall++;
-      if (call === 0) return [true, vi.fn()];
+      if (call === 0) return [true, hooks.setIsOpen];
       if (call === 1) return ['12:00', hooks.setSelectedTime];
       if (call === 2) return [{ dates: [], times: {} }, vi.fn()];
       if (call === 3) return [{ start: '10:00', end: '00:00' }, vi.fn()];
@@ -68,9 +81,53 @@ function findElementPath(
 
 describe('DateTimePicker date interaction', () => {
   beforeEach(() => {
+    hooks.effects.length = 0;
+    hooks.refCall = 0;
     hooks.stateCall = 0;
     hooks.dispatchCalendarDate.mockClear();
+    hooks.pickerRoot.current.contains.mockReset();
+    hooks.setIsOpen.mockClear();
     hooks.setSelectedTime.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps scrollable ancestors uncovered and closes on an outside click', () => {
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    vi.stubGlobal('document', { addEventListener, removeEventListener });
+
+    const picker = DateTimePicker({
+      value: '2026-07-12',
+      onChange: vi.fn(),
+      dateOnly: true,
+      useReservationRestrictions: false,
+    });
+    const fullScreenClickCatcher = findElement(picker, (element) => {
+      const classes = element.props?.className?.split(/\s+/) ?? [];
+      return classes.includes('fixed') && classes.includes('inset-0') && element.props?.onClick !== undefined;
+    });
+
+    expect(fullScreenClickCatcher).toBeUndefined();
+
+    const cleanup = hooks.effects.at(-1)?.();
+    const outsideClickListener = addEventListener.mock.calls.find(([event]) => event === 'click')?.[1];
+    expect(outsideClickListener).toBeTypeOf('function');
+
+    const insideTarget = {};
+    hooks.pickerRoot.current.contains.mockReturnValueOnce(true);
+    outsideClickListener({ target: insideTarget });
+    expect(hooks.setIsOpen).not.toHaveBeenCalled();
+
+    const outsideTarget = {};
+    hooks.pickerRoot.current.contains.mockReturnValueOnce(false);
+    outsideClickListener({ target: outsideTarget });
+    expect(hooks.setIsOpen).toHaveBeenCalledWith(false);
+
+    cleanup?.();
+    expect(removeEventListener).toHaveBeenCalledWith('click', outsideClickListener);
   });
 
   it('clears the old selected time and controlled value when choosing an empty-slot date', () => {
