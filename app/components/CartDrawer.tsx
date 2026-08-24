@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ShoppingCart, X, Plus, Minus, Trash2, AlertCircle } from 'lucide-react';
 import { CartItem } from '@/types/index';
 import { visibleModifiers } from '@/lib/booking/modifiers';
 import { validateMinOrder } from '@/lib/delivery/minOrder';
+import { lockBodyScroll } from '@/lib/ui/bodyScrollLock';
 
 type CartDrawerProps = {
     isOpen: boolean;
@@ -33,6 +34,11 @@ export default function CartDrawer({
 }: CartDrawerProps) {
     const minOrder = validateMinOrder(items, total);
     const canOrder = items.length > 0 && minOrder.isValid;
+
+    useEffect(() => {
+        if (!isOpen) return;
+        return lockBodyScroll();
+    }, [isOpen]);
 
     return (
         <>
@@ -71,7 +77,7 @@ export default function CartDrawer({
                 </div>
 
                 {/* Items */}
-                <div className="h-[calc(100%-230px)] overflow-auto p-4 space-y-4">
+                <div className="h-[calc(100%-230px)] overflow-auto overscroll-contain p-4 space-y-4">
                     {items.length === 0 ? (
                         <div className="text-cream/55">
                             Ваша корзина пуста. Добавьте блюда из меню.

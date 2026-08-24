@@ -17,6 +17,7 @@ import {
 import type { FulfillmentType } from '@/lib/delivery/types';
 import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
 import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
+import { lockBodyScroll } from '@/lib/ui/bodyScrollLock';
 import { SITE } from '../components/forest/site';
 import DateTimePicker, { moscowDateString } from '../components/DateTimePicker';
 import DeliveryZoneMiniMap from '../components/DeliveryZoneMiniMap';
@@ -70,6 +71,8 @@ export default function DeliveryCheckout({
     const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
     const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery');
+
+    useEffect(() => lockBodyScroll(), []);
 
     const set = (patch: Partial<typeof f>) => setF((o) => ({ ...o, ...patch }));
 
@@ -317,7 +320,7 @@ export default function DeliveryCheckout({
 
     return (
         <Shell onClose={onClose} title={isPickup ? 'Оформление самовывоза' : 'Оформление доставки'}>
-            <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-5">
                 {asapUnavailable && (
                     <div className="rounded-lg border border-brass/30 bg-brass/10 p-3 text-sm text-cream">
                         <p className="font-semibold text-brass">Сейчас заказы не принимаются</p>
