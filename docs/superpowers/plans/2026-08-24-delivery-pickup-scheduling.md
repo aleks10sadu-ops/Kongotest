@@ -20,6 +20,7 @@
 - Pickup address is exactly `Дмитров, Промышленная улица, 20Б`.
 - Missing `fulfillmentType` means `delivery`; an unknown value returns HTTP 400.
 - Successful iiko creation remains the primary Telegram path; the direct Telegram endpoint remains technical fallback only.
+- The main Telegram order card remains immediate. For a scheduled order, the separate unconfirmed reminder is due at `max(notified_at + 7 minutes, restaurant opening on the fulfillment date)` in Moscow time; ASAP retains the seven-minute rule.
 - Do not alter `.codex-tmp/`, `outputs/`, existing booking rules, payment methods, delivery zones, or menu data.
 
 ---
@@ -36,7 +37,7 @@
 - `app/api/telegram/route.ts`: direct fallback formatting.
 - `supabase/functions/_shared/orderFulfillment.ts`: Deno-safe iiko fulfillment presentation shared by webhook and poller.
 - `supabase/functions/iiko-webhook/index.ts`: immediate Telegram notification.
-- `supabase/functions/iiko-poller/index.ts`: deduplicated fallback notification and status cascade.
+- `supabase/functions/iiko-poller/index.ts`: deduplicated fallback notification, fulfillment-aware confirmation reminder, and status cascade.
 
 ### Task 1: Moscow scheduling domain
 
@@ -852,8 +853,8 @@ git commit -m "feat(checkout): add pickup and scheduled time"
 
 **Interfaces:**
 - Consumes: iiko `orderServiceType` and fallback `fulfillmentType`.
-- Produces: `iikoFulfillmentPresentation(order)` returning `{ type, emoji, noun, pickupAddress }`.
-- Preserves: `iiko_notified_orders` claim, `tg_message_id`, `orig_text`, seven-minute reminder, and cancellation reply logic.
+- Produces: `iikoFulfillmentPresentation(order)` returning `{ type, emoji, noun, pickupAddress }` and `confirmationReminderDue(...)` for Moscow-local reminder timing.
+- Preserves: immediate main order cards, `iiko_notified_orders` claim, `tg_message_id`, `orig_text`, reminder counter, and cancellation reply logic.
 
 - [ ] **Step 1: Write failing direct-fallback tests**
 
@@ -890,7 +891,7 @@ it('keeps a legacy payload formatted as delivery', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { iikoFulfillmentPresentation } from './orderFulfillment';
+import { confirmationReminderDue, iikoFulfillmentPresentation } from './orderFulfillment';
 
 describe('iikoFulfillmentPresentation', () => {
   it('identifies client pickup', () => {
@@ -906,6 +907,25 @@ describe('iikoFulfillmentPresentation', () => {
 
   it('defaults unknown and old events to courier delivery', () => {
     expect(iikoFulfillmentPresentation({})).toMatchObject({ type: 'delivery', emoji: '🚚', noun: 'доставка' });
+  });
+});
+
+describe('confirmationReminderDue', () => {
+  it('keeps the main card immediate but delays a future Monday reminder until 12:00 Moscow', () => {
+    const input = { completeBefore: '2026-07-13 19:30:00.000', notifiedAt: '2026-07-12T15:00:00.000Z' };
+    expect(confirmationReminderDue({ ...input, now: new Date('2026-07-13T08:59:59.000Z') })).toBe(false);
+    expect(confirmationReminderDue({ ...input, now: new Date('2026-07-13T09:00:00.000Z') })).toBe(true);
+  });
+
+  it('opens Sunday reminders at 13:00 Moscow', () => {
+    const input = { completeBefore: '2026-07-19 19:30:00.000', notifiedAt: '2026-07-18T15:00:00.000Z' };
+    expect(confirmationReminderDue({ ...input, now: new Date('2026-07-19T09:59:59.000Z') })).toBe(false);
+    expect(confirmationReminderDue({ ...input, now: new Date('2026-07-19T10:00:00.000Z') })).toBe(true);
+  });
+
+  it('retains seven minutes for ASAP and for orders created after opening', () => {
+    expect(confirmationReminderDue({ completeBefore: null, notifiedAt: '2026-07-13T09:00:00.000Z', now: new Date('2026-07-13T09:07:00.000Z') })).toBe(true);
+    expect(confirmationReminderDue({ completeBefore: '2026-07-13 19:30:00.000', notifiedAt: '2026-07-13T10:00:00.000Z', now: new Date('2026-07-13T10:06:59.000Z') })).toBe(false);
   });
 });
 ```
@@ -929,6 +949,17 @@ export function iikoFulfillmentPresentation(order: {
   return serviceType === 'DeliveryByClient'
     ? { type: 'pickup' as const, emoji: '🛍', noun: 'самовывоз', pickupAddress: PICKUP_ADDRESS }
     : { type: 'delivery' as const, emoji: '🚚', noun: 'доставка', pickupAddress: null };
+}
+
+export function confirmationReminderDue(input: {
+  completeBefore?: unknown;
+  notifiedAt: string;
+  now?: Date;
+}): boolean {
+  // Return true at max(notifiedAt + 7 minutes, restaurant opening on the
+  // completeBefore date). Moscow has a fixed UTC+3 offset; Sunday opens at
+  // 13:00, every other day at 12:00. Missing/invalid completeBefore keeps
+  // the legacy seven-minute reminder.
 }
 ```
 
@@ -976,13 +1007,13 @@ if (fulfillment.type === 'pickup') {
 }
 ```
 
-Do not change the insert-before-send claim, conflict handling, deletion rollback, `orig_text`, message editing, reminder counter, or terminal status logic.
+Keep the main webhook/poller order card immediate. In the poller's separate `Unconfirmed` reminder branch, replace the raw seven-minute comparison with `confirmationReminderDue({ completeBefore: ord.completeBefore, notifiedAt: seen.notified_at })`. Increase dedup retention enough that a future scheduled order is not deleted before its reminder date; do not add a new table. Do not change insert-before-send claim, conflict handling, deletion rollback, `orig_text`, message editing, reminder counter, or terminal status logic.
 
 - [ ] **Step 7: Run Telegram tests and verify GREEN**
 
 Run: `npm test -- app/api/telegram/route.test.ts supabase/functions/_shared/orderFulfillment.test.ts`
 
-Expected: direct fallback and iiko event presentation tests pass.
+Expected: direct fallback, iiko event presentation, and reminder-timing tests pass. The main card remains immediate; only the separate reminder is delayed.
 
 - [ ] **Step 8: Commit Telegram integration**
 
@@ -1035,6 +1066,7 @@ ASAP checks current Moscow window
 scheduled orders accept future 15-minute slots and ignore booking closures
 iiko courier has deliveryPoint; pickup is DeliveryByClient without deliveryPoint
 Telegram primary and fallback paths label fulfillment without changing deduplication
+future main Telegram card is immediate; unconfirmed reminder waits until restaurant opening on the fulfillment date
 ```
 
 - [ ] **Step 5: Commit only if verification required a correction**
