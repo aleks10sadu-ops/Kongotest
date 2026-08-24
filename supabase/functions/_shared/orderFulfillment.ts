@@ -5,11 +5,14 @@ export const SITE_ORDER_DISCOVERY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 type IikoFulfillmentOrder = {
   orderServiceType?: string;
   orderType?: { orderServiceType?: string };
+  comment?: unknown;
 };
 
 export function iikoFulfillmentPresentation(order: IikoFulfillmentOrder) {
   const serviceType = order.orderServiceType || order.orderType?.orderServiceType;
-  return serviceType === 'DeliveryByClient'
+  const comment = String(order.comment ?? '');
+  const hasPickupMarker = /^(?:Способ получения:\s*Самовывоз|Время самовывоза:)/mi.test(comment);
+  return serviceType === 'DeliveryByClient' || hasPickupMarker
     ? {
         type: 'pickup' as const,
         emoji: '\u{1F6CD}',
@@ -46,7 +49,7 @@ export async function collectSupabasePages<T>(
 
 export function formatIikoCompleteBefore(value: unknown): string | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(value ?? ''));
-  return match ? `${match[4]}:${match[5]} (${match[3]}.${match[2]})` : null;
+  return match ? `${match[3]}.${match[2]}.${match[1]} в ${match[4]}:${match[5]}` : null;
 }
 
 export function recentUnclaimedOrderIds(
