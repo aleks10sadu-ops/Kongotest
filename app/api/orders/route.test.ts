@@ -330,4 +330,73 @@ describe('POST /api/orders fulfillment boundary', () => {
     expect(mocks.getStopListProductIds).not.toHaveBeenCalled();
     expect(mocks.createSiteOrder).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['missing delivery address', {
+      now: '2026-07-12T15:00:00Z',
+      fulfillmentType: 'delivery',
+      address: '',
+      deliveryTime: 'custom',
+      deliveryTimeCustom: '2026-07-13T15:30:00',
+      status: 400,
+      error: 'address_required',
+    }],
+    ['off-grid scheduled time', {
+      now: '2026-07-12T15:00:00Z',
+      fulfillmentType: 'pickup',
+      address: '',
+      deliveryTime: 'custom',
+      deliveryTimeCustom: '2026-07-13T12:07:59',
+      status: 409,
+      error: 'order_time_invalid',
+    }],
+    ['closed ASAP window', {
+      now: '2026-07-12T20:00:00Z',
+      fulfillmentType: 'pickup',
+      address: '',
+      deliveryTime: 'asap',
+      deliveryTimeCustom: undefined,
+      status: 409,
+      error: 'delivery_closed',
+    }],
+  ])('returns the conscious %s rejection before a failing menu fetch', async (_label, scenario) => {
+    vi.setSystemTime(new Date(scenario.now));
+    mocks.getIikoMenu.mockRejectedValueOnce(new Error('catalog offline'));
+    const response = await POST(makeReq({
+      fulfillmentType: scenario.fulfillmentType,
+      name: 'Анна',
+      phone: '+79161112233',
+      address: scenario.address,
+      items: [{ id: 'dish', name: 'Бизнес-ланч', qty: 2, price: 400, productId: 'dish-guid' }],
+      deliveryTime: scenario.deliveryTime,
+      deliveryTimeCustom: scenario.deliveryTimeCustom,
+    }) as never);
+
+    expect(response.status).toBe(scenario.status);
+    await expect(response.json()).resolves.toMatchObject({ error: scenario.error });
+    expect(mocks.getIikoMenu).not.toHaveBeenCalled();
+    expect(mocks.getStopListProductIds).not.toHaveBeenCalled();
+    expect(mocks.createSiteOrder).not.toHaveBeenCalled();
+  });
+
+  it('returns a safe no-fallback response when the authoritative menu is unavailable', async () => {
+    mocks.getIikoMenu.mockRejectedValueOnce(new Error('catalog offline'));
+    const response = await POST(makeReq({
+      fulfillmentType: 'pickup',
+      name: 'Анна',
+      phone: '+79161112233',
+      address: '',
+      items: [{ id: 'dish', name: 'Бизнес-ланч', qty: 2, price: 400, productId: 'dish-guid' }],
+      deliveryTime: 'custom',
+      deliveryTimeCustom: '2026-07-13T15:30:00',
+    }) as never);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'menu_unavailable',
+    });
+    expect(mocks.getStopListProductIds).not.toHaveBeenCalled();
+    expect(mocks.createSiteOrder).not.toHaveBeenCalled();
+  });
 });

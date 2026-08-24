@@ -8,26 +8,33 @@ import {
 import { validateOrderTime } from './schedule';
 import type { FulfillmentType, OrderTimingMode } from './types';
 
-type RuleInput = {
+type OrderPreflightInput = {
   fulfillmentType: unknown;
   address?: string;
-  items: MinOrderItem[];
-  zone?: MinOrderZone | null;
   deliveryTime?: OrderTimingMode;
   deliveryTimeCustom?: string;
   now?: Date;
 };
 
-export type FulfillmentRuleResult =
-  | {
-      ok: true;
-      fulfillmentType: FulfillmentType;
-      requestedAt: Date;
-      completeBefore: string | null;
-    }
-  | { ok: false; status: 400 | 409 | 422; error: string; message: string };
+type RuleInput = OrderPreflightInput & {
+  items: MinOrderItem[];
+  zone?: MinOrderZone | null;
+};
 
-export function evaluateOrderRules(input: RuleInput): FulfillmentRuleResult {
+type OrderRuleFailure = { ok: false; status: 400 | 409 | 422; error: string; message: string };
+
+export type OrderPreflightSuccess = {
+  ok: true;
+  fulfillmentType: FulfillmentType;
+  requestedAt: Date;
+  completeBefore: string | null;
+};
+
+export type OrderPreflightResult = OrderPreflightSuccess | OrderRuleFailure;
+
+export type FulfillmentRuleResult = OrderPreflightSuccess | OrderRuleFailure;
+
+export function evaluateOrderPreflight(input: OrderPreflightInput): OrderPreflightResult {
   const fulfillmentType = input.fulfillmentType == null ? 'delivery' : input.fulfillmentType;
   if (fulfillmentType !== 'delivery' && fulfillmentType !== 'pickup') {
     return {
@@ -58,7 +65,21 @@ export function evaluateOrderRules(input: RuleInput): FulfillmentRuleResult {
   if (!timing.ok) {
     return { ok: false, status: 409, error: timing.code, message: timing.message };
   }
-  if (input.items.some(isBusinessLunchItem) && !isBusinessLunchOpen(timing.requestedAt)) {
+
+  return {
+    ok: true,
+    fulfillmentType,
+    requestedAt: timing.requestedAt,
+    completeBefore: timing.completeBefore,
+  };
+}
+
+export function evaluateAuthoritativeOrderRules(input: {
+  preflight: OrderPreflightSuccess;
+  items: MinOrderItem[];
+  zone?: MinOrderZone | null;
+}): FulfillmentRuleResult {
+  if (input.items.some(isBusinessLunchItem) && !isBusinessLunchOpen(input.preflight.requestedAt)) {
     return {
       ok: false,
       status: 409,
@@ -70,8 +91,8 @@ export function evaluateOrderRules(input: RuleInput): FulfillmentRuleResult {
   const min = validateMinOrder(
     input.items,
     undefined,
-    fulfillmentType === 'delivery' ? input.zone : null,
-    fulfillmentType,
+    input.preflight.fulfillmentType === 'delivery' ? input.zone : null,
+    input.preflight.fulfillmentType,
   );
   if (!min.isValid) {
     return {
@@ -82,10 +103,12 @@ export function evaluateOrderRules(input: RuleInput): FulfillmentRuleResult {
     };
   }
 
-  return {
-    ok: true,
-    fulfillmentType,
-    requestedAt: timing.requestedAt,
-    completeBefore: timing.completeBefore,
-  };
+  return input.preflight;
+}
+
+export function evaluateOrderRules(input: RuleInput): FulfillmentRuleResult {
+  const preflight = evaluateOrderPreflight(input);
+  return preflight.ok
+    ? evaluateAuthoritativeOrderRules({ preflight, items: input.items, zone: input.zone })
+    : preflight;
 }

@@ -9,7 +9,7 @@ import { getStopListProductIds } from '@/lib/iiko/stopList';
 import { checkDeliveryZoneForCoords, findZoneByName } from '@/app/data/deliveryZones';
 import { logOrderAttempt } from '@/lib/delivery/orderLog';
 import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
-import { evaluateOrderRules } from '@/lib/delivery/orderRules';
+import { evaluateAuthoritativeOrderRules, evaluateOrderPreflight } from '@/lib/delivery/orderRules';
 import type { FulfillmentType } from '@/lib/delivery/types';
 import { SITE } from '@/app/components/forest/site';
 import { getIikoMenu } from '@/lib/iiko';
@@ -205,14 +205,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'phone и items обязательны' }, { status: 400 });
     }
 
-    if (p.fulfillmentType != null && p.fulfillmentType !== 'delivery' && p.fulfillmentType !== 'pickup') {
-      await logOrderAttempt({ outcome: 'bad_request', detail: 'Неизвестный способ получения заказа.', ...logTail });
-      return NextResponse.json(
-        { ok: false, error: 'invalid_fulfillment_type', message: 'Неизвестный способ получения заказа.' },
-        { status: 400 },
-      );
-    }
-
     if (p.items.some((item) => !item || !Number.isSafeInteger(item.qty) || item.qty <= 0)) {
       await logOrderAttempt({ outcome: 'bad_request', detail: 'Количество позиций должно быть целым положительным числом.', ...logTail });
       return NextResponse.json(
@@ -221,7 +213,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const authoritative = resolveAuthoritativeItems(p.items, await getIikoMenu());
+    const preflight = evaluateOrderPreflight({
+      fulfillmentType: p.fulfillmentType,
+      address: p.address,
+      deliveryTime: p.deliveryTime,
+      deliveryTimeCustom: p.deliveryTimeCustom,
+    });
+    if (!preflight.ok) {
+      await logOrderAttempt({
+        outcome: preflight.status === 409 ? 'rejected_schedule' : 'bad_request',
+        detail: preflight.message,
+        ...logTail,
+      });
+      return NextResponse.json(
+        { ok: false, error: preflight.error, message: preflight.message },
+        { status: preflight.status },
+      );
+    }
+
+    let authoritative: ReturnType<typeof resolveAuthoritativeItems>;
+    try {
+      authoritative = resolveAuthoritativeItems(p.items, await getIikoMenu());
+    } catch (error) {
+      const detail = `authoritative menu unavailable: ${String((error as Error)?.message || error)}`;
+      console.error(detail);
+      await logOrderAttempt({ outcome: 'iiko_error', detail, ...logTail });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'menu_unavailable',
+          message: 'Не удалось проверить актуальные цены меню. Обновите страницу и повторите заказ.',
+        },
+        { status: 409 },
+      );
+    }
     if (!authoritative.ok) {
       await logOrderAttempt({ outcome: 'bad_request', detail: authoritative.message, ...logTail });
       return NextResponse.json(
@@ -231,28 +256,25 @@ export async function POST(req: NextRequest) {
     }
     const authoritativeItems = authoritative.items;
 
-    const zone = p.fulfillmentType === 'pickup'
+    const zone = preflight.fulfillmentType === 'pickup'
       ? null
       : ((Array.isArray(p.coordinates) && p.coordinates.length === 2
           ? checkDeliveryZoneForCoords(p.coordinates)
           : null) ?? findZoneByName(p.zoneName));
     const serverSubtotal = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const serverDeliveryPrice = p.fulfillmentType === 'pickup' ? 0 : (zone?.price ?? 0);
+    const serverDeliveryPrice = preflight.fulfillmentType === 'pickup' ? 0 : (zone?.price ?? 0);
     logTail = {
       ...logTail,
-      address: p.fulfillmentType === 'pickup' ? `Самовывоз: ${SITE.address}` : p.address,
+      address: preflight.fulfillmentType === 'pickup' ? `Самовывоз: ${SITE.address}` : p.address,
       items: authoritativeItems.map((it) => ({ name: it.name, qty: it.qty, price: it.price })),
       subtotal: serverSubtotal,
       total: serverSubtotal + serverDeliveryPrice,
     };
 
-    const rules = evaluateOrderRules({
-      fulfillmentType: p.fulfillmentType,
-      address: p.address,
+    const rules = evaluateAuthoritativeOrderRules({
+      preflight,
       items: authoritativeItems,
       zone,
-      deliveryTime: p.deliveryTime,
-      deliveryTimeCustom: p.deliveryTimeCustom,
     });
     if (!rules.ok) {
       await logOrderAttempt({
