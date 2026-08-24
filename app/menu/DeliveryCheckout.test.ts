@@ -2,11 +2,25 @@ import { describe, expect, it, vi } from 'vitest';
 
 type SubmissionResult = { ok: true } | { ok: false; message: string };
 type CheckoutModule = {
+  formatOrderTimeInput: (value: string) => string;
+  normalizeOrderTimeInput: (value: string) => string;
+  buildScheduledOrderDateTime: (date: string, time: string) => string;
   submitCheckoutOrder: (
     payload: Record<string, unknown>,
     fetcher: typeof fetch,
   ) => Promise<SubmissionResult>;
 };
+
+describe('DeliveryCheckout manual scheduled time', () => {
+  it('formats keyboard input like booking and combines arbitrary minutes with the date', async () => {
+    const module = await import('./DeliveryCheckout') as unknown as CheckoutModule;
+
+    expect(module.formatOrderTimeInput('1807')).toBe('18:07');
+    expect(module.normalizeOrderTimeInput('7:05')).toBe('07:05');
+    expect(module.buildScheduledOrderDateTime('2026-08-24', '18:07')).toBe('2026-08-24T18:07:00');
+    expect(module.buildScheduledOrderDateTime('2026-08-24', '')).toBe('');
+  });
+});
 
 const response = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {

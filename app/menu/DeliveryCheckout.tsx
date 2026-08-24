@@ -7,16 +7,36 @@ import type { CartItem } from '@/types/index';
 import { deliveryZones, checkDeliveryZoneForCoords, type DeliveryZone } from '../data/deliveryZones';
 import { composeAddressDetails } from '@/lib/booking/addressDetails';
 import { validateMinOrder } from '@/lib/delivery/minOrder';
-import { isDeliveryOpen, orderTimeSlots, todayDeliveryWindowText } from '@/lib/delivery/schedule';
+import { isDeliveryOpen, todayDeliveryWindowText, validateOrderTime } from '@/lib/delivery/schedule';
 import type { FulfillmentType } from '@/lib/delivery/types';
 import { withoutGarnishForMarkedLunch } from '@/lib/menu/businessLunchModifiers';
 import { reachYandexGoal } from '@/lib/analytics/yandexMetrika';
 import { SITE } from '../components/forest/site';
-import DateTimePicker from '../components/DateTimePicker';
+import DateTimePicker, { moscowDateString } from '../components/DateTimePicker';
 import DeliveryZoneMiniMap from '../components/DeliveryZoneMiniMap';
 
 const inputCls =
     'w-full rounded-lg border border-white/10 bg-forest-ink/60 px-4 py-3 text-sm text-cream placeholder-cream/40 outline-none transition focus:border-brass/60';
+
+export const formatOrderTimeInput = (value: string) => {
+    const cleaned = value.replace(/[^\d:]/g, '');
+    if (cleaned.includes(':')) {
+        const [hours, minutes = ''] = cleaned.split(':');
+        return `${hours.slice(0, 2)}:${minutes.slice(0, 2)}`;
+    }
+    const digits = cleaned.slice(0, 4);
+    return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+};
+
+export const normalizeOrderTimeInput = (value: string) => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+    return match ? `${match[1].padStart(2, '0')}:${match[2]}` : value;
+};
+
+export const buildScheduledOrderDateTime = (date: string, time: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time)
+        ? `${date}T${time}:00`
+        : '';
 
 // Определение зоны по ключевым словам улицы (fallback без Яндекс-карт).
 // Точные полигональные зоны подключаются, когда на странице загружен ymaps.
@@ -104,7 +124,7 @@ export default function DeliveryCheckout({
     onClose: () => void;
     onSuccess: () => void;
 }) {
-    const [f, setF] = useState({
+    const [f, setF] = useState(() => ({
         name: '',
         phone: '',
         address: '',
@@ -116,12 +136,13 @@ export default function DeliveryCheckout({
         intercom: '',
         comment: '',
         deliveryTime: 'asap' as 'asap' | 'custom',
+        deliveryDate: moscowDateString(),
         deliveryTimeCustom: '',
         paymentMethod: 'card' as 'card' | 'cash',
         changeAmount: 'no-change',
         hasAllergy: false,
         allergyDetails: '',
-    });
+    }));
     const [consent, setConsent] = useState(false);
     const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
@@ -138,6 +159,12 @@ export default function DeliveryCheckout({
     const effectiveZone = isPickup ? null : zone;
     const deliveryPrice = isPickup ? 0 : (zone?.price ?? null);
     const total = subtotal + (deliveryPrice || 0);
+    const customDeliveryDateTime = buildScheduledOrderDateTime(f.deliveryDate, f.deliveryTimeCustom);
+    const customTimeValidation = f.deliveryTime === 'custom' && f.deliveryTimeCustom.length === 5 && customDeliveryDateTime
+        ? validateOrderTime('custom', customDeliveryDateTime)
+        : null;
+    const customTimeInvalid = Boolean(customTimeValidation && !customTimeValidation.ok);
+    const customTimeError = customTimeValidation && !customTimeValidation.ok ? customTimeValidation.message : '';
 
     // График приёма доставок (МСК). Пока открыто — гость ничего не видит;
     // вне графика показываем расписание на сегодня и блокируем отправку.
@@ -269,10 +296,14 @@ export default function DeliveryCheckout({
             setStatus('error');
             return;
         }
-        if (f.deliveryTime === 'custom' && !f.deliveryTimeCustom) {
-            setErrorMsg('Укажите время доставки.');
-            setStatus('error');
-            return;
+        const deliveryTimeCustom = f.deliveryTime === 'custom' ? customDeliveryDateTime : '';
+        if (f.deliveryTime === 'custom') {
+            const timing = validateOrderTime('custom', deliveryTimeCustom);
+            if (!timing.ok) {
+                setErrorMsg(timing.message);
+                setStatus('error');
+                return;
+            }
         }
         if (!consent) {
             setErrorMsg('Отметьте согласие на обработку данных.');
@@ -283,11 +314,6 @@ export default function DeliveryCheckout({
         setErrorMsg('');
 
         const allergyInfo = f.hasAllergy && f.allergyDetails.trim() ? { allergy: `Аллергия на: ${f.allergyDetails.trim()}` } : {};
-        const deliveryTimeCustom =
-            f.deliveryTime === 'custom' && f.deliveryTimeCustom
-                ? f.deliveryTimeCustom
-                : '';
-
         const payload = {
             type: 'delivery' as const,
             fulfillmentType,
@@ -465,7 +491,7 @@ export default function DeliveryCheckout({
                             <button
                                 key={v}
                                 type="button"
-                                onClick={() => set({ deliveryTime: v, deliveryTimeCustom: v === 'asap' ? '' : f.deliveryTimeCustom })}
+                                onClick={() => set({ deliveryTime: v })}
                                 className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
                                     f.deliveryTime === v ? 'border-brass bg-brass/10 text-cream' : 'border-white/10 bg-white/[0.03] text-cream/70 hover:bg-white/[0.06]'
                                 }`}
@@ -473,18 +499,53 @@ export default function DeliveryCheckout({
                                 {v === 'asap' ? 'Как можно быстрее' : 'К времени'}
                             </button>
                         ))}
-                        {f.deliveryTime === 'custom' && (
-                            <DateTimePicker
-                                value={f.deliveryTimeCustom}
-                                onChange={(deliveryTimeCustom) => set({ deliveryTimeCustom })}
-                                className="w-full"
-                                disablePastDates
-                                useReservationRestrictions={false}
-                                availableTimesForDate={(date) => orderTimeSlots(date)}
-                                ariaLabel="Дата и время заказа"
-                            />
-                        )}
                     </div>
+                    {f.deliveryTime === 'custom' && (
+                        <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4">
+                            <div className="space-y-1.5">
+                                <div className="text-xs font-medium text-cream/65">Дата</div>
+                                <DateTimePicker
+                                    dateOnly
+                                    showTime={false}
+                                    value={f.deliveryDate}
+                                    onChange={(deliveryDate) => {
+                                        const nextDateTime = buildScheduledOrderDateTime(deliveryDate, f.deliveryTimeCustom);
+                                        const nextValidation = nextDateTime ? validateOrderTime('custom', nextDateTime) : null;
+                                        set({
+                                            deliveryDate,
+                                            deliveryTimeCustom: nextValidation && !nextValidation.ok ? '' : f.deliveryTimeCustom,
+                                        });
+                                    }}
+                                    disablePastDates
+                                    useReservationRestrictions={false}
+                                    ariaLabel="Дата получения"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label htmlFor="order-time" className="block text-xs font-medium text-cream/65">Время</label>
+                                <input
+                                    id="order-time"
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    placeholder="ЧЧ:ММ"
+                                    maxLength={5}
+                                    value={f.deliveryTimeCustom}
+                                    onChange={(e) => set({ deliveryTimeCustom: formatOrderTimeInput(e.target.value) })}
+                                    onBlur={() => set({ deliveryTimeCustom: normalizeOrderTimeInput(f.deliveryTimeCustom) })}
+                                    required
+                                    aria-invalid={customTimeInvalid}
+                                    aria-describedby={customTimeInvalid ? 'order-time-error' : undefined}
+                                    className={`${inputCls} ${customTimeInvalid ? 'border-red-400/70 focus:border-red-400' : ''}`}
+                                />
+                                {customTimeInvalid && (
+                                    <p id="order-time-error" className="text-[11px] leading-tight text-red-400">
+                                        {customTimeError}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Оплата */}

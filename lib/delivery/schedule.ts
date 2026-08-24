@@ -77,6 +77,9 @@ export function validateOrderTime(
   if (!match) return { ok: false, code: 'order_time_invalid', message: 'Выберите дату и время заказа.' };
   const date = `${match[1]}-${match[2]}-${match[3]}`;
   const time = `${match[4]}:${match[5]}`;
+  if (Number(match[4]) > 23 || Number(match[5]) > 59) {
+    return { ok: false, code: 'order_time_invalid', message: 'Некорректное время заказа.' };
+  }
   const requestedAt = new Date(`${date}T${time}:${match[6] || '00'}+03:00`);
   if (!windowForDate(date) || Number.isNaN(requestedAt.getTime())) {
     return { ok: false, code: 'order_time_invalid', message: 'Некорректная дата заказа.' };
@@ -85,8 +88,8 @@ export function validateOrderTime(
   const minute = Number(match[4]) * 60 + Number(match[5]);
   const from = window.from[0] * 60 + window.from[1];
   const to = window.to[0] * 60 + window.to[1];
-  if (Number(match[6] || '0') !== 0 || (minute - from) % 15 !== 0) {
-    return { ok: false, code: 'order_time_invalid', message: 'Выберите время с шагом 15 минут.' };
+  if (Number(match[6] || '0') !== 0) {
+    return { ok: false, code: 'order_time_invalid', message: 'Введите время без секунд.' };
   }
   if (requestedAt.getTime() <= now.getTime()) {
     return { ok: false, code: 'order_time_past', message: 'Выбранное время уже прошло.' };

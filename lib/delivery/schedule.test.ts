@@ -86,13 +86,22 @@ describe('validateOrderTime', () => {
       .toMatchObject({ ok: false, code: 'order_time_outside_schedule' });
   });
 
-  it('rejects seconds and minutes that are not on the 15-minute opening grid', () => {
+  it('accepts arbitrary future minutes but still rejects non-zero seconds', () => {
     const now = msk('2026-07-13T08:00:00');
 
-    expect(validateOrderTime('custom', '2026-07-13T12:07:59', now))
-      .toMatchObject({ ok: false, code: 'order_time_invalid' });
+    expect(validateOrderTime('custom', '2026-07-13T12:07:00', now))
+      .toMatchObject({ ok: true, completeBefore: '2026-07-13 12:07:00.000' });
     expect(validateOrderTime('custom', '2026-07-13T12:15:01', now))
       .toMatchObject({ ok: false, code: 'order_time_invalid' });
+  });
+
+  it('reports an invalid manually entered clock value as a time error', () => {
+    expect(validateOrderTime('custom', '2026-07-13T25:99:00', msk('2026-07-13T08:00:00')))
+      .toMatchObject({
+        ok: false,
+        code: 'order_time_invalid',
+        message: 'Некорректное время заказа.',
+      });
   });
 
   it('keeps ASAP tied to the current opening window', () => {
