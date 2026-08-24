@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { confirmationReminderDue, iikoFulfillmentPresentation } from './orderFulfillment';
+import {
+  chunkForIiko,
+  confirmationReminderDue,
+  iikoFulfillmentPresentation,
+  mergeIikoOrderCandidates,
+  recentUnclaimedOrderIds,
+  statusTrackingCutoff,
+} from './orderFulfillment';
 
 describe('iikoFulfillmentPresentation', () => {
   it('identifies client pickup', () => {
     expect(iikoFulfillmentPresentation({ orderServiceType: 'DeliveryByClient' })).toEqual({
       type: 'pickup',
-      emoji: '🛒',
+      emoji: '🛍',
       noun: 'самовывоз',
       pickupAddress: 'Дмитров, Промышленная улица, 20Б',
     });
@@ -22,6 +29,46 @@ describe('iikoFulfillmentPresentation', () => {
       emoji: '🚚',
       noun: 'доставка',
     });
+  });
+});
+
+describe('poller discovery boundaries', () => {
+  it('chunks iiko by-id requests at no more than 200 IDs', () => {
+    const ids = Array.from({ length: 401 }, (_, index) => `order-${index + 1}`);
+
+    expect(chunkForIiko(ids)).toEqual([
+      ids.slice(0, 200),
+      ids.slice(200, 400),
+      ids.slice(400),
+    ]);
+  });
+
+  it('selects unique recent successful order IDs that have no dedup claim', () => {
+    expect(recentUnclaimedOrderIds(
+      [
+        { detail: ' future-order ' },
+        { detail: 'claimed-order' },
+        { detail: 'future-order' },
+        { detail: null },
+      ],
+      new Set(['claimed-order']),
+    )).toEqual(['future-order']);
+  });
+
+  it('feeds date and creation-time discoveries through one duplicate-free candidate list', () => {
+    const byDate = [{ id: 'same', source: 'date' }, { id: 'date-only', source: 'date' }];
+    const byCreation = [{ id: 'same', source: 'log' }, { id: 'future-only', source: 'log' }];
+
+    expect(mergeIikoOrderCandidates(byDate, byCreation)).toEqual([
+      { id: 'same', source: 'date' },
+      { id: 'date-only', source: 'date' },
+      { id: 'future-only', source: 'log' },
+    ]);
+  });
+
+  it('ages persistently missing status IDs out after 30 days', () => {
+    expect(statusTrackingCutoff(new Date('2026-08-24T12:00:00.000Z')))
+      .toBe('2026-07-25T12:00:00.000Z');
   });
 });
 
