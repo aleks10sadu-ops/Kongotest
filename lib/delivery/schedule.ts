@@ -3,6 +3,8 @@
 // Вне графика заказ не принимается: гостю показывается расписание на сегодня,
 // сервер отклоняет попытку (409 delivery_closed) до создания заказа в iiko.
 
+import type { OrderTimingMode } from './types';
+
 type DayWindow = { from: [number, number]; to: [number, number] };
 
 // Ключи — как у Intl weekday short (en-US).
@@ -32,6 +34,68 @@ function moscowParts(now: Date): { weekday: string; minutes: number } {
 }
 
 const fmt = ([h, m]: [number, number]) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+export type OrderTimeValidation =
+  | { ok: true; requestedAt: Date; completeBefore: string | null }
+  | { ok: false; code: 'delivery_closed' | 'order_time_invalid' | 'order_time_past' | 'order_time_outside_schedule'; message: string };
+
+const LOCAL_ORDER_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+function windowForDate(date: string): DayWindow | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return null;
+  const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
+  if (day.toISOString().slice(0, 10) !== date) return null;
+  return SCHEDULE[['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day.getUTCDay()]] ?? null;
+}
+
+export function orderTimeSlots(date: string, now: Date = new Date()): string[] {
+  const window = windowForDate(date);
+  if (!window) return [];
+  const from = window.from[0] * 60 + window.from[1];
+  const to = window.to[0] * 60 + window.to[1];
+  const slots: string[] = [];
+  for (let minute = from; minute <= to; minute += 15) {
+    const time = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+    const candidate = new Date(`${date}T${time}:00+03:00`);
+    if (candidate.getTime() > now.getTime()) slots.push(time);
+  }
+  return slots;
+}
+
+export function validateOrderTime(
+  mode: OrderTimingMode,
+  custom: string | undefined,
+  now: Date = new Date(),
+): OrderTimeValidation {
+  if (mode === 'asap') {
+    return isDeliveryOpen(now)
+      ? { ok: true, requestedAt: now, completeBefore: null }
+      : { ok: false, code: 'delivery_closed', message: deliveryClosedMessage(now) };
+  }
+  const match = custom ? LOCAL_ORDER_TIME.exec(custom) : null;
+  if (!match) return { ok: false, code: 'order_time_invalid', message: 'Выберите дату и время заказа.' };
+  const date = `${match[1]}-${match[2]}-${match[3]}`;
+  const time = `${match[4]}:${match[5]}`;
+  const requestedAt = new Date(`${date}T${time}:${match[6] || '00'}+03:00`);
+  if (!windowForDate(date) || Number.isNaN(requestedAt.getTime())) {
+    return { ok: false, code: 'order_time_invalid', message: 'Некорректная дата заказа.' };
+  }
+  const window = windowForDate(date)!;
+  const minute = Number(match[4]) * 60 + Number(match[5]);
+  const from = window.from[0] * 60 + window.from[1];
+  const to = window.to[0] * 60 + window.to[1];
+  if (Number(match[6] || '0') !== 0 || (minute - from) % 15 !== 0) {
+    return { ok: false, code: 'order_time_invalid', message: 'Выберите время с шагом 15 минут.' };
+  }
+  if (requestedAt.getTime() <= now.getTime()) {
+    return { ok: false, code: 'order_time_past', message: 'Выбранное время уже прошло.' };
+  }
+  if (minute < from || minute > to) {
+    return { ok: false, code: 'order_time_outside_schedule', message: `Выберите время в интервале ${fmt(window.from)}–${fmt(window.to)}.` };
+  }
+  return { ok: true, requestedAt, completeBefore: `${date} ${time}:00.000` };
+}
 
 /** Открыт ли приём доставок прямо сейчас (или в переданный момент). Интервал [from, to). */
 export function isDeliveryOpen(now: Date = new Date()): boolean {

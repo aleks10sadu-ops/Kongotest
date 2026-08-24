@@ -2,6 +2,7 @@ import { iikoPost } from './client';
 import { getToken } from './auth';
 import { getIikoConfig } from './config';
 import { getAddressFormat, type AddressFormat } from './orgSettings';
+import type { FulfillmentType } from '../delivery/types';
 
 export interface SiteOrderModifier {
   productId: string;
@@ -15,31 +16,38 @@ export interface SiteOrderItem {
   modifiers: SiteOrderModifier[];
 }
 
-export interface CreateSiteDeliveryArgs {
+export interface CreateSiteOrderArgs {
+  fulfillmentType: FulfillmentType;
   phone: string;
   customerName: string;
   comment: string;
   /** локальное время ресторана в формате iiko: "yyyy-MM-dd HH:mm:ss.fff" */
   completeBefore?: string | null;
   items: SiteOrderItem[];
-  address: {
-    full: string;
-    /** весь адрес одной строкой (город, улица, дом, корпус) — для нового формата iiko (line1) */
-    line1: string;
-    city: string | null;
-    street: string | null;
-    /** реальный streetId из справочника iiko; при наличии передаётся вместо имени */
-    streetId?: string | null;
-    house: string | null;
-    building?: string | null;
-    entrance?: string | null;
-    floor?: string | null;
-    flat?: string | null;
-    doorphone?: string | null;
-    latitude: number | null;
-    longitude: number | null;
-  };
+  address?: SiteOrderAddress;
 }
+
+export interface SiteOrderAddress {
+  full: string;
+  /** весь адрес одной строкой (город, улица, дом, корпус) — для нового формата iiko (line1) */
+  line1: string;
+  city: string | null;
+  street: string | null;
+  /** реальный streetId из справочника iiko; при наличии передаётся вместо имени */
+  streetId?: string | null;
+  house: string | null;
+  building?: string | null;
+  entrance?: string | null;
+  floor?: string | null;
+  flat?: string | null;
+  doorphone?: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export type CreateSiteDeliveryArgs = Omit<CreateSiteOrderArgs, 'fulfillmentType'> & {
+  fulfillmentType?: 'delivery';
+};
 
 interface CreateDeliveryResponse {
   correlationId: string;
@@ -69,7 +77,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export function buildDeliveryAddress(
   format: AddressFormat,
-  address: CreateSiteDeliveryArgs['address'],
+  address: SiteOrderAddress,
 ): Record<string, unknown> {
   if (format === 'city') {
     return {
@@ -96,21 +104,13 @@ export function buildDeliveryAddress(
   };
 }
 
-/**
- * Создаёт доставку в iiko (источник «Сайт», курьерский тип заказа по умолчанию)
- * и дожидается результата создания. Бросает Error с причиной, если iiko отклонила заказ.
- */
-export async function createSiteDelivery(args: CreateSiteDeliveryArgs): Promise<{ orderId: string }> {
-  const { organizationId } = getIikoConfig();
-  const terminalGroupId = process.env.IIKO_TERMINAL_GROUP_ID;
-  if (!terminalGroupId) throw new Error('iiko config: missing env IIKO_TERMINAL_GROUP_ID');
+export function buildIikoOrder(args: CreateSiteOrderArgs, addressFormat: AddressFormat): Record<string, unknown> {
+  if (args.fulfillmentType === 'delivery' && !args.address) {
+    throw new Error('delivery address is required');
+  }
 
-  const token = await getToken();
-  const addressFormat = await getAddressFormat(token);
-
-  const order: Record<string, unknown> = {
-    // курьерская доставка ресторана: iiko возьмёт тип заказа по умолчанию этого режима
-    orderServiceType: 'DeliveryByCourier',
+  return {
+    orderServiceType: args.fulfillmentType === 'pickup' ? 'DeliveryByClient' : 'DeliveryByCourier',
     sourceKey: 'Сайт',
     ...(args.completeBefore ? { completeBefore: args.completeBefore } : {}),
     phone: args.phone,
@@ -126,15 +126,30 @@ export async function createSiteDelivery(args: CreateSiteDeliveryArgs): Promise<
         amount: m.amount,
       })),
     })),
-    deliveryPoint: {
-      ...(args.address.latitude != null && args.address.longitude != null
-        ? { coordinates: { latitude: args.address.latitude, longitude: args.address.longitude } }
-        : {}),
-      address: buildDeliveryAddress(addressFormat, args.address),
-      // курьеру — полный адрес с деталями (в city-формате детали не влезают в line1)
-      comment: args.address.full,
-    },
+    ...(args.fulfillmentType === 'delivery' && args.address ? {
+      deliveryPoint: {
+        ...(args.address.latitude != null && args.address.longitude != null
+          ? { coordinates: { latitude: args.address.latitude, longitude: args.address.longitude } }
+          : {}),
+        address: buildDeliveryAddress(addressFormat, args.address),
+        comment: args.address.full,
+      },
+    } : {}),
   };
+}
+
+/**
+ * Создаёт доставку в iiko (источник «Сайт», курьерский тип заказа по умолчанию)
+ * и дожидается результата создания. Бросает Error с причиной, если iiko отклонила заказ.
+ */
+export async function createSiteOrder(args: CreateSiteOrderArgs): Promise<{ orderId: string }> {
+  const { organizationId } = getIikoConfig();
+  const terminalGroupId = process.env.IIKO_TERMINAL_GROUP_ID;
+  if (!terminalGroupId) throw new Error('iiko config: missing env IIKO_TERMINAL_GROUP_ID');
+
+  const token = await getToken();
+  const addressFormat = args.fulfillmentType === 'delivery' ? await getAddressFormat(token) : 'legacy';
+  const order = buildIikoOrder(args, addressFormat);
 
   const created = await iikoPost<CreateDeliveryResponse>(
     '/api/1/deliveries/create',
@@ -159,4 +174,9 @@ export async function createSiteDelivery(args: CreateSiteDeliveryArgs): Promise<
   }
   // ponytail: не дождались статуса за 20с — считаем успехом, кассовый вебхук всё равно уведомит
   return { orderId };
+}
+
+/** Совместимый entry point для существующих курьерских заказов. */
+export function createSiteDelivery(args: CreateSiteDeliveryArgs): Promise<{ orderId: string }> {
+  return createSiteOrder({ ...args, fulfillmentType: 'delivery' });
 }

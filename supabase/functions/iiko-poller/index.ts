@@ -24,6 +24,18 @@
 // для авторизации v2 (опционально, но обязательно после отключения v1): IIKO_APP_ID, IIKO_APP_SECRET;
 // для терминала (опционально): RMS_URL, RMS_LOGIN, RMS_PASS_SHA1.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  chunkForIiko,
+  collectSupabasePages,
+  confirmationReminderDue,
+  formatIikoCompleteBefore,
+  IIKO_BY_ID_CHUNK_SIZE,
+  iikoFulfillmentPresentation,
+  mergeIikoOrderCandidates,
+  recentUnclaimedOrderIds,
+  SITE_ORDER_DISCOVERY_MAX_AGE_MS,
+  statusTrackingPage,
+} from '../_shared/orderFulfillment.ts';
 
 const IIKO = 'https://api-ru.iiko.services';
 const DASHES = /^[-–—\s]*$/; // iiko ставит улицу «----------», если не нашёл её в справочнике
@@ -104,13 +116,20 @@ function fmtAddress(ord: any): string {
 // и именно эта база хранится в orig_text для каскадных редактирований.
 function fmtBase(ord: any): string {
   const lines: string[] = [];
-  lines.push(`🆕 Доставка №${ord.number}`);
+  const fulfillment = iikoFulfillmentPresentation(ord);
+  lines.push(`${fulfillment.emoji} ${fulfillment.type === 'pickup' ? 'Новый самовывоз' : 'Новая доставка'} №${ord.number}`);
   if (ord.sourceKey) lines.push(`Источник: ${ord.sourceKey}`);
   if (ord.externalNumber) lines.push(`Внешний №: ${ord.externalNumber}`);
   const who = [ord.customer?.name, ord.phone].filter(Boolean).join(', ');
   if (who) lines.push(`Клиент: ${who}`);
-  const addr = fmtAddress(ord);
-  if (addr) lines.push(`Адрес: ${addr}`);
+  if (fulfillment.type === 'pickup') {
+    lines.push(`Забрать: ${fulfillment.pickupAddress}`);
+  } else {
+    const addr = fmtAddress(ord);
+    if (addr) lines.push(`Адрес: ${addr}`);
+  }
+  const when = formatIikoCompleteBefore(ord.completeBefore);
+  if (when) lines.push(`Ко времени: ${when}`);
   lines.push('');
   const items = ord.items || [];
   for (const it of items.slice(0, 25)) {
@@ -147,25 +166,82 @@ Deno.serve(async (req: Request) => {
     }, token);
     const pending = (resp.ordersByOrganizations || []).flatMap((o: any) => o.orders || []);
 
-    for (const o of pending) {
+    // completeBefore может быть далеко в будущем и потому не попасть в диапазон
+    // by_delivery_date_and_status. Журнал успешного создания даёт bounded
+    // creation-time discovery независимо от даты исполнения заказа.
+    const recentCreatedAfter = new Date(Date.now() - SITE_ORDER_DISCOVERY_MAX_AGE_MS).toISOString();
+    let recentLogs: Array<{ detail?: unknown }> = [];
+    try {
+      recentLogs = await collectSupabasePages(async (from, to) => {
+        const { data, error } = await sb.from('site_order_log')
+          .select('detail')
+          .eq('outcome', 'iiko_ok')
+          .gte('created_at', recentCreatedAfter)
+          .not('detail', 'is', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to);
+        if (error) throw new Error(error.message);
+        return data || [];
+      });
+    } catch (error) {
+      console.error('site_order_log discovery failed:', String(error));
+    }
+
+    const recentIds = recentUnclaimedOrderIds(recentLogs, new Set());
+    const dateCandidateIds = new Set(pending.map((o: any) => String(o?.id || '')).filter(Boolean));
+    const candidateSeedIds = Array.from(new Set([...dateCandidateIds, ...recentIds]));
+    const seenById = new Map<string, any>();
+    for (const ids of chunkForIiko(candidateSeedIds)) {
+      const { data: rows, error } = await sb.from('iiko_notified_orders').select('*').in('id', ids);
+      if (error) throw new Error(`dedup lookup failed: ${error.message}`);
+      for (const row of rows || []) seenById.set(String(row.id), row);
+    }
+
+    // Не запрашиваем by_id повторно для уже claimed строк и заказов, которые
+    // date/status discovery уже вернуло целиком.
+    const discoveredIds = recentUnclaimedOrderIds(recentLogs, new Set(seenById.keys()))
+      .filter((id) => !dateCandidateIds.has(id));
+    const creationTimeOrders: any[] = [];
+    for (const ids of chunkForIiko(discoveredIds)) {
+      const byId = await iikoPost('/api/1/deliveries/by_id', {
+        organizationId: orgId,
+        orderIds: ids,
+      }, token);
+      creationTimeOrders.push(...(byId.orders || []));
+    }
+    const candidates = mergeIikoOrderCandidates(pending, creationTimeOrders);
+
+    // Оба discovery-источника идут через один atomic claim/send/rollback path.
+    for (const o of candidates) {
       const ord = o.order;
       if (!ord || o.creationStatus !== 'Success' || ord.isDeleted) continue;
+      if (TERMINAL.includes(effStatus(ord))) continue;
       const external = Boolean(ord.externalNumber) || ord.sourceKey === 'Сайт';
       if (!external) continue;
 
-      const { data: seen } = await sb.from('iiko_notified_orders').select('*').eq('id', o.id).maybeSingle();
+      const seen = seenById.get(String(o.id));
       if (!seen) {
+        const { error } = await sb.from('iiko_notified_orders').insert({
+          id: o.id, number: ord.number, status: ord.status, last_status: ord.status,
+        });
+        if (error) {
+          if (error.code !== '23505') console.error('claim failed:', error.message);
+          continue;
+        }
+
         const base = fmtBase(ord);
         const j = await tgCall('sendMessage', { text: withStatus(base, ord.status), disable_web_page_preview: true });
         if (j.ok) {
-          await sb.from('iiko_notified_orders').insert({
-            id: o.id, number: ord.number, status: ord.status,
-            last_status: ord.status, tg_message_id: j.result.message_id, orig_text: base,
-          });
+          await sb.from('iiko_notified_orders').update({
+            tg_message_id: j.result.message_id, orig_text: base,
+          }).eq('id', o.id);
           sent++;
+        } else {
+          await sb.from('iiko_notified_orders').delete().eq('id', o.id).is('tg_message_id', null);
         }
       } else if (ord.status === 'Unconfirmed' && seen.remind_count === 0
-        && Date.now() - new Date(seen.notified_at).getTime() > 7 * 60 * 1000) {
+        && confirmationReminderDue({ completeBefore: ord.completeBefore, notifiedAt: seen.notified_at })) {
         const j = await tgCall('sendMessage', {
           text: `🔔 Заказ №${ord.number} всё ещё НЕ ПОДТВЕРЖДЁН!\nВисит больше 7 минут — подтвердите на кассе.`,
           ...(seen.tg_message_id ? { reply_to_message_id: seen.tg_message_id } : {}),
@@ -176,15 +252,37 @@ Deno.serve(async (req: Request) => {
 
     // --- 2. Каскадное обновление ранее уведомлённых (только облачные id:
     // rms-строки в deliveries/by_id нельзя — там не GUID) ---
-    const { data: tracked } = await sb.from('iiko_notified_orders')
-      .select('*').eq('finalized', false).not('tg_message_id', 'is', null)
-      .not('id', 'like', 'rms-%')
-      .gt('notified_at', new Date(Date.now() - 864e5).toISOString());
-    if (tracked && tracked.length) {
-      const st = await iikoPost('/api/1/deliveries/by_id', { organizationId: orgId, orderIds: tracked.map((t: any) => t.id) }, token);
-      const byId = new Map((st.orders || []).map((o: any) => [o.id, o]));
+    // Exact count + текущая UTC-минута выбирают одну стабильную страницу:
+    // нагрузка ограничена 200 строками/тик, но возраст заказа его не исключает.
+    const { count: trackedCount, error: trackedCountError } = await sb.from('iiko_notified_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('finalized', false).not('tg_message_id', 'is', null)
+      .not('id', 'like', 'rms-%');
+    if (trackedCountError) throw new Error(`tracking count failed: ${trackedCountError.message}`);
+
+    const selectedTrackingPage = statusTrackingPage(
+      trackedCount || 0,
+      Math.floor(Date.now() / 60_000),
+    );
+    let tracked: any[] = [];
+    if (selectedTrackingPage) {
+      const { data, error } = await sb.from('iiko_notified_orders')
+        .select('*').eq('finalized', false).not('tg_message_id', 'is', null)
+        .not('id', 'like', 'rms-%')
+        .order('notified_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(selectedTrackingPage.from, selectedTrackingPage.to);
+      if (error) throw new Error(`tracking lookup failed: ${error.message}`);
+      tracked = data || [];
+    }
+    if (tracked.length) {
+      const byId = new Map<string, any>();
+      for (const ids of chunkForIiko(tracked.map((t: any) => t.id))) {
+        const st = await iikoPost('/api/1/deliveries/by_id', { organizationId: orgId, orderIds: ids }, token);
+        for (const order of st.orders || []) byId.set(String(order.id), order);
+      }
       for (const t of tracked) {
-        const o: any = byId.get(t.id);
+        const o: any = byId.get(String(t.id));
         const ord = o?.order;
         if (!ord) continue;
         const status = effStatus(ord);
@@ -397,7 +495,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await sb.from('iiko_notified_orders').delete().lt('notified_at', new Date(Date.now() - 3 * 864e5).toISOString());
+    await sb.from('iiko_notified_orders').delete()
+      .eq('finalized', true)
+      .lt('notified_at', new Date(Date.now() - 3 * 864e5).toISOString());
     return new Response(JSON.stringify({ ok: true, pending: pending.length, sent, edited, rmsSent, rmsEdited }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('poller failed:', e);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useReducer } from 'react';
+import React, { useState, useEffect, useReducer, useRef } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -21,17 +21,67 @@ type DateTimePickerProps = {
     timeOnly?: boolean;
     dateOnly?: boolean;
     availableTimes?: string[] | null;
+    availableTimesForDate?: (date: string) => string[];
     todayOnly?: boolean;
     availableTimeRange?: AvailableTimeRange | null;
     disablePastDates?: boolean;
     isDateDisabled?: (date: string) => boolean;
     ariaLabel?: string;
+    useReservationRestrictions?: boolean;
 };
 
 type Restrictions = {
     dates: string[];
     times: Record<string, string[]>;
 };
+
+export function isPickerDateRestricted(
+    date: string,
+    restrictions: Restrictions,
+    useReservationRestrictions: boolean,
+): boolean {
+    return useReservationRestrictions && restrictions.dates.includes(date);
+}
+
+export function resolvePickerTimes(
+    date: string,
+    availableTimes: string[] | null,
+    provider?: (date: string) => string[],
+): string[] | null {
+    return provider ? provider(date) : availableTimes;
+}
+
+const CONTROLLED_LOCAL_DATETIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/;
+
+export function parseControlledPickerValue(value: string): { date: string; time: string } | null {
+    const match = CONTROLLED_LOCAL_DATETIME.exec(value);
+    if (!match) return null;
+    const [year, month, day] = match[1].split('-').map(Number);
+    const calendarDate = new Date(Date.UTC(year, month - 1, day, 12));
+    const validDate = calendarDate.getUTCFullYear() === year
+        && calendarDate.getUTCMonth() === month - 1
+        && calendarDate.getUTCDate() === day;
+    const hour = Number(match[2]);
+    const minute = Number(match[3]);
+    return validDate && hour < 24 && minute < 60
+        ? { date: match[1], time: `${match[2]}:${match[3]}` }
+        : null;
+}
+
+export function moscowDateString(now: Date = new Date()): string {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(now);
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+export function isBeforeMoscowToday(date: string, now: Date = new Date()): boolean {
+    return date < moscowDateString(now);
+}
 
 type Schedule = {
     start: string;
@@ -81,19 +131,23 @@ export default function DateTimePicker({
     timeOnly = false,
     dateOnly = false,
     availableTimes = null,
+    availableTimesForDate,
     todayOnly = false,
     availableTimeRange = null,
     disablePastDates = false,
     isDateDisabled,
     ariaLabel,
+    useReservationRestrictions = true,
 }: DateTimePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const now = new Date();
+    const todayInMoscow = moscowDateString(now);
     const [{ selectedDate, visibleMonth }, dispatchCalendarDate] = useReducer(calendarDateStateReducer, {
         selectedDate: '',
-        visibleMonth: formatLocalDate(now, 1),
+        visibleMonth: `${todayInMoscow.slice(0, 7)}-01`,
     });
     const [selectedTime, setSelectedTime] = useState('');
+    const pendingDateAfterValueClear = useRef<string | null>(null);
     const [restrictions, setRestrictions] = useState<Restrictions>({ dates: [], times: {} });
     // Default to 10:00 - 00:00 if not set, but will be overwritten by DB
     const [standardSchedule, setStandardSchedule] = useState<Schedule>({ start: '10:00', end: '00:00' });
@@ -101,6 +155,11 @@ export default function DateTimePicker({
 
     // Загружаем ограничения при монтировании
     useEffect(() => {
+        if (!useReservationRestrictions) {
+            setRestrictions({ dates: [], times: {} });
+            return;
+        }
+
         const fetchRestrictions = async () => {
             try {
                 const supabase = createSupabaseBrowserClient() as any;
@@ -146,7 +205,7 @@ export default function DateTimePicker({
             }
         };
         fetchRestrictions();
-    }, []);
+    }, [useReservationRestrictions]);
 
     // Парсим начальное значение
     useEffect(() => {
@@ -159,30 +218,38 @@ export default function DateTimePicker({
                 dispatchCalendarDate({ type: 'sync', date: value });
             } else {
                 // Для полного datetime
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                    dispatchCalendarDate({ type: 'sync', date: date.toISOString().split('T')[0] });
+                const parsed = parseControlledPickerValue(value);
+                if (parsed) {
+                    dispatchCalendarDate({ type: 'sync', date: parsed.date });
                     if (showTime) {
-                        setSelectedTime(date.toTimeString().slice(0, 5));
+                        setSelectedTime(parsed.time);
                     }
                 }
             }
         } else if (todayOnly && !dateOnly && !timeOnly) {
             // Для todayOnly автоматически устанавливаем сегодняшнюю дату
-            // Используем локальное время для согласованности с сервером
-            const now = new Date();
-            const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-            dispatchCalendarDate({ type: 'sync', date: today });
+            dispatchCalendarDate({ type: 'sync', date: moscowDateString() });
         }
     }, [value, showTime, timeOnly, dateOnly, todayOnly]);
 
     // Синхронизируем внутреннее состояние с внешним значением
     useEffect(() => {
         if (!value) {
+            if (pendingDateAfterValueClear.current) {
+                pendingDateAfterValueClear.current = null;
+                setSelectedTime('');
+                return;
+            }
             dispatchCalendarDate({ type: 'sync', date: '' });
             setSelectedTime('');
         }
     }, [value]);
+
+    useEffect(() => {
+        if (value && pendingDateAfterValueClear.current) {
+            pendingDateAfterValueClear.current = null;
+        }
+    });
 
     // Обновляем времена когда меняются availableTimes или selectedDate
     useEffect(() => {
@@ -242,7 +309,8 @@ export default function DateTimePicker({
 
     // Генерируем доступные временные интервалы
     const generateTimeSlots = (): string[] => {
-        if (availableTimes) return availableTimes;
+        const resolvedTimes = resolvePickerTimes(selectedDate, availableTimes, availableTimesForDate);
+        if (resolvedTimes !== null) return resolvedTimes;
 
         if (availableTimeRange) {
             const { start, end, interval = 60 } = availableTimeRange;
@@ -373,7 +441,7 @@ export default function DateTimePicker({
                         onClick={() => setIsOpen(false)}
                     />
                     <div
-                        className="absolute top-full left-0 right-0 z-50 mt-1 bg-neutral-800 border border-neutral-600 rounded-lg shadow-xl max-h-96 overflow-hidden"
+                        className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-neutral-600 bg-neutral-800 shadow-xl"
                         style={timeOnly ? undefined : { minWidth: 'min(320px, calc(100vw - 2rem))' }}
                     >
                         {/* Календарь (показывается для dateOnly и полного режима) */}
@@ -419,9 +487,11 @@ export default function DateTimePicker({
                                         const dayDate = day.getDate().toString().padStart(2, '0');
                                         const dayFormatted = `${dayYear}-${dayMonth}-${dayDate}`;
                                         const isSelected = selectedDate === dayFormatted;
-                                        const isToday = day.toDateString() === new Date().toDateString();
-                                        const isRestricted = restrictions.dates.includes(dayFormatted);
-                                        const isDisabled = (min && day < new Date(min)) || (max && day > new Date(max)) || (todayOnly && !isToday) || (disablePastDates && day.getTime() < new Date().setHours(0, 0, 0, 0)) || isRestricted || Boolean(isDateDisabled?.(dayFormatted));
+                                        const isToday = dayFormatted === todayInMoscow;
+                                        const isRestricted = isPickerDateRestricted(dayFormatted, restrictions, useReservationRestrictions);
+                                        const minDate = min?.slice(0, 10);
+                                        const maxDate = max?.slice(0, 10);
+                                        const isDisabled = Boolean((minDate && dayFormatted < minDate) || (maxDate && dayFormatted > maxDate) || (todayOnly && !isToday) || (disablePastDates && isBeforeMoscowToday(dayFormatted, now)) || isRestricted || isDateDisabled?.(dayFormatted));
 
                                         return (
                                             <button
@@ -435,6 +505,11 @@ export default function DateTimePicker({
                                                         const month = (day.getMonth() + 1).toString().padStart(2, '0');
                                                         const date = day.getDate().toString().padStart(2, '0');
                                                         const newDate = `${year}-${month}-${date}`;
+                                                        if (newDate !== selectedDate && showTime && !dateOnly && !timeOnly) {
+                                                            pendingDateAfterValueClear.current = newDate;
+                                                            setSelectedTime('');
+                                                            onChange('');
+                                                        }
                                                         dispatchCalendarDate({ type: 'select', date: newDate });
                                                         if (dateOnly) {
                                                             updateValue(newDate);
@@ -476,7 +551,7 @@ export default function DateTimePicker({
                                         // Для бронирования столов не применяем дополнительную фильтрацию времени
                                         // availableTimes уже содержит правильную логику фильтрации
                                         const restrictedTimesForDate = restrictions.times[selectedDate] || [];
-                                        const isTimeDisabled = restrictedTimesForDate.includes(time);
+                                        const isTimeDisabled = useReservationRestrictions && restrictedTimesForDate.includes(time);
 
                                         return (
                                             <button

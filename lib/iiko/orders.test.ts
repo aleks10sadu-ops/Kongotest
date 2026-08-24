@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildDeliveryAddress, type CreateSiteDeliveryArgs } from './orders';
+import {
+  buildDeliveryAddress,
+  buildIikoOrder,
+  type CreateSiteOrderArgs,
+  type SiteOrderAddress,
+} from './orders';
 
-const base: CreateSiteDeliveryArgs['address'] = {
+const base: SiteOrderAddress = {
   full: 'Дмитров, Промышленная, д. 28, корп. 2, подъезд 1, этаж 5, кв. 12',
   line1: 'Дмитров, Промышленная, д. 28, корп. 2',
   city: 'Дмитров',
@@ -16,6 +21,31 @@ const base: CreateSiteDeliveryArgs['address'] = {
   latitude: 56.3,
   longitude: 37.5,
 };
+
+const baseOrder: Omit<CreateSiteOrderArgs, 'fulfillmentType' | 'address'> = {
+  phone: '+79161112233',
+  customerName: 'Анна',
+  comment: 'ЗАКАЗ С САЙТА',
+  completeBefore: '2026-07-17 19:30:00.000',
+  items: [{ productId: 'dish-guid', amount: 1, modifiers: [] }],
+};
+
+describe('buildIikoOrder', () => {
+  it('keeps the courier service and delivery point for delivery', () => {
+    const order = buildIikoOrder({ ...baseOrder, fulfillmentType: 'delivery', address: base }, 'legacy');
+    expect(order).toMatchObject({
+      orderServiceType: 'DeliveryByCourier',
+      completeBefore: '2026-07-17 19:30:00.000',
+      deliveryPoint: { address: { type: 'legacy' } },
+    });
+  });
+
+  it('uses DeliveryByClient and omits deliveryPoint for pickup', () => {
+    const order = buildIikoOrder({ ...baseOrder, fulfillmentType: 'pickup' }, 'legacy');
+    expect(order).toMatchObject({ orderServiceType: 'DeliveryByClient' });
+    expect(order).not.toHaveProperty('deliveryPoint');
+  });
+});
 
 describe('buildDeliveryAddress (legacy)', () => {
   it('шлёт разбитый адрес со streetId и деталями', () => {

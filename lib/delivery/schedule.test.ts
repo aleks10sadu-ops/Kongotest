@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { isDeliveryOpen, todayDeliveryWindowText, deliveryClosedMessage } from './schedule';
+import {
+  isDeliveryOpen,
+  todayDeliveryWindowText,
+  deliveryClosedMessage,
+  orderTimeSlots,
+  validateOrderTime,
+} from './schedule';
 
 // Хелпер: московское время → Date (МСК = UTC+3, без перехода на летнее время).
 const msk = (iso: string) => new Date(`${iso}+03:00`);
@@ -45,5 +51,54 @@ describe('todayDeliveryWindowText', () => {
 describe('deliveryClosedMessage', () => {
   it('содержит расписание сегодняшнего дня', () => {
     expect(deliveryClosedMessage(msk('2026-07-19T09:00:00'))).toContain('13:00–21:45');
+  });
+});
+
+describe('scheduled order slots', () => {
+  it('uses 15-minute slots and includes the closing boundary', () => {
+    const slots = orderTimeSlots('2026-07-13', msk('2026-07-12T10:00:00'));
+    expect(slots[0]).toBe('12:00');
+    expect(slots[1]).toBe('12:15');
+    expect(slots.at(-1)).toBe('21:45');
+  });
+
+  it('uses the later Friday closing boundary', () => {
+    expect(orderTimeSlots('2026-07-17', msk('2026-07-16T10:00:00')).at(-1)).toBe('23:00');
+  });
+
+  it('removes elapsed slots for today without hiding future days', () => {
+    const now = msk('2026-07-13T12:07:00');
+    expect(orderTimeSlots('2026-07-13', now)[0]).toBe('12:15');
+    expect(orderTimeSlots('2026-07-14', now)[0]).toBe('12:00');
+  });
+});
+
+describe('validateOrderTime', () => {
+  it('accepts a future scheduled order while the restaurant is currently closed', () => {
+    const result = validateOrderTime('custom', '2026-07-13T12:30:00', msk('2026-07-13T08:00:00'));
+    expect(result).toMatchObject({ ok: true, completeBefore: '2026-07-13 12:30:00.000' });
+  });
+
+  it('rejects past and outside-schedule timestamps', () => {
+    expect(validateOrderTime('custom', '2026-07-13T12:00:00', msk('2026-07-13T12:01:00')))
+      .toMatchObject({ ok: false, code: 'order_time_past' });
+    expect(validateOrderTime('custom', '2026-07-13T22:00:00', msk('2026-07-13T08:00:00')))
+      .toMatchObject({ ok: false, code: 'order_time_outside_schedule' });
+  });
+
+  it('rejects seconds and minutes that are not on the 15-minute opening grid', () => {
+    const now = msk('2026-07-13T08:00:00');
+
+    expect(validateOrderTime('custom', '2026-07-13T12:07:59', now))
+      .toMatchObject({ ok: false, code: 'order_time_invalid' });
+    expect(validateOrderTime('custom', '2026-07-13T12:15:01', now))
+      .toMatchObject({ ok: false, code: 'order_time_invalid' });
+  });
+
+  it('keeps ASAP tied to the current opening window', () => {
+    expect(validateOrderTime('asap', undefined, msk('2026-07-13T11:59:00')))
+      .toMatchObject({ ok: false, code: 'delivery_closed' });
+    expect(validateOrderTime('asap', undefined, msk('2026-07-13T12:00:00')))
+      .toMatchObject({ ok: true, completeBefore: null });
   });
 });

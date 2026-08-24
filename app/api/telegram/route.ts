@@ -4,6 +4,7 @@ import { formatBookingTelegram } from '@/lib/booking/formatTelegram';
 import { visibleModifiers } from '@/lib/booking/modifiers';
 import { logOrderAttempt } from '@/lib/delivery/orderLog';
 import { getStopListProductIds } from '@/lib/iiko/stopList';
+import { SITE } from '@/app/components/forest/site';
 
 const TG_API = (token: string) => `https://api.telegram.org/bot${token}/sendMessage`;
 
@@ -30,6 +31,20 @@ function formatMoscowTime(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function formatOrderTime(value: string): string {
+  const local = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (local) {
+    const date = new Date(`${local[1]}-${local[2]}-${local[3]}T12:00:00`);
+    const localDate = date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).replace(/\s*г\.$/, '');
+    return `${localDate} г. в ${local[4]}:${local[5]}`;
+  }
+  return formatMoscowTime(value);
 }
 
 interface OrderItem {
@@ -70,6 +85,7 @@ interface BookingPayload extends BasePayload {
 
 interface DeliveryPayload extends BasePayload {
   type: 'delivery';
+  fulfillmentType?: 'delivery' | 'pickup';
   address: string;
   allergy?: string;
   items?: OrderItem[];
@@ -118,6 +134,11 @@ export function buildMessage(payload: TelegramPayload): string {
       paymentMethod,
       changeAmount
     } = payload;
+    const isPickup = payload.fulfillmentType === 'pickup';
+    const fulfillmentLabel = isPickup ? 'Самовывоз' : 'Доставка';
+    const locationLine = isPickup
+      ? `<b>Забрать по адресу:</b> ${escapeHtml(SITE.address)}\n`
+      : `<b>Адрес доставки:</b> ${escapeHtml(address)}\n`;
 
     // Формируем список позиций, включая доставку если она платная
     const allItems = [...items];
@@ -144,7 +165,7 @@ export function buildMessage(payload: TelegramPayload): string {
     if (deliveryTime === 'asap') {
       deliveryTimeInfo = 'Как можно быстрее';
     } else if (deliveryTime === 'custom' && deliveryTimeCustom) {
-      deliveryTimeInfo = formatMoscowTime(deliveryTimeCustom);
+      deliveryTimeInfo = formatOrderTime(deliveryTimeCustom);
     }
 
     // Форматирование способа оплаты
@@ -167,11 +188,11 @@ export function buildMessage(payload: TelegramPayload): string {
     }
 
     return (
-      `<b>🟦 Заявка: Доставка</b>\n` +
+      `<b>🟦 Заявка: ${fulfillmentLabel}</b>\n` +
       `<b>Имя:</b> ${escapeHtml(name)}\n` +
       `<b>Телефон:</b> ${escapeHtml(phone)}\n` +
-      `<b>Адрес:</b> ${escapeHtml(address)}\n` +
-      `<b>Время доставки:</b> ${deliveryTimeInfo}\n` +
+      locationLine +
+      `<b>Время ${isPickup ? 'самовывоза' : 'доставки'}:</b> ${deliveryTimeInfo}\n` +
       `<b>Оплата:</b> ${paymentInfo}\n` +
       (comment ? `<b>Комментарий:</b> ${escapeHtml(comment)}\n` : '') +
       (allergy ? `<b>⚠️ ${escapeHtml(allergy)}</b>\n` : '') +
