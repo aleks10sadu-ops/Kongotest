@@ -30,6 +30,11 @@ describe('validateMinOrder', () => {
     it('уважает переданный subtotal, если он есть', () => {
         expect(validateMinOrder([dish(400)], 1200).isValid).toBe(true);
     });
+
+    it('использует формулировку самовывоза для pickup', () => {
+        expect(validateMinOrder([{ id: 'dish', qty: 1, price: 999 }], undefined, null, 'pickup').message)
+            .toBe('Минимальный заказ на самовывоз — 1 000 ₽ или от 2 бизнес-ланчей.');
+    });
 });
 
 describe('validateMinOrder с зоной доставки', () => {

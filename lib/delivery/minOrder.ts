@@ -4,6 +4,8 @@
 //   исключение с бизнес-ланчами там не действует.
 // Используется в корзине (кнопка «Доставка»), в чекауте и на сервере в /api/orders.
 
+import type { FulfillmentType } from './types';
+
 export const MIN_ORDER_TOTAL = 1000;
 export const MIN_BUSINESS_LUNCH_COUNT = 2;
 
@@ -41,25 +43,27 @@ export function validateMinOrder(
     items: MinOrderItem[],
     subtotal?: number,
     zone?: MinOrderZone | null,
+    fulfillmentType: FulfillmentType = 'delivery',
 ): MinOrderValidation {
     const total = subtotal ?? items.reduce((s, i) => s + i.qty * i.price, 0);
     const businessLunchCount = items
         .filter(isBusinessLunchItem)
         .reduce((s, i) => s + i.qty, 0);
 
-    const paidZone = !!zone && zone.price > 0;
-    const required = zone ? zone.minOrder : MIN_ORDER_TOTAL;
+    const paidZone = fulfillmentType === 'delivery' && !!zone && zone.price > 0;
+    const required = fulfillmentType === 'delivery' && zone ? zone.minOrder : MIN_ORDER_TOTAL;
     // Исключение «от 2 бизнес-ланчей» действует только в бесплатной зоне
     // (и пока зона не определена — финальную проверку делает сервер).
     const lunchException = !paidZone && businessLunchCount >= MIN_BUSINESS_LUNCH_COUNT;
 
     const isValid = total >= required || lunchException;
 
+    const subject = fulfillmentType === 'pickup' ? 'самовывоз' : 'доставку';
     const message = isValid
         ? null
         : paidZone
             ? `В зоне «${zone!.name}» минимальный заказ на доставку — ${required.toLocaleString('ru-RU')} ₽ (без учёта стоимости доставки).`
-            : `Минимальный заказ на доставку — ${MIN_ORDER_TOTAL.toLocaleString('ru-RU')} ₽ или от ${MIN_BUSINESS_LUNCH_COUNT} бизнес-ланчей.`;
+            : `Минимальный заказ на ${subject} — ${MIN_ORDER_TOTAL.toLocaleString('ru-RU')} ₽ или от ${MIN_BUSINESS_LUNCH_COUNT} бизнес-ланчей.`;
 
     return {
         isValid,
