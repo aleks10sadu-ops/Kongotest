@@ -194,6 +194,52 @@ describe2('mapExternalMenu — business split + modifiers', () => {
     const option = staleModifierMenu.business!.categories[0].items[0].modifierGroups![0].options[0];
     expect2(option.name).toBe('Паста Пене с митболами (свин/говяд) (БЕЗ ГАРНИРА)');
   });
+
+  it2('shows the current meatball soup name for the confirmed iiko modifier id', () => {
+    const menu = mapExternalMenu({
+      itemCategories: [{
+        id: 'cat-bl',
+        name: 'БИЗНЕС ЛАНЧ',
+        items: [{
+          itemId: 'set1',
+          name: 'Сет №1',
+          itemSizes: [{
+            prices: [{ organizationId: 'o', price: 580 }],
+            itemModifierGroups: [{
+              name: 'Суп на сегодня',
+              itemGroupId: '517ba408-db0b-4855-a826-234fee9eae46',
+              items: [
+                {
+                  itemId: '799d8622-36db-42a2-9684-c1de2103b9b5',
+                  name: 'Суп фасолевый с говядиной',
+                  prices: [{ organizationId: 'o', price: 0 }],
+                },
+                {
+                  itemId: 'ce345bce-9571-42ec-8065-0c864507f8a6',
+                  name: 'Окрошка на квасе с ветчиной',
+                  prices: [{ organizationId: 'o', price: 0 }],
+                },
+              ],
+            }],
+          }],
+        }],
+      }],
+    } as any);
+
+    const soups = menu.business!.categories[0].items[0].modifierGroups![0].options;
+    expect2(soups).toEqual([
+      {
+        id: '799d8622-36db-42a2-9684-c1de2103b9b5',
+        name: 'Суп с фрикадельками',
+        price: 0,
+      },
+      {
+        id: 'ce345bce-9571-42ec-8065-0c864507f8a6',
+        name: 'Окрошка на квасе с ветчиной',
+        price: 0,
+      },
+    ]);
+  });
 });
 
 import { mapExternalMenu as _mapForBread } from './mapMenu';

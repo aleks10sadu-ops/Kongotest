@@ -24,9 +24,17 @@ const BREAD_RE = /хлеб/i;
 const NO_GARNISH_MODIFIER_IDS = new Set([
   '233bcd77-41ed-4360-a105-5dd4cfe7d42f',
 ]);
+// В номенклатуре iiko эта позиция уже переименована, но опубликованный снимок
+// внешнего меню может ещё отдавать прежнее название. ID и группа не менялись,
+// поэтому нормализуем только подпись, сохраняя валидную связку заказа с iiko.
+const MODIFIER_NAME_OVERRIDES = new Map([
+  ['799d8622-36db-42a2-9684-c1de2103b9b5', 'Суп с фрикадельками'],
+]);
 const NO_GARNISH_RE = /(?:^|[^а-яё])без\s+гарнира(?:$|[^а-яё])/i;
 
 function modifierName(item: { itemId?: string; name: string }): string {
+  const override = item.itemId ? MODIFIER_NAME_OVERRIDES.get(item.itemId) : undefined;
+  if (override) return override;
   const name = item.name.trim();
   return item.itemId && NO_GARNISH_MODIFIER_IDS.has(item.itemId) && !NO_GARNISH_RE.test(name)
     ? `${name} (БЕЗ ГАРНИРА)`
