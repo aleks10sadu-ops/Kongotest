@@ -27,6 +27,13 @@ export async function submitCheckoutOrder(
     fetcher: typeof fetch = fetch,
     fallbackPayload: Record<string, unknown> = payload,
 ): Promise<CheckoutSubmissionResult> {
+    if (payload.fulfillmentType !== 'pickup' &&
+        (typeof payload.zoneName !== 'string' || !payload.zoneName.trim())) {
+        return {
+            ok: false,
+            message: 'Не удалось определить зону доставки. Уточните адрес или выберите точку на карте.',
+        };
+    }
     let response: Response;
     try {
         response = await fetcher('/api/orders', {

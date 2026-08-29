@@ -27,6 +27,27 @@ describe('telegram booking API message boundary', () => {
 });
 
 describe('telegram delivery fallback formatting', () => {
+  it.each([
+    ['Зона 400₽', 400],
+    ['Бесплатная доставка', 0],
+  ])('includes the resolved delivery zone %s', (zoneName, deliveryPrice) => {
+    const message = buildMessage({
+      type: 'delivery',
+      fulfillmentType: 'delivery',
+      name: 'Ксения',
+      phone: '+79253207589',
+      address: 'Дмитров, Новосиньковское, д. 41',
+      items: [{ name: 'Блюдо', qty: 1, price: 1000 }],
+      zoneName,
+      deliveryPrice,
+      total: 1000 + deliveryPrice,
+      deliveryTime: 'asap',
+      paymentMethod: 'card',
+    });
+
+    expect(message).toContain(`<b>Зона доставки:</b> ${zoneName}`);
+  });
+
   it('formats pickup without a courier address', () => {
     const message = buildMessage({
       type: 'delivery',

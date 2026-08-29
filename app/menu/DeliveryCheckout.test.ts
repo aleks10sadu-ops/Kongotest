@@ -22,6 +22,18 @@ const response = (status: number, body: Record<string, unknown>) =>
   });
 
 describe('DeliveryCheckout order boundary', () => {
+  it('does not submit a delivery before its zone is resolved', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(200, { ok: true }));
+
+    const result = await submitCheckoutOrder({ fulfillmentType: 'delivery' }, fetcher);
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'Не удалось определить зону доставки. Уточните адрес или выберите точку на карте.',
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('shows a schedule rejection without Telegram fallback or success', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(409, {
       ok: false,

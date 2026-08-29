@@ -128,6 +128,34 @@ describe('POST /api/orders fulfillment boundary', () => {
     }));
   });
 
+  it('rejects a delivery when the server cannot resolve its zone', async () => {
+    const response = await POST(makeReq({
+      fulfillmentType: 'delivery',
+      name: 'Ксения',
+      phone: '+79253207589',
+      address: 'Дмитров, Новосиньковское, д. 41',
+      items: [{
+        id: 'ordinary-guid',
+        name: 'Обычное недорогое блюдо',
+        qty: 3,
+        price: 400,
+        productId: 'ordinary-guid',
+      }],
+      subtotal: 1200,
+      deliveryPrice: 400,
+      total: 1600,
+      deliveryTime: 'custom',
+      deliveryTimeCustom: '2026-07-13T15:30:00',
+    }) as never);
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'delivery_zone_unknown',
+    });
+    expect(mocks.createSiteOrder).not.toHaveBeenCalled();
+  });
+
   it('returns HTTP 400 for an unknown fulfillment type before external calls', async () => {
     const response = await POST(makeReq({
       fulfillmentType: 'table',

@@ -90,6 +90,7 @@ interface DeliveryPayload extends BasePayload {
   allergy?: string;
   items?: OrderItem[];
   subtotal?: number;
+  zoneName?: string;
   deliveryPrice?: number;
   total?: number;
   deliveryTime?: 'asap' | 'custom';
@@ -127,6 +128,7 @@ export function buildMessage(payload: TelegramPayload): string {
       comment,
       allergy,
       items = [],
+      zoneName,
       deliveryPrice = 0,
       total = 0,
       deliveryTime,
@@ -192,6 +194,7 @@ export function buildMessage(payload: TelegramPayload): string {
       `<b>Имя:</b> ${escapeHtml(name)}\n` +
       `<b>Телефон:</b> ${escapeHtml(phone)}\n` +
       locationLine +
+      (!isPickup && zoneName ? `<b>Зона доставки:</b> ${escapeHtml(zoneName)}\n` : '') +
       `<b>Время ${isPickup ? 'самовывоза' : 'доставки'}:</b> ${deliveryTimeInfo}\n` +
       `<b>Оплата:</b> ${paymentInfo}\n` +
       (comment ? `<b>Комментарий:</b> ${escapeHtml(comment)}\n` : '') +

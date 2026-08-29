@@ -266,6 +266,14 @@ export async function POST(req: NextRequest) {
       : ((Array.isArray(p.coordinates) && p.coordinates.length === 2
           ? checkDeliveryZoneForCoords(p.coordinates)
           : null) ?? findZoneByName(p.zoneName));
+    if (preflight.fulfillmentType === 'delivery' && !zone) {
+      const message = 'Не удалось определить зону доставки. Уточните адрес или выберите точку на карте.';
+      await logOrderAttempt({ outcome: 'bad_request', detail: message, ...logTail });
+      return NextResponse.json(
+        { ok: false, error: 'delivery_zone_unknown', message },
+        { status: 422 },
+      );
+    }
     const serverSubtotal = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
     const serverDeliveryPrice = preflight.fulfillmentType === 'pickup' ? 0 : (zone?.price ?? 0);
     logTail = {
